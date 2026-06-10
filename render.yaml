@@ -56,11 +56,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: breakoutintel-api
-          property: host
-          envVarKey: NEXT_PUBLIC_API_URL
+  value: https://breakoutintel-api.onrender.com
       - key: NEXT_PUBLIC_APP_NAME
         value: BreakoutIntel
 
