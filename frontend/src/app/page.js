@@ -42,8 +42,25 @@ export default function Home() {
         </div>
       )}
 
-      <h2>Market Status</h2>
-      <p>{marketStatus}</p>
+     <h2>Market Status</h2>
+
+<div>
+  <p>
+    {marketStatus?.marketStatusMessage || 'Unknown'}
+  </p>
+
+  <p>
+    Market: {marketStatus?.market || '-'}
+  </p>
+
+  <p>
+    Last: {marketStatus?.last || '-'}
+  </p>
+
+  <p>
+    Change: {marketStatus?.percentChange || 0}%
+  </p>
+  </div>
 
       <hr />
 
