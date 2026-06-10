@@ -143,9 +143,9 @@ async function start() {
 
     console.log('[PostgreSQL] Connected');
 
-    market = new MarketDataService();
-    scanner = new ScannerService();
-    wss = new WebSocketServer(server);
+market = new MarketDataService(redis);
+scanner = new ScannerService(redis);
+wss = new WebSocketServer(server, redis);
 
     const PORT = process.env.PORT || 4000;
 
