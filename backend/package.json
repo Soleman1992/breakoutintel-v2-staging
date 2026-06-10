@@ -1,0 +1,33 @@
+{
+  "name": "breakoutintel-backend",
+  "version": "1.0.0",
+  "description": "BreakoutIntel NSE/BSE Market Data Backend",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "worker": "node src/worker.js",
+    "db:migrate": "node src/models/migrate.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.1",
+    "redis": "^4.6.14",
+    "pg": "^8.12.0",
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0",
+    "node-cron": "^3.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^7.3.1",
+    "dotenv": "^16.4.5",
+    "winston": "^3.13.0",
+    "@anthropic-ai/sdk": "^0.24.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
