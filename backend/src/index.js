@@ -167,9 +167,10 @@ async function start() {
     const PORT = process.env.PORT || 4000;
 
     server.listen(PORT, () => {
-      console.log(`BreakoutIntel Backend running on ${PORT}`);
-      console.log(`Health: /health`);
+      console.log('BreakoutIntel Backend running on ' + PORT);
+      console.log('Health: /health');
     });
+
   } catch (err) {
     console.error('[Startup Error]', err);
     process.exit(1);
@@ -177,4 +178,4 @@ async function start() {
 }
 
 start();
-```
+
