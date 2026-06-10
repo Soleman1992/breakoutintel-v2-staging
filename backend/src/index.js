@@ -107,11 +107,15 @@ app.get('/scanner/results', async (req, res) => {
 });
 
 // Quote
+// Quote
 app.get('/market/quote/:symbol', async (req, res) => {
   try {
-    const symbol = req.params.symbol.endsWith('.NS')
-      ? req.params.symbol
-      : `${req.params.symbol}.NS`;
+
+    let symbol = req.params.symbol;
+
+    if (!symbol.endsWith('.NS')) {
+      symbol = symbol + '.NS';
+    }
 
     const data = await market.fetchYahooQuote(symbol);
 
@@ -119,6 +123,7 @@ app.get('/market/quote/:symbol', async (req, res) => {
       ok: true,
       data,
     });
+
   } catch (e) {
     res.status(500).json({
       ok: false,
@@ -126,7 +131,6 @@ app.get('/market/quote/:symbol', async (req, res) => {
     });
   }
 });
-
 // Portfolio
 app.get('/portfolio/:userId', async (req, res) => {
   try {
