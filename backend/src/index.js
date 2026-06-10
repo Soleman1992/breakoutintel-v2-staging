@@ -1,3 +1,4 @@
+```js
 require('dotenv').config();
 
 const express = require('express');
@@ -7,6 +8,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
+const { createClient } = require('redis');
 
 const WebSocketServer = require('./services/websocket');
 const MarketDataService = require('./services/marketData');
@@ -21,6 +23,15 @@ const db = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
+});
+
+// Redis
+const redis = createClient({
+  url: process.env.REDIS_URL,
+});
+
+redis.on('error', (err) => {
+  console.error('[Redis Error]', err);
 });
 
 // Middleware
@@ -139,13 +150,15 @@ app.get('/portfolio/:userId', async (req, res) => {
 // Start Server
 async function start() {
   try {
-    await db.connect();
+    await redis.connect();
+    console.log('[Redis] Connected');
 
+    await db.connect();
     console.log('[PostgreSQL] Connected');
 
-market = new MarketDataService(redis);
-scanner = new ScannerService(redis);
-wss = new WebSocketServer(server, redis);
+    market = new MarketDataService(redis);
+    scanner = new ScannerService(redis);
+    wss = new WebSocketServer(server, redis);
 
     const PORT = process.env.PORT || 4000;
 
@@ -160,3 +173,4 @@ wss = new WebSocketServer(server, redis);
 }
 
 start();
+```
