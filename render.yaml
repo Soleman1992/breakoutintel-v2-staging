@@ -15,7 +15,7 @@
 # For 100% free persistent hosting: use Railway ($5 trial) or Oracle Free Tier VPS
 
 services:
-  # ── Backend API ─────────────────────────────────────────────────────────────
+  # Backend API 
   - type: web
     name: breakoutintel-api
     env: node
@@ -44,7 +44,7 @@ services:
       - key: SCAN_INTERVAL_MS
         value: 45000
 
-  # ── Frontend ──────────────────────────────────────────────────────────────
+  # Frontend 
   - type: web
     name: breakoutintel-frontend
     env: node
@@ -60,7 +60,7 @@ services:
       - key: NEXT_PUBLIC_APP_NAME
         value: BreakoutIntel
 
-  # ── Worker (scanner runs as background job) ───────────────────────────────
+  # Worker (scanner runs as background job) 
   - type: worker
     name: breakoutintel-worker
     env: node
@@ -81,7 +81,7 @@ services:
         value: 45000
 
 databases:
-  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  # PostgreSQL 
   - name: breakoutintel-db
     databaseName: breakoutintel
     user: biuser
