@@ -15,23 +15,38 @@ const ScannerService = require('./services/scanner');
 const app = express();
 const server = http.createServer(app);
 
-// Database
+// PostgreSQL
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
+
 app.use(compression());
-app.use(cors({
-  origin: '*',
-  credentials: true,
-}));
+
+app.use(
+  cors({
+    origin: '*',
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: '1mb' }));
-app.use(rateLimit({
-  windowMs: 60000,
-  max: 100,
-}));
+
+app.use(
+  rateLimit({
+    windowMs: 60000,
+    max: 100,
+  })
+);
 
 let market;
 let scanner;
@@ -46,23 +61,37 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Snapshot
+// Dashboard Snapshot
 app.get('/market/snapshot', async (req, res) => {
   try {
     const data = await market.getDashboardSnapshot();
-    res.json({ ok: true, data });
+
+    res.json({
+      ok: true,
+      data,
+    });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(500).json({
+      ok: false,
+      error: e.message,
+    });
   }
 });
 
-// Scanner
+// Scanner Results
 app.get('/scanner/results', async (req, res) => {
   try {
     const data = await scanner.runScan();
-    res.json({ ok: true, data });
+
+    res.json({
+      ok: true,
+      data,
+    });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(500).json({
+      ok: false,
+      error: e.message,
+    });
   }
 });
 
@@ -107,10 +136,11 @@ app.get('/portfolio/:userId', async (req, res) => {
   }
 });
 
-// Start
+// Start Server
 async function start() {
   try {
     await db.connect();
+
     console.log('[PostgreSQL] Connected');
 
     market = new MarketDataService();
@@ -121,6 +151,7 @@ async function start() {
 
     server.listen(PORT, () => {
       console.log(`BreakoutIntel Backend running on ${PORT}`);
+      console.log(`Health: /health`);
     });
   } catch (err) {
     console.error('[Startup Error]', err);
