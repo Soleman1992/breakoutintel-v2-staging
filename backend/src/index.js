@@ -1,83 +1,63 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const { Pool } = require('pg');
-const { createClient } = require('redis');
 
 const app = express();
 const server = http.createServer(app);
 
-// ── PostgreSQL ────────────────────────────────────────────────────────────────
-const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
+// ── PORT — Render sets this dynamically, MUST use process.env.PORT ────────────
+const PORT = process.env.PORT || 4000;
 
-// ── Redis (graceful — app works without Redis) ────────────────────────────────
-const redis = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  socket: { reconnectStrategy: (retries) => Math.min(retries * 100, 5000) },
-});
-redis.on('error', (err) => console.warn('[Redis] Not available:', err.message));
-
-// ── Middleware ────────────────────────────────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(compression());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*', credentials: true }));
-app.use(express.json({ limit: '1mb' }));
-app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHeaders: false }));
-
-// Serve the V2 dashboard frontend (index.html at repo root)
-const path = require('path');
-app.use(express.static(path.join(__dirname, '../../../')));
-
-// ── Lazy-load services after Redis connects ───────────────────────────────────
+// ── Optional services (app works without them) ────────────────────────────────
+let redisClient = null;
+let db = null;
 let market = null;
 let scanner = null;
 let wss = null;
 
-// ── Health Check ─────────────────────────────────────────────────────────────
+// ── Middleware ────────────────────────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(compression());
+app.use(cors({ origin: '*', credentials: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHeaders: false }));
+
+// ── Serve V2 Dashboard (index.html at repo root) ──────────────────────────────
+// File structure: repo-root/index.html, repo-root/backend/src/index.js
+// So we go 3 levels up from src/ to reach repo root
+const REPO_ROOT = path.join(__dirname, '..', '..', '..');
+app.use(express.static(REPO_ROOT));
+
+// ── Health Check — Render pings this to confirm deploy success ────────────────
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'breakoutintel-v2-api',
+    service: 'breakoutintel-v2',
     version: '2.0.0',
     timestamp: new Date().toISOString(),
-    redis: redis.isReady ? 'connected' : 'disconnected',
-    database: db ? 'configured' : 'not configured',
+    port: PORT,
+    redis: redisClient?.isReady ? 'connected' : 'not configured',
+    database: db ? 'connected' : 'not configured',
+    market: market ? 'ready' : 'initializing',
   });
 });
 
-// ── Market Snapshot ───────────────────────────────────────────────────────────
+// ── Market Routes ─────────────────────────────────────────────────────────────
 app.get('/market/snapshot', async (req, res) => {
   try {
-    if (!market) return res.json({ ok: true, data: {}, message: 'Market service initializing' });
+    if (!market) return res.json({ ok: true, data: {}, message: 'Market service initializing — try again in 30s' });
     const data = await market.getDashboardSnapshot();
     res.json({ ok: true, data });
   } catch (e) {
-    console.error('[/market/snapshot]', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ── Individual Quote ──────────────────────────────────────────────────────────
-app.get('/market/quote/:symbol', async (req, res) => {
-  try {
-    if (!market) return res.status(503).json({ ok: false, error: 'Market service initializing' });
-    const symbol = req.params.symbol.toUpperCase();
-    const nseSym = symbol.endsWith('.NS') ? symbol : `${symbol}.NS`;
-    const data = await market.fetchYahooQuote(nseSym);
-    res.json({ ok: true, data });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ── Indices ───────────────────────────────────────────────────────────────────
 app.get('/market/indices', async (req, res) => {
   try {
     if (!market) return res.json({ ok: true, data: {} });
@@ -88,7 +68,6 @@ app.get('/market/indices', async (req, res) => {
   }
 });
 
-// ── Sector Performance ────────────────────────────────────────────────────────
 app.get('/market/sectors', async (req, res) => {
   try {
     if (!market) return res.json({ ok: true, data: [] });
@@ -99,7 +78,6 @@ app.get('/market/sectors', async (req, res) => {
   }
 });
 
-// ── Advance / Decline ─────────────────────────────────────────────────────────
 app.get('/market/adv-dec', async (req, res) => {
   try {
     if (!market) return res.json({ ok: true, data: {} });
@@ -110,13 +88,24 @@ app.get('/market/adv-dec', async (req, res) => {
   }
 });
 
-// ── Scanner Results ───────────────────────────────────────────────────────────
+app.get('/market/quote/:symbol', async (req, res) => {
+  try {
+    if (!market) return res.status(503).json({ ok: false, error: 'Market service initializing' });
+    const sym = req.params.symbol.toUpperCase();
+    const nseSym = sym.endsWith('.NS') ? sym : `${sym}.NS`;
+    const data = await market.fetchYahooQuote(nseSym);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner Routes ────────────────────────────────────────────────────────────
 app.get('/scanner/results', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
-    // Check cache first
-    if (redis.isReady) {
-      const cached = await redis.get('cache:scanner');
+    if (redisClient?.isReady) {
+      const cached = await redisClient.get('cache:scanner').catch(() => null);
       if (cached) return res.json({ ok: true, data: JSON.parse(cached), cached: true });
     }
     const data = await scanner.runScan();
@@ -126,41 +115,10 @@ app.get('/scanner/results', async (req, res) => {
   }
 });
 
-// ── Force Rescan ──────────────────────────────────────────────────────────────
 app.post('/scanner/rescan', async (req, res) => {
   try {
-    if (redis.isReady) await redis.del('scanner:results').catch(() => {});
-    res.json({ ok: true, message: 'Rescan triggered — results available in ~30s at /scanner/results' });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ── Portfolio ─────────────────────────────────────────────────────────────────
-app.get('/portfolio/:userId', async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      'SELECT * FROM positions WHERE user_id = $1 AND status = $2 ORDER BY created_at DESC',
-      [req.params.userId, 'open']
-    );
-    res.json({ ok: true, data: rows });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-app.post('/portfolio', async (req, res) => {
-  try {
-    const { userId, symbol, quantity, buyPrice, stopLoss, strategy } = req.body;
-    if (!userId || !symbol || !quantity || !buyPrice) {
-      return res.status(400).json({ ok: false, error: 'Missing required fields: userId, symbol, quantity, buyPrice' });
-    }
-    const { rows } = await db.query(
-      `INSERT INTO positions (user_id, symbol, quantity, buy_price, stop_loss, strategy)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, symbol.toUpperCase(), quantity, buyPrice, stopLoss || null, strategy || null]
-    );
-    res.json({ ok: true, data: rows[0] });
+    if (redisClient?.isReady) await redisClient.del('scanner:results').catch(() => {});
+    res.json({ ok: true, message: 'Rescan triggered — results at /scanner/results in ~30s' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -170,97 +128,127 @@ app.post('/portfolio', async (req, res) => {
 app.post('/ai/analyze', async (req, res) => {
   try {
     const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ ok: false, error: 'prompt is required' });
+    if (!prompt) return res.status(400).json({ ok: false, error: 'prompt required' });
     if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(400).json({ ok: false, error: 'ANTHROPIC_API_KEY not configured' });
+      return res.status(400).json({ ok: false, error: 'ANTHROPIC_API_KEY not set' });
     }
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message = await client.messages.create({
+    const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     });
-    res.json({ ok: true, data: message.content[0].text });
+    res.json({ ok: true, data: msg.content[0].text });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ── 404 handler ───────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ ok: false, error: `Route ${req.method} ${req.path} not found` });
+// ── Catch-all: serve index.html for any unknown route ────────────────────────
+app.get('*', (req, res) => {
+  const indexPath = path.join(REPO_ROOT, 'index.html');
+  res.sendFile(indexPath);
 });
 
-// ── Global error handler ──────────────────────────────────────────────────────
+// ── Error handler ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('[Error]', err.message);
   res.status(500).json({ ok: false, error: 'Internal server error' });
 });
 
-// ── Startup ───────────────────────────────────────────────────────────────────
+// ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
-  const PORT = parseInt(process.env.PORT || '4000', 10);
+  // 1. Start HTTP server FIRST — Render health check must pass quickly
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('');
+    console.log('┌─────────────────────────────────────────────┐');
+    console.log('│  BreakoutIntel V2 — Live                    │');
+    console.log(`│  Port: ${PORT}                                   │`);
+    console.log('│  Dashboard: /                               │');
+    console.log('│  Health:    /health                         │');
+    console.log('│  API:       /market/indices                 │');
+    console.log('└─────────────────────────────────────────────┘');
+  });
 
-  // Connect Redis (non-blocking — app starts even if Redis is unavailable)
-  try {
-    await redis.connect();
-    console.log('[Redis] Connected ✓');
-  } catch (e) {
-    console.warn('[Redis] Not available — running without cache:', e.message);
+  // 2. Connect Redis (optional — never blocks startup)
+  if (process.env.REDIS_URL) {
+    try {
+      const { createClient } = require('redis');
+      redisClient = createClient({
+        url: process.env.REDIS_URL,
+        socket: { reconnectStrategy: (r) => Math.min(r * 500, 10000) },
+      });
+      redisClient.on('error', (e) => console.warn('[Redis]', e.message));
+      await redisClient.connect();
+      console.log('[Redis] Connected ✓');
+    } catch (e) {
+      console.warn('[Redis] Unavailable — running without cache:', e.message);
+      redisClient = null;
+    }
+  } else {
+    console.log('[Redis] No REDIS_URL set — running without cache');
   }
 
-  // Connect PostgreSQL (non-blocking — routes that need DB will handle errors)
-  try {
-    await db.connect();
-    console.log('[PostgreSQL] Connected ✓');
-  } catch (e) {
-    console.warn('[PostgreSQL] Not available — running without DB:', e.message);
+  // 3. Connect PostgreSQL (optional — never blocks startup)
+  if (process.env.DATABASE_URL) {
+    try {
+      const { Pool } = require('pg');
+      db = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+        max: 5,
+        connectionTimeoutMillis: 5000,
+      });
+      await db.query('SELECT 1');
+      console.log('[PostgreSQL] Connected ✓');
+    } catch (e) {
+      console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
+      db = null;
+    }
+  } else {
+    console.log('[PostgreSQL] No DATABASE_URL set — running without DB');
   }
 
-  // Load market services after connections are established
+  // 4. Load market services
   try {
     const MarketDataService = require('./services/marketData');
     const ScannerService = require('./services/scanner');
     const WebSocketServer = require('./services/websocket');
 
-    market = new MarketDataService(redis);
-    scanner = new ScannerService(redis);
-    wss = new WebSocketServer(server, redis);
+    // Pass null-safe redis (services handle null gracefully)
+    const safeRedis = redisClient || {
+      get: async () => null,
+      set: async () => null,
+      setEx: async () => null,
+      del: async () => null,
+      isReady: false,
+    };
+
+    market = new MarketDataService(safeRedis);
+    scanner = new ScannerService(safeRedis);
+    wss = new WebSocketServer(server, safeRedis);
 
     console.log('[Market] Data service ready ✓');
     console.log('[Scanner] Breakout scanner ready ✓');
-    console.log('[WebSocket] Streaming server ready ✓');
+    console.log('[WebSocket] Streaming on /ws ✓');
   } catch (e) {
-    console.error('[Services] Failed to load:', e.message);
-    // Continue without services — health check still works
+    console.error('[Services] Load error (non-fatal):', e.message);
   }
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log('');
-    console.log('╔══════════════════════════════════════════╗');
-    console.log('║   BreakoutIntel V2 — API Server          ║');
-    console.log(`║   Running on port ${PORT}                    ║`);
-    console.log('║   Dashboard: /                           ║');
-    console.log('║   Health:    /health                     ║');
-    console.log('║   WebSocket: /ws                         ║');
-    console.log('╚══════════════════════════════════════════╝');
-    console.log('');
-    console.log('[Data] Yahoo Finance (free, ~15s delayed)');
-    console.log('[Data] NSE India (public endpoints)');
-  });
-
   // Graceful shutdown
-  process.on('SIGTERM', async () => {
-    console.log('[Shutdown] Graceful shutdown initiated...');
+  const shutdown = async () => {
+    console.log('[Shutdown] Graceful shutdown...');
     server.close();
-    await db.end().catch(() => {});
-    await redis.quit().catch(() => {});
+    if (db) await db.end().catch(() => {});
+    if (redisClient?.isReady) await redisClient.quit().catch(() => {});
     process.exit(0);
-  });
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 start().catch((err) => {
-  console.error('[Fatal] Server failed to start:', err);
+  console.error('[Fatal]', err.message);
   process.exit(1);
 });
