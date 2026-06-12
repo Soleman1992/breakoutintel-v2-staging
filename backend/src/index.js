@@ -30,7 +30,7 @@ app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHead
 // ── Serve V2 Dashboard (index.html at repo root) ──────────────────────────────
 // File structure: repo-root/index.html, repo-root/backend/src/index.js
 // So we go 3 levels up from src/ to reach repo root
-const REPO_ROOT = path.join(__dirname, '..', '..', '..');
+const REPO_ROOT = path.join(__dirname, '..', '..');  // backend/src -> backend -> repo-root
 app.use(express.static(REPO_ROOT));
 
 // ── Health Check — Render pings this to confirm deploy success ────────────────
@@ -148,7 +148,12 @@ app.post('/ai/analyze', async (req, res) => {
 // ── Catch-all: serve index.html for any unknown route ────────────────────────
 app.get('*', (req, res) => {
   const indexPath = path.join(REPO_ROOT, 'index.html');
-  res.sendFile(indexPath);
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('[Static] index.html not found at:', indexPath);
+      res.status(200).send('<h2>BreakoutIntel API running. <a href="/health">Health</a> | <a href="/market/indices">Indices</a></h2>');
+    }
+  });
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
