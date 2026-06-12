@@ -1,90 +1,57 @@
 "use client";
 
 import { useMarketData } from "../hooks/useMarketData";
+import TopBar from "../components/TopBar";
+import MarketStatusCard from "../components/MarketStatusCard";
+import SectorHeatmap from "../components/SectorHeatmap";
+import ScannerTable from "../components/ScannerTable";
 
 export default function Home() {
-  const {
-    connected,
-    indices,
-    sectors,
-    scanner,
-    marketStatus,
-    error,
-  } = useMarketData();
+  const { connected, indices, sectors, scanner, lastUpdate, error } = useMarketData();
 
   return (
-    <main style={{
-      background:"#0f172a",
-      color:"white",
-      minHeight:"100vh",
-      padding:"20px",
-      fontFamily:"Arial"
-    }}>
-      <h1>BreakoutIntel Terminal</h1>
+    <main className="bg-slate-950 text-slate-100 min-h-screen">
+      {/* Top KPI Bar */}
+      <TopBar indices={indices} />
 
-      <div style={{
-        marginBottom:"20px",
-        padding:"10px",
-        background:"#1e293b",
-        borderRadius:"8px"
-      }}>
-        <strong>Status:</strong>{" "}
-        {connected ? "🟢 Connected" : "🔴 Disconnected"}
+      {/* Header & Status */}
+      <div className="px-6 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-slate-50">BreakoutIntel Terminal</h1>
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-3 h-3 rounded-full ${
+                connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+              }`}
+            />
+            <span className={`text-sm font-semibold ${connected ? 'text-green-400' : 'text-red-400'}`}>
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-3 bg-red-950 border border-red-700 rounded px-3 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div style={{
-          background:"#7f1d1d",
-          padding:"10px",
-          marginBottom:"20px"
-        }}>
-          {error}
+      {/* Dashboard Grid */}
+      <div className="p-6 space-y-6">
+        {/* Top Row: Market Status & Sector Heatmap */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <MarketStatusCard lastUpdate={lastUpdate} />
+          </div>
+          <div className="lg:col-span-2">
+            <SectorHeatmap sectors={sectors} />
+          </div>
         </div>
-      )}
 
-     <h2>Market Status</h2>
-
-<div>
-  <p>
-    {marketStatus?.marketStatusMessage || 'Unknown'}
-  </p>
-
-  <p>
-    Market: {marketStatus?.market || '-'}
-  </p>
-
-  <p>
-    Last: {marketStatus?.last || '-'}
-  </p>
-
-  <p>
-    Change: {marketStatus?.percentChange || 0}%
-  </p>
-  </div>
-
-      <hr />
-
-      <h2>Indices</h2>
-
-      <pre>
-        {JSON.stringify(indices, null, 2)}
-      </pre>
-
-      <hr />
-
-      <h2>Sectors</h2>
-
-      <pre>
-        {JSON.stringify(sectors, null, 2)}
-      </pre>
-
-      <hr />
-
-      <h2>Scanner Results</h2>
-
-      <pre>
-        {JSON.stringify(scanner, null, 2)}
-      </pre>
+        {/* Scanner Signals Table */}
+        <ScannerTable scanner={scanner} />
+      </div>
     </main>
   );
 }
