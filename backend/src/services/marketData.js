@@ -22,7 +22,7 @@ const INDEX_SYMBOLS = {
   NIFTY50:    '^NSEI',
   BANKNIFTY:  '^NSEBANK',
   MIDCAP150:  '^NSEMDCP50',
-  SMALLCAP:   '^NSESML',
+  SMALLCAP:   '^CRSLDX',     // Nifty500 — ^NSESML was delisted from Yahoo
   SENSEX:     '^BSESN',
   INDIAVIX:   '^INDIAVIX',
   NIFTYIT:    '^CNXIT',
@@ -31,7 +31,7 @@ const INDEX_SYMBOLS = {
   NIFTYAUTO:  '^CNXAUTO',
   NIFTYMETAL: '^CNXMETAL',
   NIFTYREALTY:'^CNXREALTY',
-  NIFTYBANK:  '^CNXBANK',
+  NIFTYBANK:  '^CNXPSUBANK', // ^CNXBANK was delisted — use PSU Bank index
 };
 
 class MarketDataService {
@@ -109,7 +109,9 @@ class MarketDataService {
       await this._safeRedisSet(cacheKey, this.cacheTTL, JSON.stringify(quote));
       return quote;
     } catch (e) {
-      console.warn(`[Yahoo] ${symbol}:`, e.message);
+      if (!e.message.includes('404') && !e.message.includes('403')) {
+        console.warn(`[Yahoo] ${symbol}:`, e.message);
+      }
       return { symbol, ok: false, error: e.message, price: 0, changePct: 0, chartData: [] };
     }
   }
