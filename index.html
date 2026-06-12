@@ -214,11 +214,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 <div class="sidebar" id="sidebar">
   <div class="sb-tog" onclick="toggleSB()" title="Toggle sidebar"><i class="ti ti-layout-sidebar-left-collapse" id="sb-ic" style="font-size:15px;color:var(--t3)"></i></div>
   <div class="sb-sec">Main</div>
-  <div class="sb-it active"><div class="sb-lb"><i class="ti ti-layout-dashboard" style="font-size:14px;color:var(--acc2)"></i><span>Dashboard</span></div></div>
-  <div class="sb-it" onclick="toast('Strategies — coming soon')"><div class="sb-lb"><i class="ti ti-chart-candle" style="font-size:14px"></i><span>Strategies</span></div></div>
-  <div class="sb-it" onclick="toast('Use filter chips in the scanner table')"><div class="sb-lb"><i class="ti ti-radar" style="font-size:14px"></i><span>Scanner</span></div></div>
-  <div class="sb-it" onclick="toast('Portfolio module — coming soon')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
-  <div class="sb-it" onclick="toast('News Intelligence — coming soon')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
+  <div class="sb-it active" id="nav-dashboard" onclick="switchView('dashboard')"><div class="sb-lb"><i class="ti ti-layout-dashboard" style="font-size:14px;color:var(--acc2)"></i><span>Dashboard</span></div></div>
+  <div class="sb-it" id="nav-strategies" onclick="switchView('strategies')"><div class="sb-lb"><i class="ti ti-chart-candle" style="font-size:14px"></i><span>Strategies</span></div></div>
+  <div class="sb-it" id="nav-scanner" onclick="switchView('scanner')"><div class="sb-lb"><i class="ti ti-radar" style="font-size:14px"></i><span>Scanner</span></div></div>
+  <div class="sb-it" id="nav-portfolio" onclick="switchView('portfolio')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
+  <div class="sb-it" id="nav-news" onclick="switchView('news')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
   <div class="sb-sec">Watchlist</div>
   <div class="sb-it" onclick="setFilter('pre')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0"></div><span>Pre-Breakout</span></div><div class="sb-bd bg-y" id="sb-pre">—</div></div>
   <div class="sb-it" onclick="setFilter('active')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--up);flex-shrink:0"></div><span>Active Breakout</span></div><div class="sb-bd bg-g" id="sb-act">—</div></div>
@@ -358,9 +358,142 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 
   <div class="footer">© 2025 BreakoutIntel AI · Market data: Yahoo Finance &amp; NSE India · <span id="footer-ts">—</span></div>
+</div><!-- end view-dashboard -->
+
+<!-- VIEW: scanner (full page) -->
+<div id="view-scanner" style="display:none">
+  <div class="panel" style="margin:7px">
+    <div class="ph"><span class="ph-t">Full Breakout Scanner</span><span class="ph-cnt" id="scan-cnt2">—</span></div>
+    <div class="sr-row">
+      <input class="scan-in" id="scan-q2" placeholder="Search symbol..." oninput="filterScan2()">
+      <span class="chip sel" id="chip2-all" onclick="chip2Click(this,'all')">All</span>
+      <span class="chip" id="chip2-vcp" onclick="chip2Click(this,'vcp')">VCP</span>
+      <span class="chip" id="chip2-darvas" onclick="chip2Click(this,'darvas')">Darvas</span>
+      <span class="chip" id="chip2-rs" onclick="chip2Click(this,'rs')">RS Leader</span>
+      <span class="chip" id="chip2-vol" onclick="chip2Click(this,'vol')">Vol Surge</span>
+      <span class="chip" id="chip2-tight" onclick="chip2Click(this,'tight')">Tight Base</span>
+    </div>
+    <div class="sc-wrap" style="max-height:calc(100vh - 200px)">
+      <table class="sc-tbl">
+        <thead><tr>
+          <th>#</th><th>Stock</th><th>CMP (₹)</th><th>Setup</th><th>Pattern</th>
+          <th>Vol Ratio</th><th>RS Score</th><th>Entry</th><th>Stop Loss</th>
+          <th>Target 1</th><th>Target 2</th><th>Score</th>
+        </tr></thead>
+        <tbody id="scan-body2"><tr><td colspan="12" style="padding:14px;color:var(--t3);text-align:center">Loading scanner data...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="data-src"><span id="scan-ts2-label">Loading...</span><button class="chip" onclick="triggerRescan()" style="border-color:var(--acc);color:var(--acc2)"><i class="ti ti-refresh" style="font-size:11px"></i> Rescan</button></div>
+  </div>
 </div>
+
+<!-- VIEW: strategies -->
+<div id="view-strategies" style="display:none">
+  <div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">📈 VCP — Volatility Contraction Pattern</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Developed by Mark Minervini. Price contracts in a series of smaller pivots with drying volume, then breaks out on 1.5-3× average volume. Entry: pivot high + 0.5%. Stop: 7-8% below entry. Best in Stage 2 uptrends.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~68%</span><span class="chip">R:R 2.5:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">📦 Darvas Box Breakout</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Nicolas Darvas method. Price forms a box between a defined high and low for 3+ weeks. Entry on breakout above box top with 2× volume. Stop just below box floor. Works best in strong bull markets.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~62%</span><span class="chip">R:R 2.2:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">☕ Cup & Handle</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">William O'Neil's classic pattern. U-shaped base over 6-65 weeks, followed by a handle pullback of ≤15%. Entry: handle high breakout on volume surge. Ideal pivot point entry with tight stop.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~71%</span><span class="chip">R:R 3.1:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🚀 Stage 2 Breakout</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Stan Weinstein's stage analysis. Stock must be in Stage 2 (above rising 30-week MA). Enter on breakout from base with volume. Ride the entire trend. Exit only when stock enters Stage 3/4.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~65%</span><span class="chip">R:R 4.0:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">⚡ Relative Strength Leader</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">IBD methodology. Stocks in top 10% of RS vs Nifty500 over 12 months. Strong institutions accumulating. Buy near 52-week highs. These stocks lead bull markets and recover fastest after corrections.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~74%</span><span class="chip">R:R 3.5:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🔥 Volume Surge Breakout</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">3-5× average volume on breakout day signals institutional accumulation. High follow-through probability within 3-5 sessions. Enter same day or on first pullback. Stop below breakout candle low.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~69%</span><span class="chip">R:R 2.8:1</span></div>
+    </div>
+    <div class="panel" style="padding:18px">
+      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🎯 Tight Consolidation Base</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Price trades in a very tight 3-5% range for 10+ days with drying volume. Supply has been absorbed. Very tight stop available (2-3%). High reward potential. Best after a strong prior uptrend.</div>
+      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~66%</span><span class="chip">R:R 3.2:1</span></div>
+    </div>
+  </div>
 </div>
+
+<!-- VIEW: portfolio -->
+<div id="view-portfolio" style="display:none">
+  <div style="padding:20px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+      <div class="kpi-card"><div class="kpi-l">Total Value</div><div class="kpi-v">₹24,85,000</div><div class="kpi-s">Deployed capital</div></div>
+      <div class="kpi-card"><div class="kpi-l">Open P&L</div><div class="kpi-v up">+₹4,57,480</div><div class="kpi-s">+18.4% unrealized</div></div>
+      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v up">68%</div><div class="kpi-s">22W / 10L last 30</div></div>
+      <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v wc">4.1%</div><div class="kpi-s">Portfolio level</div></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Open Positions</span><span class="ph-cnt">8 Active</span></div>
+      <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
+        <table class="sc-tbl">
+          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Strategy</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
+          <tbody>
+            <tr onclick="openModal(0)"><td style="color:var(--t3)">1</td><td><span class="sym">DIXON</span></td><td>50</td><td>₹13,200</td><td class="up">₹14,280</td><td class="up">+₹54,000</td><td class="up">+8.18%</td><td><span class="pat">VCP</span></td><td class="dn">₹13,750</td><td class="up">₹15,250</td><td>12</td></tr>
+            <tr onclick="openModal(1)"><td style="color:var(--t3)">2</td><td><span class="sym">HCLTECH</span></td><td>200</td><td>₹1,380</td><td class="up">₹1,482</td><td class="up">+₹20,400</td><td class="up">+7.39%</td><td><span class="pat">RS Leader</span></td><td class="dn">₹1,400</td><td class="up">₹1,620</td><td>8</td></tr>
+            <tr onclick="openModal(2)"><td style="color:var(--t3)">3</td><td><span class="sym">PERSISTENT</span></td><td>30</td><td>₹4,950</td><td class="up">₹5,400</td><td class="up">+₹13,500</td><td class="up">+9.09%</td><td><span class="pat">Cup</span></td><td class="dn">₹5,100</td><td class="up">₹5,900</td><td>18</td></tr>
+            <tr onclick="openModal(3)"><td style="color:var(--t3)">4</td><td><span class="sym">POLYCAB</span></td><td>80</td><td>₹6,500</td><td class="up">₹6,840</td><td class="up">+₹27,200</td><td class="up">+5.23%</td><td><span class="pat">Cup</span></td><td class="dn">₹6,550</td><td class="up">₹7,400</td><td>6</td></tr>
+            <tr onclick="openModal(4)"><td style="color:var(--t3)">5</td><td><span class="sym">COFORGE</span></td><td>20</td><td>₹8,600</td><td class="up">₹9,200</td><td class="up">+₹12,000</td><td class="up">+6.98%</td><td><span class="pat">RS Leader</span></td><td class="dn">₹8,700</td><td class="up">₹9,900</td><td>14</td></tr>
+            <tr onclick="openModal(5)"><td style="color:var(--t3)">6</td><td><span class="sym">APOLLOHOSP</span></td><td>25</td><td>₹6,800</td><td class="up">₹7,100</td><td class="up">+₹7,500</td><td class="up">+4.41%</td><td><span class="pat">Stage 2</span></td><td class="dn">₹6,750</td><td class="up">₹7,700</td><td>9</td></tr>
+            <tr onclick="openModal(6)"><td style="color:var(--t3)">7</td><td><span class="sym">TITAN</span></td><td>60</td><td>₹3,620</td><td class="dn">₹3,580</td><td class="dn">-₹2,400</td><td class="dn">-1.10%</td><td><span class="pat">Darvas</span></td><td class="dn">₹3,560</td><td class="up">₹3,900</td><td>4</td></tr>
+            <tr onclick="openModal(7)"><td style="color:var(--t3)">8</td><td><span class="sym">BAJFINANCE</span></td><td>15</td><td>₹7,700</td><td class="up">₹7,850</td><td class="up">+₹2,250</td><td class="up">+1.95%</td><td><span class="pat">VCP</span></td><td class="dn">₹7,450</td><td class="up">₹8,500</td><td>3</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- VIEW: news -->
+<div id="view-news" style="display:none">
+  <div style="padding:14px;display:grid;grid-template-columns:1fr 340px;gap:12px;align-items:start">
+    <div class="panel">
+      <div class="ph"><span class="ph-t">Market Intelligence Feed</span><span class="ph-live"><span class="pulse"></span>Live</span></div>
+      <div id="news-feed"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Sentiment Gauge</span></div>
+        <div style="padding:14px;text-align:center">
+          <div style="font-size:36px;font-weight:500;color:var(--up)">BULLISH</div>
+          <div style="font-size:10px;color:var(--t3);margin:4px 0 12px">Overall market sentiment</div>
+          <div style="height:8px;background:#0d1829;border-radius:4px;overflow:hidden">
+            <div style="width:72%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span>72% Bullish</span><span>Bullish</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Key Events</span></div>
+        <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">RBI Policy Meeting</span><span style="color:var(--warn)">Jun 18</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">US CPI Data</span><span style="color:var(--t3)">Jun 15</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">Q4 Earnings Season</span><span style="color:var(--acc2)">Ongoing</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">F&O Expiry</span><span style="color:var(--t3)">Jun 26</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">FII Holdings Data</span><span style="color:var(--t3)">Jun 20</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+</div><!-- end body -->
+</div><!-- end term -->
 
 <!-- MODAL -->
 <div class="modal-bg" id="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
@@ -952,6 +1085,112 @@ async function init(){
 }
 
 init();
+
+// ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news'];
+var activeView = 'dashboard';
+
+function switchView(view) {
+  if (!VIEWS.includes(view)) return;
+  activeView = view;
+
+  // Hide all views
+  VIEWS.forEach(v => {
+    var el = document.getElementById('view-' + v);
+    if (el) el.style.display = 'none';
+  });
+
+  // Show target view
+  var target = document.getElementById('view-' + view);
+  if (target) target.style.display = (view === 'dashboard') ? 'contents' : 'block';
+
+  // Update sidebar active state
+  document.querySelectorAll('.sb-it').forEach(el => el.classList.remove('active'));
+  var navEl = document.getElementById('nav-' + view);
+  if (navEl) navEl.classList.add('active');
+
+  // Update active item icon color
+  document.querySelectorAll('.sb-it .ti').forEach(i => i.style.color = '');
+  if (navEl) {
+    var icon = navEl.querySelector('.ti');
+    if (icon) icon.style.color = 'var(--acc2)';
+  }
+
+  // Lazy-load view content
+  if (view === 'scanner') renderScan2();
+  if (view === 'news') renderNewsFeed();
+
+  // Scroll main to top
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── SCANNER VIEW 2 (full page) ───────────────────────────────────────────────
+var fKey2 = 'all';
+
+function renderScan2() {
+  var body = document.getElementById('scan-body2');
+  if (!body) return;
+  var stocks = fKey2 === 'all' ? allStocks : allStocks.filter(s => s.st === fKey2);
+  var q = (document.getElementById('scan-q2') || {}).value || '';
+  if (q) stocks = stocks.filter(s => s.sym.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('scan-cnt2').textContent = stocks.length;
+  body.innerHTML = stocks.length ? stocks.map((s, i) => `
+    <tr onclick="openModal(${allStocks.indexOf(s)})">
+      <td style="color:var(--t3)">${i + 1}</td>
+      <td><span class="sym">${s.sym}</span><div style="font-size:9px;color:var(--t3)">${s.sec}</div></td>
+      <td style="color:var(--t1);font-weight:500">₹${f(s.cmp)}</td>
+      <td>${s.cat==='active'?'<span class="cat-a">Active BO</span>':s.cat==='pre'?'<span class="cat-p">Pre-Breakout</span>':'<span class="cat-m">Momentum</span>'}</td>
+      <td><span class="pat">${PAT[s.st]||s.st}</span></td>
+      <td><span style="color:${s.vol>=3?'var(--up)':s.vol>=2?'var(--warn)':'var(--t2)'}">${f(s.vol,1)}×</span></td>
+      <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${Math.round(s.rs)}</span></td>
+      <td style="color:var(--acc2)">₹${f(s.entry)}</td>
+      <td class="dn">₹${f(s.sl)}</td>
+      <td class="up">₹${f(s.t1)}</td>
+      <td class="up">₹${f(s.t2)}</td>
+      <td><span class="cn ${s.conf>=8?'c-hi':s.conf>=6?'c-md':'c-lo'}">${Math.round(s.conf)}</span></td>
+    </tr>`).join('') :
+    '<tr><td colspan="12" style="padding:12px;color:var(--t3);text-align:center">No signals match filter</td></tr>';
+  if (document.getElementById('scan-ts2-label'))
+    document.getElementById('scan-ts2-label').textContent = 'Live scanner · ' + allStocks.length + ' signals · ' + nowIST();
+}
+
+function chip2Click(el, k) {
+  fKey2 = k;
+  document.querySelectorAll('[id^=chip2-]').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  renderScan2();
+}
+
+function filterScan2() { renderScan2(); }
+
+// ─── NEWS FEED ────────────────────────────────────────────────────────────────
+var NEWS_ITEMS = [
+  {tag:'FII',col:'#22C55E',bg:'#0d2e1a',title:'FII Net Buyers for 5th Consecutive Session',body:'Foreign institutional investors bought ₹2,847 Cr worth of equities. IT and Banking sectors saw maximum inflows. Sentiment remains strongly bullish.',time:'11:45 AM',impact:'HIGH'},
+  {tag:'RBI',col:'#3B82F6',bg:'#0d1b35',title:'RBI Holds Rates, Signals Accommodative Stance',body:'The Reserve Bank of India kept the repo rate unchanged at 6.5%. Governor noted inflation is within target band. Markets react positively — Nifty up 0.8%.',time:'10:30 AM',impact:'HIGH'},
+  {tag:'RES',col:'#F59E0B',bg:'#2a1e06',title:'DIXON Technologies Q4 Results: PAT up 68% YoY',body:'Dixon Tech reported strong quarterly results. Revenue grew 42% to ₹4,280 Cr. EMS business shows no slowdown. Stock near 52-week high on heavy volumes.',time:'09:55 AM',impact:'MED'},
+  {tag:'SEC',col:'#22C55E',bg:'#0d2e1a',title:'IT Sector Sees Renewed Buying Interest',body:'HCL Tech, Persistent Systems, and Coforge lead the IT recovery. Deal wins pipeline improving. Rupee depreciation adds tailwind for export earnings.',time:'09:30 AM',impact:'MED'},
+  {tag:'GLB',col:'#EF4444',bg:'#2e0d0d',title:'US Markets Mixed Ahead of Fed Minutes',body:'S&P 500 futures flat. Nasdaq slightly lower. Fed minutes due tonight — markets watching for any hawkish signals. India VIX at 14.72, suggesting low fear.',time:'08:45 AM',impact:'LOW'},
+  {tag:'IPO',col:'#3B82F6',bg:'#0d1b35',title:'Strong IPO Pipeline for Q1 FY26',body:'SEBI approves 12 new IPOs. Total issue size ₹18,400 Cr. Anchor investor interest strong across sectors. Grey market premiums positive for most issues.',time:'08:15 AM',impact:'LOW'},
+  {tag:'BLK',col:'#22C55E',bg:'#0d2e1a',title:'Block Deal: HCLTECH — ₹182 Cr by FII',body:'A major FII purchased 12.2 lakh shares of HCL Technologies at ₹1,491 on BSE. This is a bullish accumulation signal. Stock added to high-confidence watchlist.',time:'Yesterday',impact:'HIGH'},
+];
+
+function renderNewsFeed() {
+  var feed = document.getElementById('news-feed');
+  if (!feed || feed.children.length > 0) return;
+  feed.innerHTML = NEWS_ITEMS.map(n => `
+    <div class="al-it" style="padding:10px 14px;cursor:pointer" onclick="this.style.opacity='.6'">
+      <div class="al-ic" style="background:${n.bg};color:${n.col};width:36px;height:36px;font-size:9px;flex-shrink:0">${n.tag}</div>
+      <div class="al-b" style="flex:1">
+        <div style="font-size:11px;font-weight:500;color:var(--t1);margin-bottom:3px">${n.title}</div>
+        <div style="font-size:9px;color:var(--t3);line-height:1.5">${n.body}</div>
+        <div style="margin-top:5px;display:flex;gap:8px;align-items:center">
+          <span style="font-size:9px;color:var(--t3)">${n.time}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;background:${n.impact==='HIGH'?'#0d2e1a':n.impact==='MED'?'#2a1e06':'#1a1f2e'};color:${n.impact==='HIGH'?'var(--up)':n.impact==='MED'?'var(--warn)':'var(--t3)'}">${n.impact}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
 </script>
 </body>
 </html>
