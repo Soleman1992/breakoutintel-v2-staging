@@ -224,14 +224,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" onclick="setFilter('active')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--up);flex-shrink:0"></div><span>Active Breakout</span></div><div class="sb-bd bg-g" id="sb-act">—</div></div>
   <div class="sb-it" onclick="setFilter('mom')"><div class="sb-lb"><i class="ti ti-bolt" style="font-size:13px;color:var(--acc2)"></i><span>High Momentum</span></div><div class="sb-bd bg-b" id="sb-mom">—</div></div>
   <div class="sb-sec">Alerts</div>
-  <div class="sb-it"><div class="sb-lb"><i class="ti ti-bell-ringing" style="font-size:13px;color:var(--warn)"></i><span>Breakout Alerts</span></div><div class="sb-bd bg-y" id="sb-bal">4</div></div>
-  <div class="sb-it"><div class="sb-lb"><i class="ti ti-chart-bar-popular" style="font-size:13px;color:var(--acc2)"></i><span>Volume Alerts</span></div><div class="sb-bd bg-b" id="sb-vol">9</div></div>
-  <div class="sb-it"><div class="sb-lb"><i class="ti ti-newspaper" style="font-size:13px;color:var(--dn)"></i><span>News Alerts</span></div><div class="sb-bd bg-r" id="sb-nws">12</div></div>
+  <div class="sb-it" id="nav-alerts-breakout" onclick="switchView('alerts-breakout')"><div class="sb-lb"><i class="ti ti-bell-ringing" style="font-size:13px;color:var(--warn)"></i><span>Breakout Alerts</span></div><div class="sb-bd bg-y" id="sb-bal">—</div></div>
+  <div class="sb-it" id="nav-alerts-volume" onclick="switchView('alerts-volume')"><div class="sb-lb"><i class="ti ti-chart-bar-popular" style="font-size:13px;color:var(--acc2)"></i><span>Volume Alerts</span></div><div class="sb-bd bg-b" id="sb-vol">—</div></div>
+  <div class="sb-it" id="nav-alerts-news" onclick="switchView('alerts-news')"><div class="sb-lb"><i class="ti ti-newspaper" style="font-size:13px;color:var(--dn)"></i><span>News Alerts</span></div><div class="sb-bd bg-r" id="sb-nws">—</div></div>
   <div class="sb-sec">Tools</div>
   <div class="sb-it" onclick="setFilter('vcp')"><div class="sb-lb"><i class="ti ti-wave-sine" style="font-size:13px;color:var(--t2)"></i><span>VCP Scanner</span></div></div>
   <div class="sb-it" onclick="setFilter('darvas')"><div class="sb-lb"><i class="ti ti-box" style="font-size:13px;color:var(--t2)"></i><span>Darvas Scanner</span></div></div>
   <div class="sb-it" onclick="setFilter('rs')"><div class="sb-lb"><i class="ti ti-trending-up" style="font-size:13px;color:var(--t2)"></i><span>RS Leaders</span></div></div>
-  <div class="sb-it"><div class="sb-lb"><i class="ti ti-building-bank" style="font-size:13px;color:var(--t2)"></i><span>FII/DII Tracker</span></div></div>
+  <div class="sb-it" id="nav-fiidii" onclick="switchView('fiidii')"><div class="sb-lb"><i class="ti ti-building-bank" style="font-size:13px;color:var(--t2)"></i><span>FII/DII Tracker</span></div></div>
   <div class="sb-sec">Sources</div>
   <div class="sb-it"><div class="sb-lb"><div class="src-dot"></div><span>NSE India</span></div></div>
   <div class="sb-it"><div class="sb-lb"><div class="src-dot"></div><span>BSE India</span></div></div>
@@ -244,6 +244,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 <div class="main" id="main">
+<div id="view-dashboard">
   <!-- KPI -->
   <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-l">Breakout Candidates <i class="ti ti-trending-up" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-cand">—</div><div class="kpi-s" id="k-cand-s">loading...</div><div class="kpi-spark"><canvas id="sp1"></canvas></div></div>
@@ -291,6 +292,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="sr-row">
       <input class="scan-in" id="scan-q" placeholder="Search symbol..." oninput="filterScan()">
       <span class="chip sel" id="chip-all" onclick="chipClick(this,'all')">All Setups</span>
+      <span class="chip" id="chip-pre" onclick="chipClick(this,'pre')">Pre-Breakout</span>
+      <span class="chip" id="chip-active" onclick="chipClick(this,'active')">Active BO</span>
+      <span class="chip" id="chip-mom" onclick="chipClick(this,'mom')">Momentum</span>
+      <span style="width:1px;height:14px;background:var(--bd);display:inline-block;margin:0 2px;vertical-align:middle"></span>
       <span class="chip" id="chip-vcp" onclick="chipClick(this,'vcp')">VCP</span>
       <span class="chip" id="chip-darvas" onclick="chipClick(this,'darvas')">Darvas</span>
       <span class="chip" id="chip-cup" onclick="chipClick(this,'cup')">Cup &amp; Handle</span>
@@ -358,7 +363,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 
   <div class="footer">© 2025 BreakoutIntel AI · Market data: Yahoo Finance &amp; NSE India · <span id="footer-ts">—</span></div>
-</div><!-- end view-dashboard -->
+</div></div><!-- end view-dashboard -->
 
 <!-- VIEW: scanner (full page) -->
 <div id="view-scanner" style="display:none">
@@ -488,6 +493,46 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- VIEW: alerts-breakout -->
+<div id="view-alerts-breakout" style="display:none">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
+    <i class="ti ti-bell-ringing" style="font-size:40px;opacity:.3"></i>
+    <div style="font-size:13px;font-weight:500;color:var(--t2)">Breakout Alerts</div>
+    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Real-time breakout alerts will appear here when a stock crosses its pivot point with volume confirmation. Requires alert rules to be configured.</div>
+    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — no alert rules configured</span>
+  </div>
+</div>
+
+<!-- VIEW: alerts-volume -->
+<div id="view-alerts-volume" style="display:none">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
+    <i class="ti ti-chart-bar-popular" style="font-size:40px;opacity:.3"></i>
+    <div style="font-size:13px;font-weight:500;color:var(--t2)">Volume Alerts</div>
+    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Stocks with unusual volume spikes (3× or more above 20-day average) will be listed here in real time. Powered by the breakout scanner feed.</div>
+    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — scanner feed required</span>
+  </div>
+</div>
+
+<!-- VIEW: alerts-news -->
+<div id="view-alerts-news" style="display:none">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
+    <i class="ti ti-newspaper" style="font-size:40px;opacity:.3"></i>
+    <div style="font-size:13px;font-weight:500;color:var(--t2)">News Alerts</div>
+    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Market-moving news, earnings surprises, and regulatory announcements affecting your watchlist will surface here. Requires a news intelligence feed to be connected.</div>
+    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — news feed not connected</span>
+  </div>
+</div>
+
+<!-- VIEW: fiidii -->
+<div id="view-fiidii" style="display:none">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
+    <i class="ti ti-building-bank" style="font-size:40px;opacity:.3"></i>
+    <div style="font-size:13px;font-weight:500;color:var(--t2)">FII / DII Tracker</div>
+    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Daily and cumulative Foreign & Domestic Institutional Investor activity from SEBI provisional data. Net buy/sell figures, sector allocation, and trend analysis will appear here.</div>
+    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — SEBI data feed not connected</span>
   </div>
 </div>
 
@@ -730,12 +775,7 @@ function updateAdvDecFromData(d){
   document.getElementById('int-db').style.width=Math.round(d.declines/tot*100)+'%';
   document.getElementById('r-adb').style.width=Math.round(d.advances/tot*64)+'px';
   document.getElementById('r-dcb').style.width=Math.round(d.declines/tot*64)+'px';
-  // Simulate additional internals (NSE doesn't give these freely)
-  document.getElementById('int-nh').textContent=Math.round(r(80,180));
-  document.getElementById('int-nl').textContent=Math.round(r(10,40));
-  document.getElementById('int-vol').textContent=Math.round(r(2000,4000)).toLocaleString('en-IN')+' Cr';
-  document.getElementById('int-fii').textContent='+'+(Math.round(r(600,1600))).toLocaleString('en-IN')+' Cr';
-  document.getElementById('int-dii').textContent='+'+(Math.round(r(500,1300))).toLocaleString('en-IN')+' Cr';
+  // int-nh, int-nl, int-vol, int-fii, int-dii: real-time data unavailable — shown as '—' until a live feed is connected
   document.getElementById('int-ts').textContent=nowIST();
   document.getElementById('int-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 }
@@ -899,11 +939,12 @@ function chipClick(el,k){
 
 function setFilter(k){
   fKey=k;
+  if(activeView!=='dashboard') switchView('dashboard');
   document.querySelectorAll('.chip').forEach(b=>b.classList.remove('sel'));
   var c=document.getElementById('chip-'+k);
   if(c)c.classList.add('sel'); else document.getElementById('chip-all').classList.add('sel');
   filterScan();
-  document.getElementById('main').scrollTo({top:300,behavior:'smooth'});
+  setTimeout(function(){ document.getElementById('main').scrollTo({top:300,behavior:'smooth'}); },50);
 }
 
 function sortBy(k){
@@ -1087,7 +1128,7 @@ async function init(){
 init();
 
 // ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
-var VIEWS = ['dashboard','scanner','strategies','portfolio','news'];
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii'];
 var activeView = 'dashboard';
 
 function switchView(view) {
