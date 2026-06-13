@@ -124,6 +124,56 @@ app.post('/scanner/rescan', async (req, res) => {
   }
 });
 
+
+// ── Scanner — strategy filter ─────────────────────────────────────────────────
+app.get('/scanner/by-strategy', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
+    await scanner.runScan(); // ensures lastResults is populated (cached)
+    const strategy = req.query.strategy || 'all';
+    const data = scanner.getByStrategy(strategy);
+    res.json({ ok: true, data, strategy, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — volume alerts ───────────────────────────────────────────────────
+app.get('/scanner/volume-alerts', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const data = scanner.getVolumeAlerts();
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — breakout alerts ─────────────────────────────────────────────────
+app.get('/scanner/breakout-alerts', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const data = scanner.getBreakoutAlerts();
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — RS leaders ──────────────────────────────────────────────────────
+app.get('/scanner/rs-leaders', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const data = scanner.getRSLeaders();
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
