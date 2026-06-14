@@ -397,6 +397,16 @@ const LIQUIDITY_FILTERS = {
   // We enforce this via a minimum volume check since we don't have live mkt cap data
   // Stocks with CMP < ₹10 and avg vol < 5L are excluded
   excludeBelowVol: 100000,  // never scan stocks with avg vol < 1L regardless of cap
+
+  // ── Minimum traded value (turnover), in ₹ lakhs — from NSE Bhav Copy ────────
+  // Applied only when bhav copy data is available (NSEDataService); if NSE is
+  // unreachable, this filter is skipped (volume-based filters above still apply).
+  // Thresholds chosen so a stock must have meaningful daily rupee turnover,
+  // not just high share count on a low-priced stock.
+  minTurnoverLakhsLarge: 500,   // ₹5 Cr/day minimum for Large cap
+  minTurnoverLakhsMid:   200,   // ₹2 Cr/day for Mid cap
+  minTurnoverLakhsSmall: 50,    // ₹50 L/day for Small cap
+  minTurnoverLakhsMicro: 100,   // ₹1 Cr/day for penny/Micro — higher bar to avoid illiquid penny traps
 };
 
 // ── DEDUPLICATION ────────────────────────────────────────────────────────────
