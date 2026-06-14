@@ -1,12 +1,14 @@
 /**
- * ScannerService v5 — Professional NSE Scanner Engine
- * Universe: 250 stocks (Nifty500 + F&O + Midcap + Smallcap)
- * Scanners: 18 strategies
- * Stats: total scanned, matches, duration, last scan time
+ * ScannerService v6 — Professional NSE Scanner Engine
+ * Universe: 346 stocks (Nifty500 + F&O + Midcap + Smallcap + liquid penny), liquidity-filtered
+ * Scanners: 18 technical strategies (Yahoo OHLCV) + 5 NSE-data strategies
+ *   (Bulk Deal, Block Deal, Delivery Volume, Institutional Accumulation via real NSE bhav copy/deals,
+ *    Corporate Announcement Alerts, Market Breadth)
+ * Stats: total scanned, matches, duration, last scan time, universe before/after liquidity filter
  */
 
 const axios = require('axios');
-const { UNIVERSE, UNIVERSE_MAP } = require('./universe');
+const { UNIVERSE, UNIVERSE_MAP, LIQUIDITY_FILTERS, UNIVERSE_STATS } = require('./universe');
 
 const YAHOO_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -18,10 +20,45 @@ const CACHE_KEY_META = 'scanner:meta:v5';
 const CACHE_TTL   = parseInt(process.env.SCAN_INTERVAL_MS || '300000') / 1000; // default 5 min
 
 class ScannerService {
-  constructor(redisClient) {
+  constructor(redisClient, nseDataService = null) {
     this.redis       = redisClient;
+    this.nseData     = nseDataService; // NSEDataService instance — may be null
     this.lastResults = [];
-    this.lastMeta    = { totalScanned:0, totalMatches:0, duration:0, lastScanAt:null, universeSize: UNIVERSE.length };
+    this.scanUniverse = this._applyLiquidityFilter(UNIVERSE);
+    this.lastMeta    = {
+      totalScanned: 0, totalMatches: 0, duration: 0, lastScanAt: null,
+      universeSizeBefore: UNIVERSE.length,
+      universeSizeAfter:  this.scanUniverse.length,
+      universeStats: UNIVERSE_STATS,
+    };
+  }
+
+  // ── Liquidity filter ──────────────────────────────────────────────────────
+  // Applies UNIVERSE-level liquidity gating before any stock enters the scan.
+  // Rules (from universe.js LIQUIDITY_FILTERS):
+  //   - Micro/penny stocks need a stock-specific minVolFilter (avg daily volume)
+  //   - All other stocks pass the static metadata filter (real-time avg volume
+  //     check happens during the scan itself once OHLCV data is available —
+  //     see _passesRuntimeLiquidity())
+  _applyLiquidityFilter(universe) {
+    return universe.filter(s => {
+      // Penny / Micro cap stocks must declare a minVolFilter — stocks without
+      // one are excluded from the scan universe entirely (too illiquid)
+      if (s.cap === 'Micro' && !s.minVolFilter) return false;
+      return true;
+    });
+  }
+
+  // Runtime liquidity check using actual fetched OHLCV (avg 20-day volume)
+  _passesRuntimeLiquidity(meta, avgVol) {
+    const f = LIQUIDITY_FILTERS;
+    if (avgVol < f.excludeBelowVol) return false;
+    if (meta.minVolFilter) return avgVol >= meta.minVolFilter;
+    if (meta.cap === 'Large') return avgVol >= f.minAvgVolLarge;
+    if (meta.cap === 'Mid')   return avgVol >= f.minAvgVolMid;
+    if (meta.cap === 'Small') return avgVol >= f.minAvgVolSmall;
+    if (meta.cap === 'Micro') return avgVol >= f.minAvgVolMicro;
+    return true;
   }
 
   // ── Redis helpers ──────────────────────────────────────────────────────────
@@ -418,7 +455,7 @@ class ScannerService {
     }
 
     const startTime = Date.now();
-    console.log(`[Scanner] Starting full scan — ${UNIVERSE.length} stocks`);
+    console.log(`[Scanner] Starting full scan — ${this.scanUniverse.length} stocks (liquidity-filtered from ${UNIVERSE.length})`);
     const results = [];
     let scanned = 0;
 
@@ -431,12 +468,12 @@ class ScannerService {
 
     // Run in batches of 5, 800ms between batches
     const BATCH = 5;
-    for (let i=0; i<UNIVERSE.length; i+=BATCH) {
-      const batch = UNIVERSE.slice(i, i+BATCH);
+    for (let i=0; i<this.scanUniverse.length; i+=BATCH) {
+      const batch = this.scanUniverse.slice(i, i+BATCH);
       const fetched = await Promise.allSettled(batch.map(s=>this.fetchHistory(s.sym)));
 
       for (let j=0; j<batch.length; j++) {
-        const meta = batch[j];
+        const stockMeta = batch[j];
         const bars = fetched[j].status==='fulfilled' ? fetched[j].value : null;
         scanned++;
         if (!bars||bars.length<30) continue;
@@ -451,6 +488,9 @@ class ScannerService {
         const prox52w = this._round((1-(hi52-last.close)/hi52)*100, 1);
         const rs      = this._rsScore(closes, niftyCloses);
         const avgVol  = this._avgVol(vols, bars.length-1);
+
+        // Liquidity gate — exclude illiquid stocks even if a pattern matches
+        if (!this._passesRuntimeLiquidity(stockMeta, avgVol)) continue;
 
         // Run ALL detectors — collect every signal (a stock can match multiple)
         const detectors = [
@@ -486,12 +526,12 @@ class ScannerService {
         if (conf < 4) continue;
 
         results.push({
-          sym:          meta.sym.replace('.NS',''),
-          name:         meta.name,
-          sector:       meta.sector,
-          industry:     meta.industry,
-          cap:          meta.cap,
-          foStock:      meta.foStock,
+          sym:          stockMeta.sym.replace('.NS',''),
+          name:         stockMeta.name,
+          sector:       stockMeta.sector,
+          industry:     stockMeta.industry,
+          cap:          stockMeta.cap,
+          foStock:      stockMeta.foStock,
           cmp:          this._round(last.close),
           chg:          this._round(((last.close-prev.close)/prev.close)*100),
           vol:          vr,
@@ -522,26 +562,29 @@ class ScannerService {
         });
       }
 
-      if (i+BATCH < UNIVERSE.length) await new Promise(r=>setTimeout(r,900));
+      if (i+BATCH < this.scanUniverse.length) await new Promise(r=>setTimeout(r,900));
     }
 
     results.sort((a,b)=>b.conf-a.conf);
     const duration = Date.now()-startTime;
 
-    const meta = {
+    const scanMeta = {
       totalScanned: scanned,
       totalMatches: results.length,
-      universeSize: UNIVERSE.length,
+      universeSizeBefore: UNIVERSE.length,
+      universeSizeAfter:  this.scanUniverse.length,
+      universeStats: UNIVERSE_STATS,
       duration:     duration,
       lastScanAt:   new Date().toISOString(),
     };
 
     await this._set(CACHE_KEY, CACHE_TTL, JSON.stringify(results));
-    await this._set(CACHE_KEY_META, CACHE_TTL, JSON.stringify(meta));
+    await this._set(CACHE_KEY_META, CACHE_TTL, JSON.stringify(scanMeta));
     this.lastResults = results;
-    this.lastMeta    = meta;
+    this.lastMeta    = scanMeta;
 
-    console.log(`[Scanner] Done — ${results.length} signals from ${scanned}/${UNIVERSE.length} stocks in ${(duration/1000).toFixed(1)}s`);
+
+    console.log(`[Scanner] Done — ${results.length} signals from ${scanned}/${this.scanUniverse.length} stocks in ${(duration/1000).toFixed(1)}s`);
     return results;
   }
 
@@ -637,6 +680,200 @@ class ScannerService {
         momentum:  d.stocks.filter(s=>s.cat==='mom').length,
       }))
       .sort((a,b)=>b.avgRS-a.avgRS);
+  }
+
+  // Industry Group Leaders — same as sector leaders but grouped by `industry`.
+  // NOTE: only covers industries represented in lastResults (i.e. industries
+  // that had at least one stock match a technical scanner during the main
+  // scan). Industries with zero matching stocks will not appear here.
+  getIndustryLeaders() {
+    const industryMap = {};
+    for (const r of this.lastResults) {
+      if (!industryMap[r.industry]) industryMap[r.industry] = { stocks:[], totalRS:0, count:0 };
+      industryMap[r.industry].stocks.push(r);
+      industryMap[r.industry].totalRS += r.rs;
+      industryMap[r.industry].count++;
+    }
+    return Object.entries(industryMap)
+      .map(([industry, d]) => ({
+        industry,
+        sector:    d.stocks[0]?.sector || '',
+        avgRS:     this._round(d.totalRS/d.count, 1),
+        stockCount: d.count,
+        topStock:  d.stocks.sort((a,b)=>b.rs-a.rs)[0]?.sym||'',
+        activeBreakouts: d.stocks.filter(s=>s.cat==='active').length,
+        momentum:  d.stocks.filter(s=>s.cat==='mom').length,
+      }))
+      .sort((a,b)=>b.avgRS-a.avgRS);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // NSE-BACKED SCANNERS — real data only, no proxies
+  // All methods below return { ok:false, error, data:[] } if NSE is unreachable.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _ensureNSE() {
+    if (!this.nseData) {
+      return { ok: false, error: 'NSE data service not configured', data: [], source: 'NSE' };
+    }
+    return null;
+  }
+
+  // Bulk Deal Scanner — real NSE bulk deals, filtered to our scan universe
+  async getBulkDealScanner() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+
+    const result = await this.nseData.getBulkDeals(7);
+    if (!result.ok) return result;
+
+    const universeSymbols = new Set(this.scanUniverse.map(s => s.sym.replace('.NS', '')));
+    const filtered = result.data
+      .filter(d => universeSymbols.has(d.sym))
+      .map(d => {
+        const stockMeta = UNIVERSE_MAP[`${d.sym}.NS`] || {};
+        const live = this.lastResults.find(r => r.sym === d.sym);
+        return {
+          sym: d.sym, name: stockMeta.name || d.name, sector: stockMeta.sector || '',
+          industry: stockMeta.industry || '', cap: stockMeta.cap || '',
+          clientName: d.clientName, dealType: d.dealType,
+          qty: d.qty, price: d.price, date: d.date,
+          cmp: live?.cmp ?? null, chg: live?.chg ?? null,
+          stratName: 'Bulk Deal Scanner',
+        };
+      });
+
+    return { ok: true, data: filtered, source: result.source, total: filtered.length };
+  }
+
+  // Block Deal Scanner — real NSE block deals, filtered to our scan universe
+  async getBlockDealScanner() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+
+    const result = await this.nseData.getBlockDeals(7);
+    if (!result.ok) return result;
+
+    const universeSymbols = new Set(this.scanUniverse.map(s => s.sym.replace('.NS', '')));
+    const filtered = result.data
+      .filter(d => universeSymbols.has(d.sym))
+      .map(d => {
+        const stockMeta = UNIVERSE_MAP[`${d.sym}.NS`] || {};
+        const live = this.lastResults.find(r => r.sym === d.sym);
+        return {
+          sym: d.sym, name: stockMeta.name || d.name, sector: stockMeta.sector || '',
+          industry: stockMeta.industry || '', cap: stockMeta.cap || '',
+          clientName: d.clientName, dealType: d.dealType,
+          qty: d.qty, price: d.price, date: d.date,
+          cmp: live?.cmp ?? null, chg: live?.chg ?? null,
+          stratName: 'Block Deal Scanner',
+        };
+      });
+
+    return { ok: true, data: filtered, source: result.source, total: filtered.length };
+  }
+
+  // Delivery Volume Scanner — real NSE bhav copy delivery %, spike vs own history
+  // A "spike" = today's delivery % is at least 1.3x the stock's typical delivery %
+  // (Note: bhav copy is single-day; we use the day's delivery% directly and flag
+  // stocks with delivery% >= 60% as high-conviction delivery-based buying.)
+  async getDeliveryVolumeScanner() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+
+    const symbols = this.scanUniverse.map(s => s.sym);
+    const result = await this.nseData.getDeliveryData(symbols);
+    if (!result.ok) return result;
+
+    const filtered = result.data
+      .filter(d => d.deliveryPct >= 60 && d.totalTradedQty > 0)
+      .map(d => {
+        const stockMeta = UNIVERSE_MAP[`${d.sym}.NS`] || {};
+        const live = this.lastResults.find(r => r.sym === d.sym);
+        return {
+          sym: d.sym, name: stockMeta.name || '', sector: stockMeta.sector || '',
+          industry: stockMeta.industry || '', cap: stockMeta.cap || '',
+          deliveryPct: d.deliveryPct, deliveryQty: d.deliveryQty,
+          totalTradedQty: d.totalTradedQty, tradedValueLakhs: d.tradedValueLakhs,
+          cmp: d.close, chg: live?.chg ?? null, date: d.date,
+          stratName: 'Delivery Volume Spike',
+        };
+      })
+      .sort((a,b)=>b.deliveryPct-a.deliveryPct);
+
+    return { ok: true, data: filtered, source: result.source, total: filtered.length };
+  }
+
+  // Institutional Accumulation Scanner — real NSE data:
+  // combines bulk-deal BUY activity with high delivery % (>=50%) for the same symbol
+  async getInstitutionalAccumulationReal() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+
+    const [bulkResult, deliveryResult] = await Promise.all([
+      this.nseData.getBulkDeals(7),
+      this.nseData.getDeliveryData(this.scanUniverse.map(s => s.sym)),
+    ]);
+
+    if (!bulkResult.ok && !deliveryResult.ok) {
+      return { ok: false, error: `Bulk deals: ${bulkResult.error}; Delivery: ${deliveryResult.error}`, data: [], source: 'NSE' };
+    }
+
+    const deliveryMap = {};
+    if (deliveryResult.ok) deliveryResult.data.forEach(d => { deliveryMap[d.sym] = d; });
+
+    const universeSymbols = new Set(this.scanUniverse.map(s => s.sym.replace('.NS', '')));
+    const buySideBulk = bulkResult.ok
+      ? bulkResult.data.filter(d => universeSymbols.has(d.sym) && d.dealType?.toUpperCase().includes('BUY'))
+      : [];
+
+    const filtered = buySideBulk
+      .map(d => {
+        const delivery = deliveryMap[d.sym];
+        const stockMeta = UNIVERSE_MAP[`${d.sym}.NS`] || {};
+        const live = this.lastResults.find(r => r.sym === d.sym);
+        return {
+          sym: d.sym, name: stockMeta.name || d.name, sector: stockMeta.sector || '',
+          industry: stockMeta.industry || '', cap: stockMeta.cap || '',
+          clientName: d.clientName, bulkDealQty: d.qty, bulkDealPrice: d.price, bulkDealDate: d.date,
+          deliveryPct: delivery?.deliveryPct ?? null,
+          cmp: live?.cmp ?? delivery?.close ?? null, chg: live?.chg ?? null,
+          stratName: 'Institutional Accumulation',
+        };
+      })
+      .filter(d => d.deliveryPct === null || d.deliveryPct >= 50);
+
+    return { ok: true, data: filtered, source: 'NSE Bulk Deals + Bhav Copy Delivery %', total: filtered.length };
+  }
+
+  // Corporate Announcement Alerts — real NSE announcements, filtered to scan universe
+  async getCorporateAnnouncementsForUniverse() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+
+    const result = await this.nseData.getCorporateAnnouncements(100);
+    if (!result.ok) return result;
+
+    const universeSymbols = new Set(this.scanUniverse.map(s => s.sym.replace('.NS', '')));
+    const filtered = result.data
+      .filter(a => universeSymbols.has(a.sym))
+      .map(a => {
+        const stockMeta = UNIVERSE_MAP[`${a.sym}.NS`] || {};
+        return {
+          sym: a.sym, name: stockMeta.name || a.name, sector: stockMeta.sector || '',
+          industry: stockMeta.industry || '', cap: stockMeta.cap || '',
+          subject: a.subject, category: a.category, timestamp: a.timestamp,
+        };
+      });
+
+    return { ok: true, data: filtered, source: result.source, total: filtered.length };
+  }
+
+  // Market Breadth Dashboard — real NSE advance/decline data (passthrough)
+  async getMarketBreadthData() {
+    const guard = this._ensureNSE();
+    if (guard) return guard;
+    return this.nseData.getMarketBreadth();
   }
 }
 
