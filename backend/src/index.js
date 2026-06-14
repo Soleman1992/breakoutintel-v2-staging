@@ -34,6 +34,54 @@ app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHead
 const REPO_ROOT = path.join(__dirname, '..', '..');  // backend/src -> backend -> repo-root
 app.use(express.static(REPO_ROOT));
 
+// ── List query helper: pagination + search + sort for scanner/market arrays ──
+// Query params supported on all list-returning endpoints:
+//   ?search=<term>   case-insensitive match against sym/name/sector/industry/
+//                     clientName/subject/stratName/strat
+//   ?sort=<field>    sort by any field present on the result objects
+//   ?order=asc|desc  sort direction (default: desc)
+//   ?page=<n>        1-indexed page number (default: 1)
+//   ?limit=<n>       items per page, 1-500 (default: 50)
+function applyListParams(data, req) {
+  let result = Array.isArray(data) ? [...data] : [];
+  const totalUnfiltered = result.length;
+
+  const q = (req.query.search || req.query.q || '').toString().trim().toLowerCase();
+  if (q) {
+    const searchFields = ['sym','name','sector','industry','clientName','subject','stratName','strat','category'];
+    result = result.filter(item =>
+      searchFields.some(k => item[k] != null && String(item[k]).toLowerCase().includes(q))
+    );
+  }
+
+  const sortKey = req.query.sort;
+  if (sortKey) {
+    const order = (req.query.order || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+    result.sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return order * String(av).localeCompare(String(bv));
+      }
+      return order * (av - bv);
+    });
+  }
+
+  const filteredTotal = result.length;
+  let page  = Math.max(parseInt(req.query.page) || 1, 1);
+  let limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / limit));
+  if (page > totalPages) page = totalPages;
+  const start = (page - 1) * limit;
+
+  return {
+    data: result.slice(start, start + limit),
+    pagination: { page, limit, total: filteredTotal, totalPages, totalUnfiltered },
+  };
+}
+
 // ── Health Check — Render pings this to confirm deploy success ────────────────
 app.get('/health', (req, res) => {
   res.json({
@@ -105,12 +153,14 @@ app.get('/market/quote/:symbol', async (req, res) => {
 app.get('/scanner/results', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
+    let fullData;
     if (redisClient?.isReady) {
       const cached = await redisClient.get('cache:scanner').catch(() => null);
-      if (cached) return res.json({ ok: true, data: JSON.parse(cached), cached: true });
+      fullData = cached ? JSON.parse(cached) : null;
     }
-    const data = await scanner.runScan();
-    res.json({ ok: true, data });
+    if (!fullData) fullData = await scanner.runScan();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -132,8 +182,9 @@ app.get('/scanner/by-strategy', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
     await scanner.runScan(); // ensures lastResults is populated (cached)
     const strategy = req.query.strategy || 'all';
-    const data = scanner.getByStrategy(strategy);
-    res.json({ ok: true, data, strategy, total: data.length });
+    const fullData = scanner.getByStrategy(strategy);
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, strategy, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -144,8 +195,9 @@ app.get('/scanner/volume-alerts', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
-    const data = scanner.getVolumeAlerts();
-    res.json({ ok: true, data, total: data.length });
+    const fullData = scanner.getVolumeAlerts();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -156,8 +208,9 @@ app.get('/scanner/breakout-alerts', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
-    const data = scanner.getBreakoutAlerts();
-    res.json({ ok: true, data, total: data.length });
+    const fullData = scanner.getBreakoutAlerts();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -168,8 +221,9 @@ app.get('/scanner/rs-leaders', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
-    const data = scanner.getRSLeaders();
-    res.json({ ok: true, data, total: data.length });
+    const fullData = scanner.getRSLeaders();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -180,8 +234,9 @@ app.get('/scanner/sector-leaders', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
-    const data = scanner.getSectorLeaders();
-    res.json({ ok: true, data, total: data.length });
+    const fullData = scanner.getSectorLeaders();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -192,8 +247,9 @@ app.get('/scanner/industry-leaders', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
-    const data = scanner.getIndustryLeaders();
-    res.json({ ok: true, data, total: data.length });
+    const fullData = scanner.getIndustryLeaders();
+    const { data, pagination } = applyListParams(fullData, req);
+    res.json({ ok: true, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -216,7 +272,9 @@ app.get('/scanner/bulk-deals', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
     const result = await scanner.getBulkDealScanner();
-    res.json(result);
+    if (!result.ok) return res.json(result);
+    const { data, pagination } = applyListParams(result.data, req);
+    res.json({ ...result, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -228,7 +286,9 @@ app.get('/scanner/block-deals', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
     const result = await scanner.getBlockDealScanner();
-    res.json(result);
+    if (!result.ok) return res.json(result);
+    const { data, pagination } = applyListParams(result.data, req);
+    res.json({ ...result, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -240,7 +300,9 @@ app.get('/scanner/delivery-volume', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
     const result = await scanner.getDeliveryVolumeScanner();
-    res.json(result);
+    if (!result.ok) return res.json(result);
+    const { data, pagination } = applyListParams(result.data, req);
+    res.json({ ...result, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -252,7 +314,9 @@ app.get('/scanner/institutional', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
     const result = await scanner.getInstitutionalAccumulationReal();
-    res.json(result);
+    if (!result.ok) return res.json(result);
+    const { data, pagination } = applyListParams(result.data, req);
+    res.json({ ...result, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -264,7 +328,9 @@ app.get('/market/corporate-announcements', async (req, res) => {
     if (!scanner) return res.json({ ok: true, data: [] });
     await scanner.runScan();
     const result = await scanner.getCorporateAnnouncementsForUniverse();
-    res.json(result);
+    if (!result.ok) return res.json(result);
+    const { data, pagination } = applyListParams(result.data, req);
+    res.json({ ...result, data, ...pagination });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
