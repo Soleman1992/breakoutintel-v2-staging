@@ -50,14 +50,32 @@ class ScannerService {
   }
 
   // Runtime liquidity check using actual fetched OHLCV (avg 20-day volume)
-  _passesRuntimeLiquidity(meta, avgVol) {
+  // plus optional NSE Bhav Copy turnover (₹ lakhs/day) if available.
+  _passesRuntimeLiquidity(meta, avgVol, turnoverLakhs = null) {
     const f = LIQUIDITY_FILTERS;
     if (avgVol < f.excludeBelowVol) return false;
-    if (meta.minVolFilter) return avgVol >= meta.minVolFilter;
-    if (meta.cap === 'Large') return avgVol >= f.minAvgVolLarge;
-    if (meta.cap === 'Mid')   return avgVol >= f.minAvgVolMid;
-    if (meta.cap === 'Small') return avgVol >= f.minAvgVolSmall;
-    if (meta.cap === 'Micro') return avgVol >= f.minAvgVolMicro;
+
+    let volOk;
+    if (meta.minVolFilter) volOk = avgVol >= meta.minVolFilter;
+    else if (meta.cap === 'Large') volOk = avgVol >= f.minAvgVolLarge;
+    else if (meta.cap === 'Mid')   volOk = avgVol >= f.minAvgVolMid;
+    else if (meta.cap === 'Small') volOk = avgVol >= f.minAvgVolSmall;
+    else if (meta.cap === 'Micro') volOk = avgVol >= f.minAvgVolMicro;
+    else volOk = true;
+    if (!volOk) return false;
+
+    // Turnover check — only enforced when bhav copy data was available for
+    // this scan. If turnoverLakhs is null (NSE unreachable / symbol not in
+    // bhav copy), skip this check rather than excluding the stock.
+    if (turnoverLakhs != null) {
+      let minTurnover;
+      if (meta.cap === 'Large') minTurnover = f.minTurnoverLakhsLarge;
+      else if (meta.cap === 'Mid')   minTurnover = f.minTurnoverLakhsMid;
+      else if (meta.cap === 'Small') minTurnover = f.minTurnoverLakhsSmall;
+      else if (meta.cap === 'Micro') minTurnover = f.minTurnoverLakhsMicro;
+      if (minTurnover != null && turnoverLakhs < minTurnover) return false;
+    }
+
     return true;
   }
 
@@ -466,6 +484,24 @@ class ScannerService {
       if (nb) niftyCloses = nb.map(b=>b.close);
     } catch {}
 
+    // Fetch NSE Bhav Copy turnover map once (₹ lakhs/day per symbol).
+    // If NSE is unreachable, turnoverMap stays empty and the turnover
+    // liquidity check is skipped for all stocks (see _passesRuntimeLiquidity).
+    let turnoverMap = {};
+    if (this.nseData) {
+      try {
+        const bhav = await this.nseData.getBhavCopy();
+        if (bhav.ok) {
+          bhav.data.forEach(r => { turnoverMap[r.sym] = r.tradedValue; });
+          console.log(`[Scanner] Bhav Copy turnover loaded for ${Object.keys(turnoverMap).length} symbols`);
+        } else {
+          console.log(`[Scanner] Bhav Copy unavailable (${bhav.error}) — turnover filter skipped`);
+        }
+      } catch (e) {
+        console.log(`[Scanner] Bhav Copy fetch error: ${e.message} — turnover filter skipped`);
+      }
+    }
+
     // Run in batches of 5, 800ms between batches
     const BATCH = 5;
     for (let i=0; i<this.scanUniverse.length; i+=BATCH) {
@@ -490,7 +526,8 @@ class ScannerService {
         const avgVol  = this._avgVol(vols, bars.length-1);
 
         // Liquidity gate — exclude illiquid stocks even if a pattern matches
-        if (!this._passesRuntimeLiquidity(stockMeta, avgVol)) continue;
+        const turnoverLakhs = turnoverMap[stockMeta.sym.replace('.NS','')] ?? null;
+        if (!this._passesRuntimeLiquidity(stockMeta, avgVol, turnoverLakhs)) continue;
 
         // Run ALL detectors — collect every signal (a stock can match multiple)
         const detectors = [
@@ -537,6 +574,7 @@ class ScannerService {
           vol:          vr,
           avgVolume:    avgVol,
           curVolume:    last.volume||0,
+          turnoverLakhs: turnoverLakhs,
           rs,
           strat:        detected.pattern,
           stratName:    detected.stratName||detected.pattern,
