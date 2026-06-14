@@ -597,30 +597,6 @@ var AI_TIPS={
   tight:'Tight Base — 3–5% range for 10+ days, drying volume. Supply exhaustion. Very tight stop available.',
 };
 
-// Fallback data when backend is loading
-var FALLBACK_STOCKS=[
-  {sym:'DIXON TECH',sec:'Electronics',cmp:14280,st:'vcp',cat:'active',rs:94,vol:3.8,entry:14300,sl:13750,t1:15250,t2:16200,conf:94},
-  {sym:'POLYCAB',sec:'Cables',cmp:6840,st:'cup',cat:'pre',rs:88,vol:2.1,entry:6880,sl:6550,t1:7400,t2:7900,conf:89},
-  {sym:'TATAELXSI',sec:'IT',cmp:7125,st:'darvas',cat:'pre',rs:91,vol:5.2,entry:7160,sl:6780,t1:7700,t2:8250,conf:91},
-  {sym:'ASTRAL',sec:'Pipes',cmp:2184,st:'rs',cat:'mom',rs:87,vol:1.6,entry:2200,sl:2070,t1:2350,t2:2500,conf:87},
-  {sym:'HCLTECH',sec:'IT',cmp:1482,st:'vol',cat:'active',rs:96,vol:2.9,entry:1490,sl:1400,t1:1620,t2:1750,conf:96},
-  {sym:'SUZLON',sec:'Energy',cmp:48.2,st:'tight',cat:'pre',rs:72,vol:1.3,entry:48.5,sl:44.8,t1:52.0,t2:56.5,conf:72},
-  {sym:'BHEL',sec:'Cap Goods',cmp:271.8,st:'vcp',cat:'pre',rs:85,vol:2.4,entry:274,sl:254,t1:295,t2:316,conf:85},
-  {sym:'CG POWER',sec:'Electrical',cmp:679,st:'darvas',cat:'active',rs:90,vol:3.2,entry:680,sl:640,t1:730,t2:790,conf:90},
-  {sym:'PERSISTENT',sec:'IT',cmp:5400,st:'cup',cat:'mom',rs:93,vol:1.8,entry:5440,sl:5100,t1:5900,t2:6300,conf:93},
-  {sym:'COFORGE',sec:'IT',cmp:9200,st:'rs',cat:'active',rs:89,vol:2.2,entry:9250,sl:8700,t1:9900,t2:10500,conf:89},
-  {sym:'BAJFINANCE',sec:'NBFC',cmp:7850,st:'vcp',cat:'pre',rs:82,vol:1.5,entry:7920,sl:7450,t1:8500,t2:9000,conf:82},
-  {sym:'TITAN',sec:'Consumer',cmp:3750,st:'cup',cat:'pre',rs:80,vol:1.4,entry:3790,sl:3560,t1:4050,t2:4300,conf:80},
-  {sym:'APOLLOHOSP',sec:'Healthcare',cmp:7100,st:'rs',cat:'mom',rs:86,vol:1.7,entry:7160,sl:6750,t1:7700,t2:8200,conf:86},
-  {sym:'GRINDWELL',sec:'Industrials',cmp:2800,st:'darvas',cat:'pre',rs:81,vol:1.9,entry:2830,sl:2660,t1:3050,t2:3250,conf:81},
-  {sym:'L&T',sec:'Infra',cmp:3580,st:'rs',cat:'mom',rs:83,vol:1.8,entry:3610,sl:3400,t1:3900,t2:4150,conf:83},
-  {sym:'CAMS',sec:'Fintech',cmp:4800,st:'tight',cat:'pre',rs:79,vol:1.2,entry:4840,sl:4580,t1:5200,t2:5500,conf:79},
-  {sym:'AUROPHARMA',sec:'Pharma',cmp:1350,st:'vol',cat:'mom',rs:77,vol:2.6,entry:1360,sl:1280,t1:1470,t2:1560,conf:77},
-  {sym:'DEEPAKNTR',sec:'Chemicals',cmp:2950,st:'cup',cat:'pre',rs:78,vol:1.6,entry:2980,sl:2800,t1:3200,t2:3400,conf:78},
-  {sym:'IRCTC',sec:'Travel',cmp:780,st:'vcp',cat:'pre',rs:76,vol:2.1,entry:788,sl:740,t1:850,t2:910,conf:76},
-  {sym:'DIXON',sec:'Electronics',cmp:14280,st:'vcp',cat:'active',rs:92,vol:3.7,entry:14300,sl:13800,t1:15200,t2:16100,conf:92},
-];
-
 var FALLBACK_SECTORS=[
   {n:'IT / Technology',c:2.34},{n:'Banking & Finance',c:1.82},{n:'FMCG',c:1.12},
   {n:'Auto',c:.89},{n:'Metals',c:.22},{n:'Pharma',c:-.56},{n:'Realty',c:-1.24},
@@ -718,17 +694,38 @@ async function fetchSnapshot(){
 
 async function fetchScanner(){
   try{
-    var res=await fetch(BACKEND+'/scanner/results',{signal:AbortSignal.timeout(15000)});
+    // ?limit=500 — backend (Task 5) paginates with a default limit of 50;
+    // the dashboard needs the full scan universe for client-side filter/sort/page.
+    var res=await fetch(BACKEND+'/scanner/results?limit=500',{signal:AbortSignal.timeout(15000)});
     if(!res.ok)throw new Error('HTTP '+res.status);
     var d=await res.json();
     if(d.ok&&d.data&&d.data.length>0){
       loadScannerFromData(d.data);
+      fetchScannerStats();
       return true;
     }
   }catch(e){
     console.warn('[REST] scanner failed:',e.message);
   }
   return false;
+}
+
+// Total Scanned / Total Matches / Scan Duration / Last Scan Time
+async function fetchScannerStats(){
+  try{
+    var res=await fetch(BACKEND+'/scanner/stats',{signal:AbortSignal.timeout(10000)});
+    var d=await res.json();
+    if(d.ok&&d.data){
+      var m=d.data;
+      var durSec=m.duration?(m.duration/1000).toFixed(1)+'s':'—';
+      var lastScan=m.lastScanAt?new Date(m.lastScanAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—';
+      var univ=(m.universeSizeAfter!=null)?(m.universeSizeAfter+' of '+m.universeSizeBefore):(m.universeSize||'—');
+      document.getElementById('scan-ts').textContent=
+        univ+' scanned · '+(m.totalMatches!=null?m.totalMatches:'—')+' matches · '+durSec+' · Last scan: '+lastScan;
+    }
+  }catch(e){
+    console.warn('[REST] scanner stats failed:',e.message);
+  }
 }
 
 // ─── DATA UPDATERS ────────────────────────────────────────────────────────────
@@ -794,28 +791,44 @@ function updateSectorsFromData(sectors){
 }
 
 function loadScannerFromData(stocks){
-  // Map backend scanner format to UI format
+  // Map real backend scanner fields (scanner.js v6) to UI format
   allStocks=stocks.map(s=>({
-    sym: s.sym||s.symbol||'—',
-    sec: s.sector||s.sec||'NSE',
-    cmp: s.cmp||s.price||0,
-    st:  s.strat||s.pattern||s.st||'vcp',
-    cat: s.cat||s.category||'pre',
-    rs:  s.rs||s.rsScore||75,
-    vol: s.vol||s.volRatio||s.vol_ratio||1.5,
-    entry: s.entry||s.cmp*1.01||0,
-    sl:    s.stop||s.sl||s.stop_loss||s.cmp*0.93||0,
-    t1:    s.t1||s.target1||s.cmp*1.15||0,
-    t2:    s.t2||s.target2||s.cmp*1.25||0,
-    conf:  s.conf||s.confidence||s.confScore||75,
+    sym:   s.sym||'—',
+    name:  s.name||s.sym||'—',
+    sec:   s.sector||'—',
+    industry: s.industry||'—',
+    cap:   s.cap||'—',
+    foStock: !!s.foStock,
+    cmp:   s.cmp||0,
+    chg:   s.chg||0,
+    st:    s.strat||'—',
+    stratName: s.stratName||s.strat||'—',
+    cat:   s.cat||'pre',
+    rs:    s.rs||0,
+    priceStrength: s.priceStrength||0,
+    vol:   s.vol||0,
+    avgVolume: s.avgVolume||0,
+    curVolume: s.curVolume||0,
+    turnoverLakhs: s.turnoverLakhs ?? null,
+    entry: s.entry||0,
+    sl:    s.stop||0,
+    t1:    s.t1||0,
+    t2:    s.t2||0,
+    rr:    s.rr||0,
+    conf:  s.conf||0,
+    vcpStage: s.vcpStage||null,
+    minerviniScore: s.minerviniScore||null,
+    proximity52w: s.proximity52w||0,
+    hi52w: s.hi52w||0,
+    lo52w: s.lo52w||0,
+    scannedAt: s.scannedAt||Date.now(),
   }));
   allStocks.sort((a,b)=>b.conf-a.conf);
   dispStocks=[...allStocks];
   renderScan();
   var ts=nowIST();
-  document.getElementById('scan-ts').textContent='Live data · Last scan: '+ts+' · '+allStocks.filter(s=>s.conf>=8).length+' high-confidence';
   document.getElementById('k-cand').textContent=allStocks.length;
-  document.getElementById('k-cand-s').textContent='+'+Math.round(r(3,12))+' from yesterday';
+  document.getElementById('k-cand-s').textContent=allStocks.filter(s=>s.conf>=8).length+' high-confidence';
   document.getElementById('sb-pre').textContent=allStocks.filter(s=>s.cat==='pre').length;
   document.getElementById('sb-act').textContent=allStocks.filter(s=>s.cat==='active').length;
   document.getElementById('sb-mom').textContent=allStocks.filter(s=>s.cat==='mom').length;
@@ -900,7 +913,7 @@ function renderScan(){
       <td><span class="sym">${s.sym}</span><div style="font-size:9px;color:var(--t3)">${s.sec}</div></td>
       <td style="color:var(--t1);font-weight:500">₹${f(s.cmp)}</td>
       <td>${s.cat==='active'?'<span class="cat-a">Active BO</span>':s.cat==='pre'?'<span class="cat-p">Pre-Breakout</span>':'<span class="cat-m">Momentum</span>'}</td>
-      <td><span class="pat">${PAT[s.st]||s.st}</span></td>
+      <td><span class="pat">${s.stratName||PAT[s.st]||s.st}</span></td>
       <td><span style="color:${s.vol>=3?'var(--up)':s.vol>=2?'var(--warn)':'var(--t2)'};font-weight:500">${f(s.vol,1)}×</span></td>
       <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${Math.round(s.rs)}</span></td>
       <td style="color:var(--acc2)">₹${f(s.entry)}</td>
@@ -965,12 +978,8 @@ async function triggerRescan(){
   setTimeout(async()=>{
     var ok=await fetchScanner();
     if(!ok){
-      // Refresh fallback data with slight jitter
-      allStocks=FALLBACK_STOCKS.map(s=>({...s,cmp:j(s.cmp,.004),vol:Math.round(r(.8,4.5)*10)/10}));
-      allStocks.sort((a,b)=>b.conf-a.conf);
-      dispStocks=[...allStocks];
-      renderScan();
-      document.getElementById('scan-ts').textContent='Backend unavailable — showing reference data · '+nowIST();
+      document.getElementById('scan-ts').textContent='Scanner data unavailable · '+nowIST();
+      document.getElementById('scan-body').innerHTML='<tr><td colspan="12" style="padding:14px;color:var(--t3);text-align:center">Scanner is initialising — check back in 60s</td></tr>';
     }
   },2000);
 }
@@ -1085,15 +1094,16 @@ async function init(){
   buildMktChart('n50');
   updateClock();
 
-  // Show fallback scanner immediately so page isn't empty
-  allStocks=FALLBACK_STOCKS.map(s=>({...s})).sort((a,b)=>b.conf-a.conf);
-  dispStocks=[...allStocks];
-  renderScan();
-  document.getElementById('scan-ts').textContent='Connecting to live data...';
-  document.getElementById('k-cand').textContent=allStocks.length;
-  document.getElementById('sb-pre').textContent=allStocks.filter(s=>s.cat==='pre').length;
-  document.getElementById('sb-act').textContent=allStocks.filter(s=>s.cat==='active').length;
-  document.getElementById('sb-mom').textContent=allStocks.filter(s=>s.cat==='mom').length;
+  // Loading state — no fallback/fake data (real scan results load via fetchScanner below)
+  allStocks=[];
+  dispStocks=[];
+  document.getElementById('scan-body').innerHTML='<tr><td colspan="12" style="padding:14px;color:var(--t3);text-align:center"><span class="spin">⟳</span> Connecting to live scanner...</td></tr>';
+  document.getElementById('scan-ts').textContent='Connecting to live scanner...';
+  document.getElementById('k-cand').textContent='—';
+  document.getElementById('k-cand-s').textContent='loading...';
+  document.getElementById('sb-pre').textContent='—';
+  document.getElementById('sb-act').textContent='—';
+  document.getElementById('sb-mom').textContent='—';
 
   // Connect WebSocket for real-time streaming
   connectWS();
@@ -1181,7 +1191,7 @@ function renderScan2() {
       <td><span class="sym">${s.sym}</span><div style="font-size:9px;color:var(--t3)">${s.sec}</div></td>
       <td style="color:var(--t1);font-weight:500">₹${f(s.cmp)}</td>
       <td>${s.cat==='active'?'<span class="cat-a">Active BO</span>':s.cat==='pre'?'<span class="cat-p">Pre-Breakout</span>':'<span class="cat-m">Momentum</span>'}</td>
-      <td><span class="pat">${PAT[s.st]||s.st}</span></td>
+      <td><span class="pat">${s.stratName||PAT[s.st]||s.st}</span></td>
       <td><span style="color:${s.vol>=3?'var(--up)':s.vol>=2?'var(--warn)':'var(--t2)'}">${f(s.vol,1)}×</span></td>
       <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${Math.round(s.rs)}</span></td>
       <td style="color:var(--acc2)">₹${f(s.entry)}</td>
