@@ -364,38 +364,14 @@ class ScannerService {
     return null;
   }
 
-  _detectInstitutional(bars) {
-    if (bars.length<22) return null;
-    const vols=bars.map(b=>b.volume||0);
-    // Institutional: 3+ days of above-avg volume with price closing up
-    let accumDays=0;
-    const avgV=this._avgVol(vols,bars.length-1);
-    for (let i=bars.length-10; i<bars.length; i++) {
-      if ((vols[i]||0)>avgV*1.5&&bars[i].close>bars[i].open) accumDays++;
-    }
-    if (accumDays>=3) {
-      const closes=bars.map(b=>b.close);
-      const ema50=this._ema(closes,50);
-      if (closes[closes.length-1]>ema50[ema50.length-1])
-        return { pattern:'inst', category:'active', accumDays, stratName:'Institutional Accumulation' };
-    }
-    return null;
-  }
-
-  _detectDeliverySpike(bars) {
-    // Yahoo doesn't provide delivery data — detect via price+volume consistency
-    // Proxy: 5-day price gain + volume surge = likely delivery accumulation
-    if (bars.length<10) return null;
-    const last5=bars.slice(-5);
-    const allUp=last5.every((b,i)=>i===0||b.close>=last5[i-1].close);
-    const vols=bars.map(b=>b.volume||0);
-    const vr=this._volRatio(vols,bars.length-1);
-    const closes=bars.map(b=>b.close);
-    const ret5=(closes[closes.length-1]-closes[closes.length-6])/closes[closes.length-6]*100;
-    if (allUp&&vr>=1.8&&ret5>=3)
-      return { pattern:'delivery', category:'active', ret5d:this._round(ret5), stratName:'Delivery Volume Spike' };
-    return null;
-  }
+  // NOTE: _detectInstitutional (volume-pattern proxy) and _detectDeliverySpike
+  // (price+volume proxy) were removed from the technical scan. These signals
+  // are now sourced exclusively from real NSE data:
+  //   - Institutional Accumulation -> getInstitutionalAccumulationReal()
+  //     (NSE Bulk Deals BUY-side + Bhav Copy delivery% >= 50)
+  //   - Delivery Volume Spike       -> getDeliveryVolumeScanner()
+  //     (NSE Bhav Copy delivery% >= 60)
+  // See "NSE-BACKED SCANNERS" section below.
 
   _detectEMACompression(bars) {
     if (bars.length<50) return null;
@@ -561,8 +537,6 @@ class ScannerService {
           ()=>this._detect52wkHigh(bars),
           ()=>this._detectVolShock(bars),
           ()=>this._detectMinervini(bars, rs),
-          ()=>this._detectInstitutional(bars),
-          ()=>this._detectDeliverySpike(bars),
           ()=>this._detectEMACompression(bars),
           ()=>this._detectGapUp(bars),
           ()=>this._detectMomentum(bars),
@@ -609,7 +583,6 @@ class ScannerService {
           volConfirmed: detected.volConfirmed||(vr>=2.0)||false,
           pivot:        detected.pivot||null,
           volContraction:detected.volContraction||null,
-          accumDays:    detected.accumDays||null,
           ret1m:        detected.ret1m||null,
           ret3m:        detected.ret3m||null,
           gapPct:       detected.gapPct||null,
@@ -656,6 +629,11 @@ class ScannerService {
   getMeta() { return this.lastMeta; }
 
   // ── Derived views ──────────────────────────────────────────────────────────
+  // NOTE: 'inst' (Institutional Accumulation) and 'delivery' (Delivery Volume
+  // Spike) are NOT keys here — those signals come exclusively from real NSE
+  // data via getInstitutionalAccumulationReal() and getDeliveryVolumeScanner()
+  // (see NSE-BACKED SCANNERS section). Calling getByStrategy('inst') or
+  // getByStrategy('delivery') returns the full unfiltered result set (fallback).
   getByStrategy(strategy) {
     const map = {
       vcp:       r=>r.strat==='vcp',
@@ -670,8 +648,6 @@ class ScannerService {
       '52wkhi':  r=>r.strat==='52wkhi',
       vol_shock: r=>r.strat==='vol_shock',
       minervini: r=>r.strat==='minervini',
-      inst:      r=>r.strat==='inst',
-      delivery:  r=>r.strat==='delivery',
       ema_comp:  r=>r.strat==='ema_comp',
       gap:       r=>r.strat==='gap',
       momentum:  r=>r.strat==='momentum',
