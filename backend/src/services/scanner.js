@@ -296,7 +296,7 @@ class ScannerService {
     return null;
   }
 
-  _detectMinervini(bars) {
+  _detectMinervini(bars, rs) {
     // Minervini Trend Template: 8 conditions
     if (bars.length<200) return null;
     const closes=bars.map(b=>b.close);
@@ -318,7 +318,7 @@ class ScannerService {
       last>e50,                          // 5. price above 50 EMA
       last>=(lo52*1.25),                 // 6. at least 25% above 52wk low
       last>=(hi52*0.75),                 // 7. within 25% of 52wk high
-      last/lo52>=1.3,                    // 8. RS (simplified)
+      rs>=70,                            // 8. RS rating >= 70 (vs Nifty 50, weighted 3/6/9/12mo)
     ];
     const passed=conds.filter(Boolean).length;
     if (passed>=7)
@@ -502,7 +502,7 @@ class ScannerService {
           ()=>this._detectPocketPivot(bars),
           ()=>this._detect52wkHigh(bars),
           ()=>this._detectVolShock(bars),
-          ()=>this._detectMinervini(bars),
+          ()=>this._detectMinervini(bars, rs),
           ()=>this._detectInstitutional(bars),
           ()=>this._detectDeliverySpike(bars),
           ()=>this._detectEMACompression(bars),
