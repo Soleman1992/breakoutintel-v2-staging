@@ -18,6 +18,7 @@ let redisClient = null;
 let db = null;
 let market = null;
 let scanner = null;
+let nseData = null;
 let wss = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -174,6 +175,112 @@ app.get('/scanner/rs-leaders', async (req, res) => {
   }
 });
 
+// ── Scanner — Sector Leaders ──────────────────────────────────────────────────
+app.get('/scanner/sector-leaders', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const data = scanner.getSectorLeaders();
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Industry Group Leaders ──────────────────────────────────────────
+app.get('/scanner/industry-leaders', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const data = scanner.getIndustryLeaders();
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Stats (universe before/after, scan duration, last scan time) ───
+app.get('/scanner/stats', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: null, message: 'Scanner initializing' });
+    const meta = scanner.getMeta();
+    res.json({ ok: true, data: meta });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Bulk Deal Scanner (real NSE data) ───────────────────────────────
+app.get('/scanner/bulk-deals', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const result = await scanner.getBulkDealScanner();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Block Deal Scanner (real NSE data) ──────────────────────────────
+app.get('/scanner/block-deals', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const result = await scanner.getBlockDealScanner();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Delivery Volume Scanner (real NSE bhav copy delivery %) ────────
+app.get('/scanner/delivery-volume', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const result = await scanner.getDeliveryVolumeScanner();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Scanner — Institutional Accumulation (real NSE bulk deals + delivery %) ──
+app.get('/scanner/institutional', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const result = await scanner.getInstitutionalAccumulationReal();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Market — Corporate Announcements (real NSE data, filtered to universe) ───
+app.get('/market/corporate-announcements', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [] });
+    await scanner.runScan();
+    const result = await scanner.getCorporateAnnouncementsForUniverse();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Market — Breadth Dashboard (real NSE advance/decline) ─────────────────────
+app.get('/market/breadth', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: false, data: null, message: 'Scanner initializing' });
+    const result = await scanner.getMarketBreadthData();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -269,6 +376,7 @@ async function start() {
   try {
     const MarketDataService = require('./services/marketData');
     const ScannerService = require('./services/scanner');
+    const NSEDataService = require('./services/nseData');
     const WebSocketServer = require('./services/websocket');
 
     // Pass null-safe redis (services handle null gracefully)
@@ -280,11 +388,13 @@ async function start() {
       isReady: false,
     };
 
-    market = new MarketDataService(safeRedis);
-    scanner = new ScannerService(safeRedis);
-    wss = new WebSocketServer(server, safeRedis);
+    market   = new MarketDataService(safeRedis);
+    nseData  = new NSEDataService(safeRedis);
+    scanner  = new ScannerService(safeRedis, nseData);
+    wss      = new WebSocketServer(server, safeRedis);
 
     console.log('[Market] Data service ready ✓');
+    console.log('[NSEData] NSE data service ready ✓');
     console.log('[Scanner] Breakout scanner ready ✓');
     console.log('[WebSocket] Streaming on /ws ✓');
   } catch (e) {
