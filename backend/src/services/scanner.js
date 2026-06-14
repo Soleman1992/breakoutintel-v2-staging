@@ -146,6 +146,26 @@ class ScannerService {
     const raw = total>0 ? score/total : 0;
     return Math.min(99, Math.max(1, Math.round(50+raw*300)));
   }
+
+  // Price Strength — independent of RS-vs-benchmark. Blends:
+  //  60% position within 52-week range (0 = at 52wk low, 100 = at 52wk high)
+  //  40% distance above/below 200-day EMA (±20% maps to 0-100, clamped)
+  // Normalized to 1-99. Two stocks can have the same RS but different price
+  // strength — e.g. one is near its 52wk high, the other recovering from a dip.
+  _priceStrength(bars, closes) {
+    const last = closes[closes.length-1];
+    const hi52 = Math.max(...bars.map(b=>b.high));
+    const lo52 = Math.min(...bars.map(b=>b.low));
+    const rangePos = hi52 > lo52 ? ((last-lo52)/(hi52-lo52))*100 : 50;
+
+    const ema200 = this._ema(closes, Math.min(200, closes.length));
+    const e200 = ema200[ema200.length-1];
+    const distPct = e200>0 ? ((last-e200)/e200)*100 : 0;
+    const distScore = Math.min(100, Math.max(0, 50 + distPct*2.5)); // ±20% -> 0-100
+
+    const blended = rangePos*0.6 + distScore*0.4;
+    return Math.min(99, Math.max(1, Math.round(blended)));
+  }
   _round(v, d=2) { return Math.round(v*(10**d))/(10**d); }
 
   // ── Entry / exit levels ────────────────────────────────────────────────────
@@ -523,6 +543,7 @@ class ScannerService {
         const lo52    = Math.min(...bars.map(b=>b.low));
         const prox52w = this._round((1-(hi52-last.close)/hi52)*100, 1);
         const rs      = this._rsScore(closes, niftyCloses);
+        const priceStrength = this._priceStrength(bars, closes);
         const avgVol  = this._avgVol(vols, bars.length-1);
 
         // Liquidity gate — exclude illiquid stocks even if a pattern matches
@@ -576,6 +597,7 @@ class ScannerService {
           curVolume:    last.volume||0,
           turnoverLakhs: turnoverLakhs,
           rs,
+          priceStrength,
           strat:        detected.pattern,
           stratName:    detected.stratName||detected.pattern,
           cat:          detected.category,
@@ -690,14 +712,34 @@ class ScannerService {
       }));
   }
 
+  // RS Leaders — full universe ranking with:
+  //   rank        = overall RS rank (1 = strongest RS in entire result set)
+  //   sectorRank  = rank within the stock's own sector by RS
+  //   priceStrength = independent 52wk-range + 200EMA-distance score (1-99)
   getRSLeaders() {
-    return [...this.lastResults]
-      .sort((a,b)=>b.rs-a.rs)
-      .map((r,i)=>({
-        rank:i+1, sym:r.sym, name:r.name, sector:r.sector, industry:r.industry, cap:r.cap,
-        rs:r.rs, cmp:r.cmp, chg:r.chg, proximity52w:r.proximity52w,
-        hi52w:r.hi52w, strat:r.strat, cat:r.cat, conf:r.conf,
-      }));
+    const sorted = [...this.lastResults].sort((a,b)=>b.rs-a.rs);
+
+    // Sector rank: group by sector, sort each group by rs desc
+    const sectorRankMap = {}; // sym -> sectorRank
+    const bySector = {};
+    for (const r of sorted) {
+      if (!bySector[r.sector]) bySector[r.sector] = [];
+      bySector[r.sector].push(r);
+    }
+    for (const sector of Object.keys(bySector)) {
+      bySector[sector]
+        .sort((a,b)=>b.rs-a.rs)
+        .forEach((r,i) => { sectorRankMap[r.sym] = i+1; });
+    }
+
+    return sorted.map((r,i)=>({
+      rank: i+1,
+      sectorRank: sectorRankMap[r.sym] || null,
+      sym:r.sym, name:r.name, sector:r.sector, industry:r.industry, cap:r.cap,
+      rs:r.rs, priceStrength:r.priceStrength,
+      cmp:r.cmp, chg:r.chg, proximity52w:r.proximity52w,
+      hi52w:r.hi52w, strat:r.strat, cat:r.cat, conf:r.conf,
+    }));
   }
 
   getSectorLeaders() {
