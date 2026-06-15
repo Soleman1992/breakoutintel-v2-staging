@@ -500,14 +500,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
         </div>
       </div>
       <div class="panel">
-        <div class="ph"><span class="ph-t">Key Events</span></div>
-        <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">RBI Policy Meeting</span><span style="color:var(--warn)">Jun 18</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">US CPI Data</span><span style="color:var(--t3)">Jun 15</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">Q4 Earnings Season</span><span style="color:var(--acc2)">Ongoing</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">F&O Expiry</span><span style="color:var(--t3)">Jun 26</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:10px"><span style="color:var(--t2)">FII Holdings Data</span><span style="color:var(--t3)">Jun 20</span></div>
+        <div class="ph"><span class="ph-t">Corporate Announcements</span><span class="ph-cnt" id="corp-ann-cnt">—</span></div>
+        <div id="corp-ann-feed" style="max-height:400px;overflow-y:auto">
+          <div style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</div>
         </div>
+        <div class="data-src"><span id="corp-ann-src">NSE Corporate Announcements</span><span id="corp-ann-ts">—</span></div>
       </div>
     </div>
   </div>
@@ -765,6 +762,23 @@ async function fetchScannerStats(){
     }
   }catch(e){
     console.warn('[REST] scanner stats failed:',e.message);
+  }
+}
+
+// Market Breadth — real NSE Nifty 500 advance/decline + new highs/lows
+// Fills in the 'New 52W High' / 'New 52W Low' cells in the Market Internals
+// panel (int-adv/int-dec are already wired to a separate real advDec source).
+async function fetchMarketBreadth(){
+  try{
+    var res=await fetch(BACKEND+'/market/breadth',{signal:AbortSignal.timeout(15000)});
+    var d=await res.json();
+    if(d.ok&&d.data){
+      document.getElementById('int-nh').textContent=f(d.data.newHigh,0);
+      document.getElementById('int-nl').textContent=f(d.data.newLow,0);
+    }
+    // if !d.ok, leave cells as '—' (no fake data)
+  }catch(e){
+    console.warn('[REST] market breadth failed:',e.message);
   }
 }
 
@@ -1162,6 +1176,9 @@ async function init(){
     if(ok) toast('Live breakout signals loaded ✓');
   },2500);
 
+  // Market breadth (NSE Nifty 500 advance/decline + 52wk high/low) — real data
+  setTimeout(fetchMarketBreadth, 3500);
+
   setInterval(updateClock,1000);
   startCountdown();
 
@@ -1173,6 +1190,9 @@ async function init(){
 
   // Scanner polling every 45s
   setInterval(()=>{ if(!wsReady) fetchScanner(); },45000);
+
+  // Market breadth refresh every 60s
+  setInterval(fetchMarketBreadth, 60000);
 
   document.getElementById('footer-ts').textContent='Initialized: '+nowIST();
 }
@@ -1211,7 +1231,7 @@ function switchView(view) {
 
   // Lazy-load view content
   if (view === 'scanner') renderScan2();
-  if (view === 'news') renderNewsFeed();
+  if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
 
@@ -1526,6 +1546,67 @@ function renderStratTable() {
 
 function renderStrategiesView() {
   renderStratTable();
+}
+
+// ─── CORPORATE ANNOUNCEMENTS (real NSE, filtered to scan universe) ───────────
+var CORP_ANN_COLORS = {
+  'Bulk Deal':          {c:'var(--up)',   bg:'#0d2e1a'},
+  'Block Deal':         {c:'var(--up)',   bg:'#0d2e1a'},
+  'Insider Buying':     {c:'var(--up)',   bg:'#0d2e1a'},
+  'Insider Selling':    {c:'var(--dn)',   bg:'#2e0d0d'},
+  'Earnings':           {c:'var(--warn)', bg:'#2a1e06'},
+  'Corporate Action':   {c:'var(--acc2)', bg:'#0d1b35'},
+  'Shareholding Change':{c:'var(--acc2)', bg:'#0d1b35'},
+  'Credit Rating':      {c:'var(--t2)',   bg:'#1a1f2e'},
+  'General':            {c:'var(--t2)',   bg:'#1a1f2e'},
+};
+
+var corpAnnLoaded = false;
+
+async function renderCorporateAnnouncements(){
+  if (corpAnnLoaded) return; // load once per session
+  var feed = document.getElementById('corp-ann-feed');
+  var cnt  = document.getElementById('corp-ann-cnt');
+  var src  = document.getElementById('corp-ann-src');
+  var ts   = document.getElementById('corp-ann-ts');
+  if (!feed) return;
+
+  try{
+    var res = await fetch(BACKEND+'/market/corporate-announcements?limit=30', {signal:AbortSignal.timeout(25000)});
+    var d = await res.json();
+    corpAnnLoaded = true;
+
+    if (!d.ok){
+      feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${d.error||'NSE unreachable'}</div>`;
+      if (cnt) cnt.textContent = '—';
+      if (src) src.textContent = (d.source||'NSE')+' — unreachable';
+      if (ts)  ts.textContent  = nowIST();
+      return;
+    }
+
+    if (cnt) cnt.textContent = d.data.length;
+    if (src) src.textContent = d.source || 'NSE Corporate Announcements';
+    if (ts)  ts.textContent  = nowIST();
+
+    feed.innerHTML = d.data.length ? d.data.map(a=>{
+      var col = CORP_ANN_COLORS[a.category] || CORP_ANN_COLORS['General'];
+      return `<div style="padding:8px 12px;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1">
+            <span class="sym" style="font-size:10px">${a.sym}</span>
+            <span style="font-size:9px;color:var(--t3);margin-left:4px">${a.sector||''}</span>
+            <div style="font-size:9px;color:var(--t2);margin-top:2px;line-height:1.4">${a.subject||''}</div>
+          </div>
+          <span style="font-size:8px;padding:1px 6px;border-radius:3px;white-space:nowrap;background:${col.bg};color:${col.c}">${a.category}</span>
+        </div>
+        <div style="font-size:8px;color:var(--t3);margin-top:3px">${a.timestamp||''}</div>
+      </div>`;
+    }).join('') : `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No corporate announcements for your scan universe currently</div>`;
+  }catch(e){
+    corpAnnLoaded = true;
+    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (cnt) cnt.textContent = '—';
+  }
 }
 
 </script>
