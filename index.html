@@ -231,7 +231,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" onclick="setFilter('vcp')"><div class="sb-lb"><i class="ti ti-wave-sine" style="font-size:13px;color:var(--t2)"></i><span>VCP Scanner</span></div></div>
   <div class="sb-it" onclick="setFilter('darvas')"><div class="sb-lb"><i class="ti ti-box" style="font-size:13px;color:var(--t2)"></i><span>Darvas Scanner</span></div></div>
   <div class="sb-it" onclick="setFilter('rs')"><div class="sb-lb"><i class="ti ti-trending-up" style="font-size:13px;color:var(--t2)"></i><span>RS Leaders</span></div></div>
-  <div class="sb-it" id="nav-fiidii" onclick="switchView('fiidii')"><div class="sb-lb"><i class="ti ti-building-bank" style="font-size:13px;color:var(--t2)"></i><span>FII/DII Tracker</span></div></div>
+  <div class="sb-it" id="nav-fiidii" onclick="switchView('fiidii')"><div class="sb-lb"><i class="ti ti-building-bank" style="font-size:13px;color:var(--t2)"></i><span>Smart Money Activity</span></div></div>
   <div class="sb-sec">Sources</div>
   <div class="sb-it"><div class="sb-lb"><div class="src-dot"></div><span>NSE India</span></div></div>
   <div class="sb-it"><div class="sb-lb"><div class="src-dot"></div><span>BSE India</span></div></div>
@@ -543,15 +543,38 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 
-<!-- VIEW: fiidii -->
+<!-- VIEW: fiidii (Smart Money Activity — real NSE data) -->
 <div id="view-fiidii" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-building-bank" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">FII / DII Tracker</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Daily and cumulative Foreign & Domestic Institutional Investor activity from SEBI provisional data. Net buy/sell figures, sector allocation, and trend analysis will appear here.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — SEBI data feed not connected</span>
+  <div class="mkt-tabs" id="sm-tabs">
+    <div class="mkt-tab active" onclick="smTab(this,'bulk')">Bulk Deals</div>
+    <div class="mkt-tab" onclick="smTab(this,'block')">Block Deals</div>
+    <div class="mkt-tab" onclick="smTab(this,'delivery')">Delivery Volume Spike</div>
+    <div class="mkt-tab" onclick="smTab(this,'inst')">Institutional Accumulation</div>
+  </div>
+  <div class="panel" style="margin:7px;border-top:none;border-radius:0 0 10px 10px">
+    <div class="ph">
+      <span class="ph-t" id="sm-title">Bulk Deal Scanner</span>
+      <span class="ph-cnt" id="sm-cnt">—</span>
+    </div>
+    <div class="sc-wrap" style="max-height:calc(100vh - 190px)">
+      <table class="sc-tbl">
+        <thead id="sm-thead"><tr>
+          <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+          <th>Client Name</th><th>Deal Type</th><th>Qty</th><th>Price (₹)</th>
+          <th>CMP (₹)</th><th>Chg%</th><th>Date</th>
+        </tr></thead>
+        <tbody id="sm-body">
+          <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="data-src">
+      <span id="sm-src">NSE Bulk Deals API</span>
+      <span id="sm-ts">—</span>
+    </div>
   </div>
 </div>
+
 
 </div><!-- end main -->
 </div><!-- end body -->
@@ -1190,6 +1213,7 @@ function switchView(view) {
   if (view === 'scanner') renderScan2();
   if (view === 'news') renderNewsFeed();
   if (view === 'strategies') renderStrategiesView();
+  if (view === 'fiidii') renderSmartMoneyView();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
@@ -1293,6 +1317,131 @@ function renderNewsFeed() {
         </div>
       </div>
     </div>`).join('');
+}
+
+// ─── SMART MONEY ACTIVITY (real NSE: Bulk/Block Deals, Delivery Volume, Institutional) ──
+var smartMoneyData  = {};   // cache per tab: { ok, data, source, error }
+var smartMoneyTab   = 'bulk';
+var smartMoneyEndpoints = {
+  bulk:     '/scanner/bulk-deals',
+  block:    '/scanner/block-deals',
+  delivery: '/scanner/delivery-volume',
+  inst:     '/scanner/institutional',
+};
+var smartMoneyTitles = {
+  bulk:     'Bulk Deal Scanner',
+  block:    'Block Deal Scanner',
+  delivery: 'Delivery Volume Spike',
+  inst:     'Institutional Accumulation',
+};
+// Column headers per tab — all 12 columns wide
+var smartMoneyHeaders = {
+  bulk:     ['#','Symbol','Company','Sector','Cap','Client Name','Deal Type','Qty','Price (₹)','CMP (₹)','Chg%','Date'],
+  block:    ['#','Symbol','Company','Sector','Cap','Client Name','Deal Type','Qty','Price (₹)','CMP (₹)','Chg%','Date'],
+  delivery: ['#','Symbol','Company','Sector','Cap','Delivery %','Delivery Qty','Total Traded Qty','Turnover (₹L)','CMP (₹)','Chg%','Date'],
+  inst:     ['#','Symbol','Company','Sector','Cap','Client Name','Bulk Qty','Bulk Price (₹)','Delivery %','CMP (₹)','Chg%','Bulk Deal Date'],
+};
+
+async function smTab(el, key) {
+  smartMoneyTab = key;
+  document.querySelectorAll('#sm-tabs .mkt-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  var titleEl = document.getElementById('sm-title');
+  if (titleEl) titleEl.textContent = smartMoneyTitles[key] || key;
+
+  var thead = document.getElementById('sm-thead');
+  if (thead) thead.innerHTML = '<tr>' + smartMoneyHeaders[key].map(h=>'<th>'+h+'</th>').join('') + '</tr>';
+
+  await loadSmartMoneyData(key);
+  renderSmartMoneyTable();
+}
+
+async function loadSmartMoneyData(key) {
+  if (smartMoneyData[key]) return; // cache for session
+  var body = document.getElementById('sm-body');
+  if (body) body.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading from NSE...</td></tr>';
+  try {
+    var res = await fetch(BACKEND + smartMoneyEndpoints[key] + '?limit=500', { signal: AbortSignal.timeout(25000) });
+    var d = await res.json();
+    smartMoneyData[key] = d;
+  } catch (e) {
+    smartMoneyData[key] = { ok: false, error: e.message, data: [], source: 'NSE' };
+  }
+}
+
+function smRow(key, r, i) {
+  var chgCls = (r.chg||0) >= 0 ? 'up' : 'dn';
+  var chgTxt = r.chg != null ? ((r.chg>=0?'+':'')+f(r.chg,2)+'%') : '—';
+  var cmpTxt = r.cmp != null ? '₹'+f(r.cmp) : '—';
+  var sec = `<td style="font-size:9px;color:var(--t2)">${r.sector||'—'}</td><td style="font-size:9px;color:var(--t3)">${r.cap||'—'}</td>`;
+  var head = `<td style="color:var(--t3)">${i+1}</td><td><span class="sym">${r.sym}</span></td><td style="font-size:9px;color:var(--t2)">${r.name||''}</td>${sec}`;
+  var tail = `<td>${cmpTxt}</td><td class="${chgCls}">${chgTxt}</td>`;
+
+  if (key === 'bulk' || key === 'block') {
+    var dealCls = (r.dealType||'').toUpperCase().includes('BUY') ? 'up' : 'dn';
+    return `<tr>${head}
+      <td style="font-size:9px;color:var(--t2)">${r.clientName||'—'}</td>
+      <td><span class="${dealCls}">${r.dealType||'—'}</span></td>
+      <td>${r.qty!=null?r.qty.toLocaleString('en-IN'):'—'}</td>
+      <td>₹${f(r.price)}</td>
+      ${tail}
+      <td style="font-size:9px;color:var(--t3)">${r.date||'—'}</td>
+    </tr>`;
+  }
+  if (key === 'delivery') {
+    return `<tr>${head}
+      <td><span style="color:${r.deliveryPct>=75?'var(--up)':'var(--warn)'}">${f(r.deliveryPct,1)}%</span></td>
+      <td>${r.deliveryQty!=null?r.deliveryQty.toLocaleString('en-IN'):'—'}</td>
+      <td>${r.totalTradedQty!=null?r.totalTradedQty.toLocaleString('en-IN'):'—'}</td>
+      <td>${r.tradedValueLakhs!=null?'₹'+f(r.tradedValueLakhs,1)+'L':'—'}</td>
+      ${tail}
+      <td style="font-size:9px;color:var(--t3)">${r.date||'—'}</td>
+    </tr>`;
+  }
+  // inst
+  return `<tr>${head}
+    <td style="font-size:9px;color:var(--t2)">${r.clientName||'—'}</td>
+    <td>${r.bulkDealQty!=null?r.bulkDealQty.toLocaleString('en-IN'):'—'}</td>
+    <td>${r.bulkDealPrice!=null?'₹'+f(r.bulkDealPrice):'—'}</td>
+    <td>${r.deliveryPct!=null?f(r.deliveryPct,1)+'%':'—'}</td>
+    ${tail}
+    <td style="font-size:9px;color:var(--t3)">${r.bulkDealDate||'—'}</td>
+  </tr>`;
+}
+
+function renderSmartMoneyTable() {
+  var key  = smartMoneyTab;
+  var d    = smartMoneyData[key];
+  var body = document.getElementById('sm-body');
+  var cnt  = document.getElementById('sm-cnt');
+  var src  = document.getElementById('sm-src');
+  var ts   = document.getElementById('sm-ts');
+  if (!body || !d) return;
+
+  if (!d.ok) {
+    body.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${d.error||'NSE unreachable'}</td></tr>`;
+    if (cnt) cnt.textContent = '—';
+    if (src) src.textContent = (d.source||'NSE') + ' — unreachable';
+    if (ts)  ts.textContent  = nowIST();
+    return;
+  }
+
+  if (cnt) cnt.textContent = d.data.length;
+  if (src) src.textContent = d.source || 'NSE';
+  if (ts)  ts.textContent  = nowIST();
+
+  body.innerHTML = d.data.length
+    ? d.data.map((r,i)=>smRow(key,r,i)).join('')
+    : `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">No ${smartMoneyTitles[key].toLowerCase()} signals currently</td></tr>`;
+}
+
+function renderSmartMoneyView() {
+  var activeTabEl = document.querySelector('#sm-tabs .mkt-tab.active');
+  if (!smartMoneyData[smartMoneyTab] && activeTabEl) {
+    smTab(activeTabEl, smartMoneyTab);
+  } else {
+    renderSmartMoneyTable();
+  }
 }
 
 // ─── STRATEGIES VIEW (live, 15 strategy tabs) ─────────────────────────────────
