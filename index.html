@@ -421,6 +421,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="mkt-tab" onclick="stratTab(this,'rel_vol')">Relative Volume</div>
     <div class="mkt-tab" onclick="stratTab(this,'early')">Early Breakout</div>
     <div class="mkt-tab" onclick="stratTab(this,'mom_ignite')">Momentum Ignition</div>
+    <div class="mkt-tab" onclick="stratTab(this,'earnings_mom')">Earnings Momentum</div>
   </div>
   <div class="panel" style="margin:7px;border-top:none;border-radius:0 0 10px 10px">
     <div class="ph">
@@ -1482,6 +1483,7 @@ var stratTitles = {
   rel_vol:    'Relative Volume Breakout',
   early:      'Early Breakout Candidates',
   mom_ignite: 'Momentum Ignition',
+  earnings_mom: 'Earnings Momentum (Post-Earnings Drift)',
 };
 
 function stratTab(el, key) {
