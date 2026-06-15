@@ -168,6 +168,26 @@ class ScannerService {
   }
   _round(v, d=2) { return Math.round(v*(10**d))/(10**d); }
 
+  // Parse NSE-style timestamps: "14-Jun-2026 16:30:45" or "14-Jun-2026".
+  // Returns epoch ms, or NaN if unparseable (caller should treat as unknown,
+  // not as a recent date — never assume a date to make a stock qualify).
+  _parseNSEDate(str) {
+    if (!str) return NaN;
+    const m = String(str).trim().match(/^(\d{1,2})-(\w{3})-(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (!m) {
+      const t = Date.parse(str);
+      return isNaN(t) ? NaN : t;
+    }
+    const MONTHS = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+    const mon = MONTHS[m[2]];
+    if (mon === undefined) return NaN;
+    const d = new Date(
+      parseInt(m[3]), mon, parseInt(m[1]),
+      m[4]?parseInt(m[4]):0, m[5]?parseInt(m[5]):0, m[6]?parseInt(m[6]):0
+    );
+    return d.getTime();
+  }
+
   // ── Entry / exit levels ────────────────────────────────────────────────────
   _levels(bars, pattern, extra={}) {
     const last  = bars[bars.length-1];
@@ -456,6 +476,30 @@ class ScannerService {
     return null;
   }
 
+  // Earnings Momentum — Post-Earnings Announcement Drift (PEAD) signal.
+  // Real data: NSE Corporate Announcements (category 'Earnings'), cross-referenced
+  // with Yahoo OHLCV. A stock qualifies only if BOTH are true:
+  //   1. It has a quarterly results announcement on NSE within the last
+  //      EARNINGS_WINDOW_DAYS days (hasRecentEarnings — passed in from runScan,
+  //      which builds this set once per scan from real NSE data).
+  //   2. Today's close is up vs prior close AND volume ratio >= 1.5x — i.e. the
+  //      market is reacting positively to the result with above-average volume.
+  // If NSE announcements are unavailable, hasRecentEarnings is always false for
+  // every stock, so this detector simply never fires (no fabricated matches).
+  _detectEarningsMomentum(bars, hasRecentEarnings) {
+    if (!hasRecentEarnings) return null;
+    if (bars.length<5) return null;
+    const last=bars[bars.length-1];
+    const prev=bars[bars.length-2];
+    if (!prev || !prev.close) return null;
+    const chgPct=((last.close-prev.close)/prev.close)*100;
+    const vols=bars.map(b=>b.volume||0);
+    const vr=this._volRatio(vols,bars.length-1);
+    if (chgPct>0 && vr>=1.5)
+      return { pattern:'earnings_mom', category:'active', earningsChgPct:this._round(chgPct), stratName:'Earnings Momentum' };
+    return null;
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // MAIN SCAN
   // ══════════════════════════════════════════════════════════════════════════
@@ -498,6 +542,31 @@ class ScannerService {
       }
     }
 
+    // Fetch NSE Corporate Announcements once, build a set of symbols with a
+    // quarterly results announcement within the last EARNINGS_WINDOW_DAYS days.
+    // If NSE is unreachable, this set stays empty and _detectEarningsMomentum
+    // simply never fires for this scan (no fabricated matches).
+    const EARNINGS_WINDOW_DAYS = 5;
+    let recentEarningsSymbols = new Set();
+    if (this.nseData) {
+      try {
+        const ann = await this.nseData.getCorporateAnnouncements(150);
+        if (ann.ok) {
+          const cutoff = Date.now() - EARNINGS_WINDOW_DAYS*24*60*60*1000;
+          for (const a of ann.data) {
+            if (a.category !== 'Earnings') continue;
+            const t = this._parseNSEDate(a.timestamp);
+            if (!isNaN(t) && t >= cutoff) recentEarningsSymbols.add(a.sym);
+          }
+          console.log(`[Scanner] Recent earnings announcements: ${recentEarningsSymbols.size} symbols (last ${EARNINGS_WINDOW_DAYS}d)`);
+        } else {
+          console.log(`[Scanner] Corporate announcements unavailable (${ann.error}) — Earnings Momentum will not fire`);
+        }
+      } catch (e) {
+        console.log(`[Scanner] Corporate announcements fetch error: ${e.message} — Earnings Momentum will not fire`);
+      }
+    }
+
     // Run in batches of 5, 800ms between batches
     const BATCH = 5;
     for (let i=0; i<this.scanUniverse.length; i+=BATCH) {
@@ -526,8 +595,14 @@ class ScannerService {
         const turnoverLakhs = turnoverMap[stockMeta.sym.replace('.NS','')] ?? null;
         if (!this._passesRuntimeLiquidity(stockMeta, avgVol, turnoverLakhs)) continue;
 
+        const hasRecentEarnings = recentEarningsSymbols.has(stockMeta.sym.replace('.NS',''));
+
         // Run ALL detectors — collect every signal (a stock can match multiple)
+        // Earnings Momentum is checked first: an earnings catalyst + immediate
+        // positive price/volume reaction is a more specific, higher-information
+        // signal than generic technical patterns, so it takes priority.
         const detectors = [
+          ()=>this._detectEarningsMomentum(bars, hasRecentEarnings),
           ()=>this._detectVCP(bars),
           ()=>this._detectDarvas(bars),
           ()=>this._detectVolSurge(bars),
@@ -586,6 +661,7 @@ class ScannerService {
           ret1m:        detected.ret1m||null,
           ret3m:        detected.ret3m||null,
           gapPct:       detected.gapPct||null,
+          earningsChgPct: detected.earningsChgPct||null,
           hi52w:        this._round(hi52),
           lo52w:        this._round(lo52),
           proximity52w: prox52w,
@@ -654,6 +730,7 @@ class ScannerService {
       rel_vol:   r=>r.strat==='rel_vol',
       early:     r=>r.strat==='early',
       mom_ignite:r=>r.strat==='mom_ignite',
+      earnings_mom: r=>r.strat==='earnings_mom',
       pre:       r=>r.cat==='pre',
       active:    r=>r.cat==='active',
       mom:       r=>r.cat==='mom',
