@@ -394,41 +394,47 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
 <!-- VIEW: strategies -->
 <div id="view-strategies" style="display:none">
-  <div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">📈 VCP — Volatility Contraction Pattern</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Developed by Mark Minervini. Price contracts in a series of smaller pivots with drying volume, then breaks out on 1.5-3× average volume. Entry: pivot high + 0.5%. Stop: 7-8% below entry. Best in Stage 2 uptrends.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~68%</span><span class="chip">R:R 2.5:1</span></div>
+  <div class="mkt-tabs" id="strat-tabs" style="flex-wrap:wrap">
+    <div class="mkt-tab active" onclick="stratTab(this,'vcp')">VCP</div>
+    <div class="mkt-tab" onclick="stratTab(this,'darvas')">Darvas Box</div>
+    <div class="mkt-tab" onclick="stratTab(this,'rs')">Stage 2 Base</div>
+    <div class="mkt-tab" onclick="stratTab(this,'vol')">Volume Surge</div>
+    <div class="mkt-tab" onclick="stratTab(this,'tight')">Tight Consolidation</div>
+    <div class="mkt-tab" onclick="stratTab(this,'pp')">Pocket Pivot</div>
+    <div class="mkt-tab" onclick="stratTab(this,'52wkhi')">52-Week High</div>
+    <div class="mkt-tab" onclick="stratTab(this,'vol_shock')">Volume Shock</div>
+    <div class="mkt-tab" onclick="stratTab(this,'minervini')">Minervini Trend</div>
+    <div class="mkt-tab" onclick="stratTab(this,'ema_comp')">EMA Compression</div>
+    <div class="mkt-tab" onclick="stratTab(this,'gap')">Gap-Up Strength</div>
+    <div class="mkt-tab" onclick="stratTab(this,'momentum')">High Momentum</div>
+    <div class="mkt-tab" onclick="stratTab(this,'rel_vol')">Relative Volume</div>
+    <div class="mkt-tab" onclick="stratTab(this,'early')">Early Breakout</div>
+    <div class="mkt-tab" onclick="stratTab(this,'mom_ignite')">Momentum Ignition</div>
+  </div>
+  <div class="panel" style="margin:7px;border-top:none;border-radius:0 0 10px 10px">
+    <div class="ph">
+      <span class="ph-t" id="strat-title">VCP — Volatility Contraction Pattern</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <input class="scan-in" id="strat-q" placeholder="Search..." oninput="renderStratTable()" style="width:90px">
+        <span class="ph-cnt" id="strat-cnt">—</span>
+      </span>
     </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">📦 Darvas Box Breakout</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Nicolas Darvas method. Price forms a box between a defined high and low for 3+ weeks. Entry on breakout above box top with 2× volume. Stop just below box floor. Works best in strong bull markets.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~62%</span><span class="chip">R:R 2.2:1</span></div>
+    <div class="sc-wrap" style="max-height:calc(100vh - 190px)">
+      <table class="sc-tbl">
+        <thead><tr>
+          <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+          <th>CMP (₹)</th><th>Chg%</th><th>Vol Ratio</th><th>RS Score</th>
+          <th>Entry</th><th>Stop Loss</th><th>Target 1</th><th>Target 2</th>
+          <th>R:R</th><th>Confidence</th><th>Strategy</th>
+        </tr></thead>
+        <tbody id="strat-body">
+          <tr><td colspan="16" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">☕ Cup & Handle</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">William O'Neil's classic pattern. U-shaped base over 6-65 weeks, followed by a handle pullback of ≤15%. Entry: handle high breakout on volume surge. Ideal pivot point entry with tight stop.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~71%</span><span class="chip">R:R 3.1:1</span></div>
-    </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🚀 Stage 2 Breakout</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Stan Weinstein's stage analysis. Stock must be in Stage 2 (above rising 30-week MA). Enter on breakout from base with volume. Ride the entire trend. Exit only when stock enters Stage 3/4.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~65%</span><span class="chip">R:R 4.0:1</span></div>
-    </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">⚡ Relative Strength Leader</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">IBD methodology. Stocks in top 10% of RS vs Nifty500 over 12 months. Strong institutions accumulating. Buy near 52-week highs. These stocks lead bull markets and recover fastest after corrections.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~74%</span><span class="chip">R:R 3.5:1</span></div>
-    </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🔥 Volume Surge Breakout</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">3-5× average volume on breakout day signals institutional accumulation. High follow-through probability within 3-5 sessions. Enter same day or on first pullback. Stop below breakout candle low.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~69%</span><span class="chip">R:R 2.8:1</span></div>
-    </div>
-    <div class="panel" style="padding:18px">
-      <div style="font-size:13px;font-weight:500;color:var(--t1);margin-bottom:6px">🎯 Tight Consolidation Base</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Price trades in a very tight 3-5% range for 10+ days with drying volume. Supply has been absorbed. Very tight stop available (2-3%). High reward potential. Best after a strong prior uptrend.</div>
-      <div style="margin-top:10px;display:flex;gap:6px"><span class="chip sel" style="background:#0d2e1a;color:var(--up);border-color:var(--up)">Active</span><span class="chip">Win Rate ~66%</span><span class="chip">R:R 3.2:1</span></div>
+    <div class="data-src">
+      <span id="strat-src">Live scanner data · full universe, no sample records</span>
+      <span id="strat-ts">—</span>
     </div>
   </div>
 </div>
@@ -834,6 +840,7 @@ function loadScannerFromData(stocks){
   document.getElementById('sb-mom').textContent=allStocks.filter(s=>s.cat==='mom').length;
   document.getElementById('footer-ts').textContent='Last updated: '+ts;
   toast('Scanner updated — '+allStocks.length+' signals loaded');
+  if (typeof activeView !== 'undefined' && activeView === 'strategies') renderStratTable();
 }
 
 // ─── SPARKS ───────────────────────────────────────────────────────────────────
@@ -1170,6 +1177,7 @@ function switchView(view) {
   // Lazy-load view content
   if (view === 'scanner') renderScan2();
   if (view === 'news') renderNewsFeed();
+  if (view === 'strategies') renderStrategiesView();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
@@ -1240,6 +1248,90 @@ function renderNewsFeed() {
         </div>
       </div>
     </div>`).join('');
+}
+
+// ─── STRATEGIES VIEW (live, 15 strategy tabs) ─────────────────────────────────
+var activeStrat = 'vcp';
+var stratTitles = {
+  vcp:        'VCP — Volatility Contraction Pattern',
+  darvas:     'Darvas Box Breakout',
+  rs:         'Stage 2 Base',
+  vol:        'Volume Surge Breakout',
+  tight:      'Tight Consolidation',
+  pp:         'Pocket Pivot',
+  '52wkhi':   '52-Week High Breakout',
+  vol_shock:  'Volume Shock Scanner',
+  minervini:  'Minervini Trend Template',
+  ema_comp:   'EMA Compression',
+  gap:        'Gap-Up Strength',
+  momentum:   'High Momentum',
+  rel_vol:    'Relative Volume Breakout',
+  early:      'Early Breakout Candidates',
+  mom_ignite: 'Momentum Ignition',
+};
+
+function stratTab(el, key) {
+  activeStrat = key;
+  document.querySelectorAll('#strat-tabs .mkt-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  var titleEl = document.getElementById('strat-title');
+  if (titleEl) titleEl.textContent = stratTitles[key] || key;
+  var qEl = document.getElementById('strat-q');
+  if (qEl) qEl.value = '';
+  renderStratTable();
+}
+
+function renderStratTable() {
+  var body = document.getElementById('strat-body');
+  var cnt  = document.getElementById('strat-cnt');
+  var ts   = document.getElementById('strat-ts');
+  if (!body) return;
+
+  if (!allStocks.length) {
+    body.innerHTML = '<tr><td colspan="16" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading scanner data...</td></tr>';
+    if (cnt) cnt.textContent = '—';
+    return;
+  }
+
+  var stocks = allStocks.filter(s => s.st === activeStrat);
+  var q = (document.getElementById('strat-q') || {}).value || '';
+  if (q) {
+    var ql = q.toLowerCase();
+    stocks = stocks.filter(s =>
+      s.sym.toLowerCase().includes(ql) ||
+      (s.name||'').toLowerCase().includes(ql) ||
+      (s.sec||'').toLowerCase().includes(ql)
+    );
+  }
+  stocks = [...stocks].sort((a,b)=>b.conf-a.conf);
+
+  if (cnt) cnt.textContent = stocks.length;
+  if (ts)  ts.textContent  = nowIST();
+
+  body.innerHTML = stocks.length ? stocks.map((s,i) => `
+    <tr onclick="openModal(${allStocks.indexOf(s)})">
+      <td style="color:var(--t3)">${i+1}</td>
+      <td><span class="sym">${s.sym}</span></td>
+      <td style="font-size:9px;color:var(--t2)">${s.name||''}</td>
+      <td style="font-size:9px;color:var(--t2)">${s.sec}</td>
+      <td style="font-size:9px;color:var(--t3)">${s.cap}</td>
+      <td style="color:var(--t1);font-weight:500">₹${f(s.cmp)}</td>
+      <td class="${s.chg>=0?'up':'dn'}">${s.chg>=0?'+':''}${f(s.chg,2)}%</td>
+      <td><span style="color:${s.vol>=3?'var(--up)':s.vol>=2?'var(--warn)':'var(--t2)'}">${f(s.vol,1)}×</span></td>
+      <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${s.rs}</span></td>
+      <td style="color:var(--acc2)">₹${f(s.entry)}</td>
+      <td class="dn">₹${f(s.sl)}</td>
+      <td class="up">₹${f(s.t1)}</td>
+      <td class="up">₹${f(s.t2)}</td>
+      <td style="color:var(--t2)">${f(s.rr,1)}:1</td>
+      <td><span class="cn ${s.conf>=8?'c-hi':s.conf>=6?'c-md':'c-lo'}">${s.conf}</span></td>
+      <td style="font-size:9px;color:var(--t3)">${s.stratName||s.st}</td>
+    </tr>`).join('') :
+    `<tr><td colspan="16" style="padding:20px;text-align:center;color:var(--t3)">No stocks currently match this strategy in the live scan</td></tr>`;
+}
+
+function renderStrategiesView() {
+  renderStratTable();
 }
 
 </script>
