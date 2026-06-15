@@ -367,28 +367,39 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
 <!-- VIEW: scanner (full page) -->
 <div id="view-scanner" style="display:none">
-  <div class="panel" style="margin:7px">
-    <div class="ph"><span class="ph-t">Full Breakout Scanner</span><span class="ph-cnt" id="scan-cnt2">—</span></div>
-    <div class="sr-row">
-      <input class="scan-in" id="scan-q2" placeholder="Search symbol..." oninput="filterScan2()">
-      <span class="chip sel" id="chip2-all" onclick="chip2Click(this,'all')">All</span>
-      <span class="chip" id="chip2-vcp" onclick="chip2Click(this,'vcp')">VCP</span>
-      <span class="chip" id="chip2-darvas" onclick="chip2Click(this,'darvas')">Darvas</span>
-      <span class="chip" id="chip2-rs" onclick="chip2Click(this,'rs')">RS Leader</span>
-      <span class="chip" id="chip2-vol" onclick="chip2Click(this,'vol')">Vol Surge</span>
-      <span class="chip" id="chip2-tight" onclick="chip2Click(this,'tight')">Tight Base</span>
+  <div class="mkt-tabs" id="scan2-tabs">
+    <div class="mkt-tab active" onclick="scan2Tab(this,'all')">All Signals</div>
+    <div class="mkt-tab" onclick="scan2Tab(this,'pre')">Pre-Breakout</div>
+    <div class="mkt-tab" onclick="scan2Tab(this,'active')">Active Breakout</div>
+    <div class="mkt-tab" onclick="scan2Tab(this,'mom')">High Momentum</div>
+  </div>
+  <div class="panel" style="margin:7px;border-top:none;border-radius:0 0 10px 10px">
+    <div class="ph">
+      <span class="ph-t" id="scan2-title">All Breakout Signals</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <input class="scan-in" id="scan-q2" placeholder="Search..." oninput="filterScan2()" style="width:90px">
+        <span class="ph-cnt" id="scan-cnt2">—</span>
+      </span>
     </div>
-    <div class="sc-wrap" style="max-height:calc(100vh - 200px)">
+    <div class="sc-wrap" style="max-height:calc(100vh - 190px)">
       <table class="sc-tbl">
         <thead><tr>
-          <th>#</th><th>Stock</th><th>CMP (₹)</th><th>Setup</th><th>Pattern</th>
-          <th>Vol Ratio</th><th>RS Score</th><th>Entry</th><th>Stop Loss</th>
-          <th>Target 1</th><th>Target 2</th><th>Score</th>
+          <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+          <th>CMP (₹)</th><th>Chg%</th><th>Vol Ratio</th><th>RS Score</th>
+          <th>Entry</th><th>Stop Loss</th><th>Target 1</th><th>Target 2</th>
+          <th>R:R</th><th>Confidence</th><th>Strategy</th>
         </tr></thead>
-        <tbody id="scan-body2"><tr><td colspan="12" style="padding:14px;color:var(--t3);text-align:center">Loading scanner data...</td></tr></tbody>
+        <tbody id="scan-body2">
+          <tr><td colspan="16" style="padding:14px;color:var(--t3);text-align:center"><span class="spin">⟳</span> Loading scanner data...</td></tr>
+        </tbody>
       </table>
     </div>
-    <div class="data-src"><span id="scan-ts2-label">Loading...</span><button class="chip" onclick="triggerRescan()" style="border-color:var(--acc);color:var(--acc2)"><i class="ti ti-refresh" style="font-size:11px"></i> Rescan</button></div>
+    <div class="data-src">
+      <span id="scan-ts2-label">Loading...</span>
+      <button class="chip" onclick="triggerRescan()" style="border-color:var(--acc);color:var(--acc2)">
+        <i class="ti ti-refresh" style="font-size:11px"></i> Rescan
+      </button>
+    </div>
   </div>
 </div>
 
@@ -841,6 +852,7 @@ function loadScannerFromData(stocks){
   document.getElementById('footer-ts').textContent='Last updated: '+ts;
   toast('Scanner updated — '+allStocks.length+' signals loaded');
   if (typeof activeView !== 'undefined' && activeView === 'strategies') renderStratTable();
+  if (typeof activeView !== 'undefined' && activeView === 'scanner') renderScan2();
 }
 
 // ─── SPARKS ───────────────────────────────────────────────────────────────────
@@ -1184,39 +1196,72 @@ function switchView(view) {
 }
 
 // ─── SCANNER VIEW 2 (full page) ───────────────────────────────────────────────
-var fKey2 = 'all';
+var scan2Filter = 'all';
+var scan2Titles = {
+  all:    'All Breakout Signals',
+  pre:    'Pre-Breakout Candidates',
+  active: 'Active Breakouts',
+  mom:    'High Momentum Stocks',
+};
 
 function renderScan2() {
-  var body = document.getElementById('scan-body2');
+  var body  = document.getElementById('scan-body2');
+  var cnt   = document.getElementById('scan-cnt2');
+  var title = document.getElementById('scan2-title');
   if (!body) return;
-  var stocks = fKey2 === 'all' ? allStocks : allStocks.filter(s => s.st === fKey2);
+
+  if (!allStocks.length) {
+    body.innerHTML = '<tr><td colspan="16" style="padding:14px;color:var(--t3);text-align:center"><span class="spin">⟳</span> Loading scanner data...</td></tr>';
+    if (cnt) cnt.textContent = '—';
+    return;
+  }
+
+  var stocks = scan2Filter === 'all' ? allStocks : allStocks.filter(s => s.cat === scan2Filter);
   var q = (document.getElementById('scan-q2') || {}).value || '';
-  if (q) stocks = stocks.filter(s => s.sym.toLowerCase().includes(q.toLowerCase()));
-  document.getElementById('scan-cnt2').textContent = stocks.length;
+  if (q) {
+    var ql = q.toLowerCase();
+    stocks = stocks.filter(s =>
+      s.sym.toLowerCase().includes(ql) ||
+      (s.name||'').toLowerCase().includes(ql) ||
+      (s.sec||'').toLowerCase().includes(ql)
+    );
+  }
+  stocks = [...stocks].sort((a,b)=>b.conf-a.conf);
+
+  if (title) title.textContent = scan2Titles[scan2Filter] || 'Scanner';
+  if (cnt) cnt.textContent = stocks.length;
+
   body.innerHTML = stocks.length ? stocks.map((s, i) => `
     <tr onclick="openModal(${allStocks.indexOf(s)})">
       <td style="color:var(--t3)">${i + 1}</td>
-      <td><span class="sym">${s.sym}</span><div style="font-size:9px;color:var(--t3)">${s.sec}</div></td>
+      <td><span class="sym">${s.sym}</span></td>
+      <td style="font-size:9px;color:var(--t2)">${s.name||''}</td>
+      <td style="font-size:9px;color:var(--t2)">${s.sec}</td>
+      <td style="font-size:9px;color:var(--t3)">${s.cap}</td>
       <td style="color:var(--t1);font-weight:500">₹${f(s.cmp)}</td>
-      <td>${s.cat==='active'?'<span class="cat-a">Active BO</span>':s.cat==='pre'?'<span class="cat-p">Pre-Breakout</span>':'<span class="cat-m">Momentum</span>'}</td>
-      <td><span class="pat">${s.stratName||PAT[s.st]||s.st}</span></td>
+      <td class="${s.chg>=0?'up':'dn'}">${s.chg>=0?'+':''}${f(s.chg,2)}%</td>
       <td><span style="color:${s.vol>=3?'var(--up)':s.vol>=2?'var(--warn)':'var(--t2)'}">${f(s.vol,1)}×</span></td>
-      <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${Math.round(s.rs)}</span></td>
+      <td><span style="color:${s.rs>=90?'var(--up)':s.rs>=80?'var(--warn)':'var(--t2)'}">${s.rs}</span></td>
       <td style="color:var(--acc2)">₹${f(s.entry)}</td>
       <td class="dn">₹${f(s.sl)}</td>
       <td class="up">₹${f(s.t1)}</td>
       <td class="up">₹${f(s.t2)}</td>
-      <td><span class="cn ${s.conf>=8?'c-hi':s.conf>=6?'c-md':'c-lo'}">${Math.round(s.conf)}</span></td>
+      <td style="color:var(--t2)">${f(s.rr,1)}:1</td>
+      <td><span class="cn ${s.conf>=8?'c-hi':s.conf>=6?'c-md':'c-lo'}">${s.conf}</span></td>
+      <td style="font-size:9px;color:var(--t3)">${s.stratName||s.st}</td>
     </tr>`).join('') :
-    '<tr><td colspan="12" style="padding:12px;color:var(--t3);text-align:center">No signals match filter</td></tr>';
-  if (document.getElementById('scan-ts2-label'))
-    document.getElementById('scan-ts2-label').textContent = 'Live scanner · ' + allStocks.length + ' signals · ' + nowIST();
+    `<tr><td colspan="16" style="padding:14px;color:var(--t3);text-align:center">No signals in this category</td></tr>`;
+
+  var ts = document.getElementById('scan-ts2-label');
+  if (ts) ts.textContent = 'Live scanner · ' + allStocks.length + ' total signals · ' + nowIST();
 }
 
-function chip2Click(el, k) {
-  fKey2 = k;
-  document.querySelectorAll('[id^=chip2-]').forEach(b => b.classList.remove('sel'));
-  el.classList.add('sel');
+function scan2Tab(el, key) {
+  scan2Filter = key;
+  document.querySelectorAll('#scan2-tabs .mkt-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  var qEl = document.getElementById('scan-q2');
+  if (qEl) qEl.value = '';
   renderScan2();
 }
 
