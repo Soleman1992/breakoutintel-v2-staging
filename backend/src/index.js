@@ -28,9 +28,15 @@ app.use(express.json({ limit: '1mb' }));
 app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHeaders: false }));
 
 // ── Serve V2 Dashboard (index.html at repo root) ──────────────────────────────
-// File structure: repo-root/index.html, repo-root/backend/src/index.js
-// So we go 3 levels up from src/ to reach repo root
-const REPO_ROOT = path.join(__dirname, '..', '..', '..');
+// On Render: rootDir=backend → __dirname=/opt/render/project/src/src → go 2 up
+// Locally:   __dirname=.../backend/src → go 3 up to repo root
+// Try both and use whichever has index.html
+const fs = require('fs');
+const candidateRoots = [
+  path.join(__dirname, '..', '..'),       // Render: backend is rootDir
+  path.join(__dirname, '..', '..', '..'), // Local: full repo
+];
+const REPO_ROOT = candidateRoots.find(p => fs.existsSync(path.join(p, 'index.html'))) || candidateRoots[0];
 app.use(express.static(REPO_ROOT));
 
 // ── Health Check — Render pings this to confirm deploy success ────────────────
