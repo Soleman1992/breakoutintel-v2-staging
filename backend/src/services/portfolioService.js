@@ -337,6 +337,80 @@ class PortfolioService {
     return rows[0];
   }
 
+  // ── GET trade history ─────────────────────────────────────────────────────
+  // Returns all BUY/SELL/PARTIAL_SELL records for the user, newest first.
+  async getTradeHistory(userId) {
+    const { rows } = await this.db.query(
+      `SELECT id, position_id, symbol, exchange, company_name,
+              action, transaction_type, quantity, price, total_value,
+              pnl, pnl_pct, holding_days, notes, executed_at
+         FROM trade_history
+        WHERE user_id = $1
+        ORDER BY executed_at DESC`,
+      [userId]
+    );
+    return rows;
+  }
+
+  // ── GET realized performance metrics ─────────────────────────────────────
+  // Calculated live from positions + trade_history. No aggregate table.
+  async getPerformance(userId) {
+    // Aggregate from positions
+    const posResult = await this.db.query(
+      `SELECT
+         COUNT(*)                                                        AS total_positions,
+         COUNT(*) FILTER (WHERE status = 'closed')                      AS closed_trades,
+         COUNT(*) FILTER (WHERE status IN ('open','partial'))           AS open_trades,
+         COUNT(*) FILTER (WHERE status = 'closed' AND realized_pnl > 0) AS winning_trades,
+         COUNT(*) FILTER (WHERE status = 'closed' AND realized_pnl <= 0) AS losing_trades,
+         COALESCE(SUM(realized_pnl) FILTER (WHERE status = 'closed'), 0) AS total_realized_pnl,
+         COALESCE(SUM(realized_pnl) FILTER (WHERE status = 'closed' AND realized_pnl > 0), 0) AS gross_profit,
+         COALESCE(ABS(SUM(realized_pnl) FILTER (WHERE status = 'closed' AND realized_pnl <= 0)), 0) AS gross_loss
+       FROM positions
+      WHERE user_id = $1`,
+      [userId]
+    );
+
+    // Holding period averages from trade_history (sell records only)
+    const holdResult = await this.db.query(
+      `SELECT
+         ROUND(AVG(holding_days) FILTER (WHERE pnl > 0),  1) AS avg_days_winners,
+         ROUND(AVG(holding_days) FILTER (WHERE pnl <= 0), 1) AS avg_days_losers
+       FROM trade_history
+      WHERE user_id = $1
+        AND transaction_type IN ('SELL','PARTIAL_SELL')
+        AND holding_days IS NOT NULL`,
+      [userId]
+    );
+
+    const p = posResult.rows[0];
+    const h = holdResult.rows[0];
+
+    const closedTrades   = parseInt(p.closed_trades)   || 0;
+    const winningTrades  = parseInt(p.winning_trades)  || 0;
+    const losingTrades   = parseInt(p.losing_trades)   || 0;
+    const grossProfit    = Number(p.gross_profit)       || 0;
+    const grossLoss      = Number(p.gross_loss)         || 0;
+
+    return {
+      totalPositions:        parseInt(p.total_positions) || 0,
+      closedTrades,
+      openTrades:            parseInt(p.open_trades)     || 0,
+      winningTrades,
+      losingTrades,
+      winRate:               closedTrades > 0 ? (winningTrades / closedTrades) * 100 : null,
+      lossRate:              closedTrades > 0 ? (losingTrades  / closedTrades) * 100 : null,
+      totalRealizedPnL:      Number(p.total_realized_pnl) || 0,
+      grossProfit,
+      grossLoss,
+      avgWinner:             winningTrades > 0 ? grossProfit / winningTrades : null,
+      avgLoser:              losingTrades  > 0 ? grossLoss   / losingTrades  : null,
+      profitFactor:          grossLoss > 0 ? grossProfit / grossLoss : null,
+      avgHoldingDaysWinners: h.avg_days_winners ? Number(h.avg_days_winners) : null,
+      avgHoldingDaysLosers:  h.avg_days_losers  ? Number(h.avg_days_losers)  : null,
+    };
+  }
+
   // ── DELETE — remove a position ─────────────────────────────────────────────
   async deletePosition(userId, positionId) {
     const { rowCount } = await this.db.query(

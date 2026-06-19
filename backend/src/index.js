@@ -21,6 +21,7 @@ let scanner = null;
 let nseData = null;
 let wss = null;
 let portfolio = null;
+let transactions = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -450,6 +451,64 @@ app.delete('/portfolio/positions/:id', async (req, res) => {
   }
 });
 
+// ── Portfolio Routes — Phase 3 (Transactions Engine) ─────────────────────────
+
+// POST /portfolio/buy — create new position or average into existing
+app.post('/portfolio/buy', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!transactions) return res.status(503).json({ ok: false, error: 'Transaction service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await transactions.buy(userId, req.body);
+    res.status(201).json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /portfolio/sell — partial or full exit
+app.post('/portfolio/sell', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!transactions) return res.status(503).json({ ok: false, error: 'Transaction service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await transactions.sell(userId, req.body);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/history — full trade history (BUY/SELL/PARTIAL_SELL), newest first
+app.get('/portfolio/history', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.getTradeHistory(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/performance — realized P&L metrics (calculated live from DB)
+app.get('/portfolio/performance', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.getPerformance(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -538,9 +597,12 @@ async function start() {
       // market is passed after it is initialised in step 4 below;
       // portfolioService holds a reference so it will be live by the time
       // any route is called.
-      const PortfolioService = require('./services/portfolioService');
-      portfolio = new PortfolioService(db, null); // market injected after step 4
+      const PortfolioService  = require('./services/portfolioService');
+      const TransactionService = require('./services/transactionService');
+      portfolio    = new PortfolioService(db, null); // market injected after step 4
+      transactions = new TransactionService(db);
       console.log('[Portfolio] Service ready ✓');
+      console.log('[Transactions] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
