@@ -23,6 +23,7 @@ let wss = null;
 let portfolio = null;
 let transactions = null;
 let analytics = null;
+let intelligence = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -590,6 +591,10 @@ app.get('/portfolio/analytics/health', async (req, res) => {
   }
 });
 
+// ── Portfolio Intelligence Routes — Phase 5 ──────────────────────────────────
+const intelligenceRouter = require('./routes/intelligence');
+app.use('/portfolio/intelligence', intelligenceRouter(intelligence));
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -687,6 +692,10 @@ async function start() {
       console.log('[Portfolio] Service ready ✓');
       console.log('[Transactions] Service ready ✓');
       console.log('[Analytics] Service ready ✓');
+
+      const IntelligenceService = require('./services/intelligenceService');
+      intelligence = new IntelligenceService(db, null, analytics, null);
+      console.log('[Intelligence] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
@@ -729,6 +738,11 @@ async function start() {
     if (analytics) {
       analytics.market = market;
       console.log('[Analytics] Market service injected ✓');
+    }
+    if (intelligence) {
+      intelligence.market  = market;
+      intelligence.scanner = scanner;
+      console.log('[Intelligence] Market + Scanner injected ✓');
     }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
