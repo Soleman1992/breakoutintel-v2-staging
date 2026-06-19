@@ -20,6 +20,7 @@ let market = null;
 let scanner = null;
 let nseData = null;
 let wss = null;
+let portfolio = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -347,6 +348,62 @@ app.get('/market/breadth', async (req, res) => {
   }
 });
 
+// ── Portfolio Routes — Phase 1 (CRUD only) ───────────────────────────────────
+// user_id is taken from the x-user-id header (placeholder until auth middleware
+// is added in a later phase). If no DB, returns 503 gracefully.
+
+app.get('/portfolio/positions', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.getPositions(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/portfolio/positions', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.addPosition(userId, req.body);
+    res.status(201).json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.put('/portfolio/positions/:id', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.updatePosition(userId, req.params.id, req.body);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/portfolio/positions/:id', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.deletePosition(userId, req.params.id);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -430,6 +487,11 @@ async function start() {
       });
       await db.query('SELECT 1');
       console.log('[PostgreSQL] Connected ✓');
+
+      // Instantiate portfolio service now that DB is available
+      const PortfolioService = require('./services/portfolioService');
+      portfolio = new PortfolioService(db);
+      console.log('[Portfolio] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
