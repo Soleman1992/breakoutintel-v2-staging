@@ -256,30 +256,40 @@ class PortfolioService {
       target       = null,
       notes        = null,
       // metadata — resolved by validateAndResolveSymbol before calling this
-      company_name = null,
-      sector       = null,
-      industry     = null,
+      company_name  = null,
+      sector        = null,
+      industry      = null,
+      cap_category  = null,
     } = data;
 
     if (!symbol || !quantity || !average_buy_price) {
       throw new Error('symbol, quantity, and average_buy_price are required');
     }
 
+    // Resolve cap_category from UNIVERSE if not provided
+    const { UNIVERSE_MAP } = require('./universe');
+    const exch = (exchange || 'NSE').toUpperCase();
+    const suffix = exch === 'BSE' ? '.BO' : '.NS';
+    const resolvedCap = cap_category
+      || UNIVERSE_MAP[`${symbol.toUpperCase()}${suffix}`]?.cap
+      || null;
+
     const { rows } = await this.db.query(
       `INSERT INTO positions
          (user_id, symbol, exchange, company_name, sector, industry,
-          quantity, average_buy_price, buy_date, stop_loss, target, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          cap_category, quantity, average_buy_price, buy_date, stop_loss, target, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id, symbol, exchange, company_name, sector, industry,
-                 quantity, average_buy_price, buy_date, stop_loss, target,
+                 cap_category, quantity, average_buy_price, buy_date, stop_loss, target,
                  notes, status, created_at, updated_at`,
       [
         userId,
         symbol.toUpperCase(),
-        (exchange || 'NSE').toUpperCase(),
+        exch,
         company_name,
         sector,
         industry,
+        resolvedCap,
         quantity,
         average_buy_price,
         buy_date || new Date().toISOString().slice(0, 10),

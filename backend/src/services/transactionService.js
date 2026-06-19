@@ -1,4 +1,4 @@
-// ── Transaction Service — Phase 3 ────────────────────────────────────────────
+// ── Transaction Service — Phase 3 / Phase 4 ──────────────────────────────────
 // Handles BUY and SELL operations using the Average Cost Method.
 // All writes (position update + trade_history insert) run inside a single
 // PostgreSQL transaction — no partial writes possible.
@@ -10,6 +10,15 @@
 //   SELL (partial or full):
 //     realized_pnl = (sell_price − avg_buy_price) × qty_sold
 //     avg_buy_price does NOT change for remaining shares
+//
+// Phase 4: cap_category stored at buy time from UNIVERSE_MAP
+
+const { UNIVERSE_MAP } = require('./universe');
+
+function resolveCap(symbol, exchange) {
+  const suffix = (exchange || 'NSE').toUpperCase() === 'BSE' ? '.BO' : '.NS';
+  return UNIVERSE_MAP[`${symbol.toUpperCase()}${suffix}`]?.cap || null;
+}
 
 class TransactionService {
   constructor(db) {
@@ -86,14 +95,15 @@ class TransactionService {
         position = updated.rows[0];
       } else {
         // ── Create new position ─────────────────────────────────────────────
+        const cap_category = data.cap_category || resolveCap(sym, exch);
         const inserted = await client.query(
           `INSERT INTO positions
              (user_id, symbol, exchange, company_name, sector, industry,
-              quantity, average_buy_price, buy_date, stop_loss, target, notes, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'open')
+              cap_category, quantity, average_buy_price, buy_date, stop_loss, target, notes, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'open')
            RETURNING *`,
           [userId, sym, exch, company_name, sector, industry,
-           qty, px, buy_date, stop_loss, target, notes]
+           cap_category, qty, px, buy_date, stop_loss, target, notes]
         );
         position = inserted.rows[0];
       }

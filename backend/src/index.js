@@ -22,6 +22,7 @@ let nseData = null;
 let wss = null;
 let portfolio = null;
 let transactions = null;
+let analytics = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -509,6 +510,86 @@ app.get('/portfolio/performance', async (req, res) => {
   }
 });
 
+// ── Portfolio Routes — Phase 4 (Analytics) ───────────────────────────────────
+
+const analyticsGuard = (res) => {
+  if (!db)        return res.status(503).json({ ok: false, error: 'Database not configured' });
+  if (!analytics) return res.status(503).json({ ok: false, error: 'Analytics service not ready' });
+  return null;
+};
+const userGuard = (req, res) => {
+  const userId = req.headers['x-user-id'];
+  if (!userId) { res.status(400).json({ ok: false, error: 'x-user-id header required' }); return null; }
+  return userId;
+};
+
+// GET /portfolio/analytics/allocation
+// ?live=true adds unrealized P&L to sector performance and top 10 holdings
+app.get('/portfolio/analytics/allocation', async (req, res) => {
+  try {
+    if (analyticsGuard(res)) return;
+    const userId = userGuard(req, res); if (!userId) return;
+    const live = req.query.live === 'true';
+    const data = await analytics.getAllocation(userId, live);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/analytics/risk
+// HHI, concentration metrics, portfolio exposure
+app.get('/portfolio/analytics/risk', async (req, res) => {
+  try {
+    if (analyticsGuard(res)) return;
+    const userId = userGuard(req, res); if (!userId) return;
+    const data = await analytics.getRisk(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/analytics/performance
+// ?live=true adds top winners/losers and unrealized P&L
+app.get('/portfolio/analytics/performance', async (req, res) => {
+  try {
+    if (analyticsGuard(res)) return;
+    const userId = userGuard(req, res); if (!userId) return;
+    const live = req.query.live === 'true';
+    const data = await analytics.getPerformanceAnalytics(userId, live);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/analytics/timeline
+// Monthly + weekly P&L, holding period analysis
+app.get('/portfolio/analytics/timeline', async (req, res) => {
+  try {
+    if (analyticsGuard(res)) return;
+    const userId = userGuard(req, res); if (!userId) return;
+    const data = await analytics.getTimeline(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/analytics/health
+// Capital deployed, cash realized, win rate trend, profit factor trend
+app.get('/portfolio/analytics/health', async (req, res) => {
+  try {
+    if (analyticsGuard(res)) return;
+    const userId = userGuard(req, res); if (!userId) return;
+    const data = await analytics.getHealth(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -599,10 +680,13 @@ async function start() {
       // any route is called.
       const PortfolioService  = require('./services/portfolioService');
       const TransactionService = require('./services/transactionService');
+      const AnalyticsService   = require('./services/analyticsService');
       portfolio    = new PortfolioService(db, null); // market injected after step 4
       transactions = new TransactionService(db);
+      analytics    = new AnalyticsService(db, null); // market injected after step 4
       console.log('[Portfolio] Service ready ✓');
       console.log('[Transactions] Service ready ✓');
+      console.log('[Analytics] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
@@ -637,10 +721,14 @@ async function start() {
     console.log('[Scanner] Breakout scanner ready ✓');
     console.log('[WebSocket] Streaming on /ws ✓');
 
-    // Inject market into portfolio service now that it is available
+    // Inject market into portfolio + analytics services
     if (portfolio) {
       portfolio.market = market;
       console.log('[Portfolio] Market service injected ✓');
+    }
+    if (analytics) {
+      analytics.market = market;
+      console.log('[Analytics] Market service injected ✓');
     }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
