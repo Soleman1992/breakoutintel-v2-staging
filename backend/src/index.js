@@ -348,17 +348,63 @@ app.get('/market/breadth', async (req, res) => {
   }
 });
 
-// ── Portfolio Routes — Phase 1 (CRUD only) ───────────────────────────────────
+// ── Portfolio Routes — Phase 1 + Phase 2 ─────────────────────────────────────
 // user_id is taken from the x-user-id header (placeholder until auth middleware
 // is added in a later phase). If no DB, returns 503 gracefully.
 
+// GET /portfolio/search?q=<term>
+// In-memory search against UNIVERSE (346 stocks). Zero network calls.
+// Returns: sym, nseSymbol, name, exchange, sector, industry, cap, capCategory
+app.get('/portfolio/search', (req, res) => {
+  try {
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const q = (req.query.q || req.query.search || '').toString().trim();
+    if (!q) return res.status(400).json({ ok: false, error: 'q parameter required' });
+    const results = portfolio.searchStocks(q).map(s => ({
+      sym:         s.sym,
+      nseSymbol:   s.nseSymbol,
+      name:        s.name,
+      exchange:    s.exchange,
+      sector:      s.sector,
+      industry:    s.industry,
+      cap:         s.cap,
+      capCategory: s.cap,   // alias for UI convenience
+    }));
+    res.json({ ok: true, data: results });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/positions          — plain DB (Phase 1 behaviour)
+// GET /portfolio/positions?live=true — enriched with live prices (Phase 2)
 app.get('/portfolio/positions', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
     if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
     const userId = req.headers['x-user-id'];
     if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+
+    if (req.query.live === 'true') {
+      const result = await portfolio.getEnrichedPositions(userId);
+      return res.json({ ok: true, ...result });
+    }
+
     const data = await portfolio.getPositions(userId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /portfolio/summary — portfolio-level P&L summary with live prices
+app.get('/portfolio/summary', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ ok: false, error: 'Database not configured' });
+    if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ ok: false, error: 'x-user-id header required' });
+    const data = await portfolio.getPortfolioSummary(userId);
     res.json({ ok: true, data });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -489,8 +535,11 @@ async function start() {
       console.log('[PostgreSQL] Connected ✓');
 
       // Instantiate portfolio service now that DB is available
+      // market is passed after it is initialised in step 4 below;
+      // portfolioService holds a reference so it will be live by the time
+      // any route is called.
       const PortfolioService = require('./services/portfolioService');
-      portfolio = new PortfolioService(db);
+      portfolio = new PortfolioService(db, null); // market injected after step 4
       console.log('[Portfolio] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
@@ -525,6 +574,12 @@ async function start() {
     console.log('[NSEData] NSE data service ready ✓');
     console.log('[Scanner] Breakout scanner ready ✓');
     console.log('[WebSocket] Streaming on /ws ✓');
+
+    // Inject market into portfolio service now that it is available
+    if (portfolio) {
+      portfolio.market = market;
+      console.log('[Portfolio] Market service injected ✓');
+    }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
   }
