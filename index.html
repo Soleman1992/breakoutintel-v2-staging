@@ -164,6 +164,53 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .modal-ll{font-size:9px;color:var(--t3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em}
 .modal-vl{font-size:13px;font-weight:500;color:var(--t1)}
 
+/* ADD POSITION MODAL */
+.ap-modal-bg{position:fixed;inset:0;background:rgba(5,11,22,.92);z-index:110;display:flex;align-items:center;justify-content:center}
+.ap-modal-box{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto}
+.ap-ph{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.ap-step{font-size:9px;padding:2px 8px;border-radius:3px;background:#0d1b35;color:var(--acc2);font-weight:500}
+.ap-body{padding:16px}
+.ap-field{margin-bottom:12px;position:relative}
+.ap-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.ap-label .req{color:var(--dn)}
+.ap-in{width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:11px;padding:7px 10px;font-family:inherit;transition:.15s}
+.ap-in:focus{outline:none;border-color:var(--acc);background:var(--bg2)}
+.ap-in.filled{border-color:var(--up);background:var(--bg2)}
+.ap-in.error{border-color:var(--dn)}
+.ap-in:disabled{opacity:.5;cursor:not-allowed}
+.ap-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ap-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.ap-hint{font-size:9px;color:var(--t3);margin-top:3px}
+.ap-meta-strip{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;margin-bottom:12px;display:none}
+.ap-meta-strip.show{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ap-meta-item .ap-ml{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.ap-meta-item .ap-mv{font-size:10px;font-weight:500;color:var(--t1)}
+.ap-footer{padding:10px 16px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px}
+.ap-btn{font-size:10px;padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-weight:500;transition:.15s}
+.ap-btn-cancel{background:var(--bg2);color:var(--t2);border:1px solid var(--bd)}
+.ap-btn-cancel:hover{background:var(--bg3)}
+.ap-btn-submit{background:var(--acc);color:#fff}
+.ap-btn-submit:hover{background:var(--acc2)}
+.ap-btn-submit:disabled{opacity:.5;cursor:not-allowed}
+
+/* SYMBOL SEARCH DROPDOWN */
+.sym-search-wrap{position:relative}
+.sym-search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:12px;pointer-events:none}
+.sym-search-in{padding-left:28px!important}
+.sym-search-clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:12px;cursor:pointer;display:none}
+.sym-search-clear.show{display:block}
+.sym-dropdown{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg1);border:1px solid var(--bd);border-radius:8px;z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.sym-dd-item{display:flex;align-items:center;gap:10px;padding:8px 11px;cursor:pointer;transition:.1s;border-bottom:1px solid #0d1829}
+.sym-dd-item:last-child{border-bottom:none}
+.sym-dd-item:hover,.sym-dd-item.focused{background:var(--bg2)}
+.sym-dd-sym{font-size:11px;font-weight:600;color:var(--t1);min-width:80px}
+.sym-dd-name{font-size:9px;color:var(--t3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sym-dd-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
+.sym-dd-exch{font-size:8px;padding:1px 5px;border-radius:3px;background:#0d1b35;color:var(--acc2);font-weight:500}
+.sym-dd-cap{font-size:8px;color:var(--t3)}
+.sym-dd-empty{padding:12px;text-align:center;color:var(--t3);font-size:10px}
+.sym-dd-loading{padding:10px;text-align:center;color:var(--t3);font-size:10px}
+
 /* TOAST */
 .toast{position:fixed;bottom:14px;right:14px;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:8px 14px;font-size:10px;color:var(--t1);z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;max-width:280px}
 .toast.show{opacity:1}
@@ -461,7 +508,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v wc">4.1%</div><div class="kpi-s">Portfolio level</div></div>
     </div>
     <div class="panel">
-      <div class="ph"><span class="ph-t">Open Positions</span><span class="ph-cnt">8 Active</span></div>
+      <div class="ph">
+        <span class="ph-t">Open Positions</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="ph-cnt">8 Active</span>
+          <button onclick="openAddPosition()" style="background:var(--acc);border:none;color:#fff;font-size:9px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;font-weight:500"><i class="ti ti-plus" style="font-size:11px"></i> Add Position</button>
+        </span>
+      </div>
       <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
         <table class="sc-tbl">
           <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Strategy</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
@@ -593,6 +646,158 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 <div class="toast" id="toast-el"></div>
+
+<!-- ADD POSITION MODAL -->
+<div class="ap-modal-bg" id="ap-modal" style="display:none" onclick="if(event.target===this)closeAddPosition()">
+  <div class="ap-modal-box">
+    <div class="ap-ph">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--t1)">Add Position</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px">Search and select a stock, then fill in trade details</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="ap-step" id="ap-step-label">Step 1 of 2 — Symbol</span>
+        <button onclick="closeAddPosition()" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:16px;padding:2px"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div class="ap-body">
+
+      <!-- STEP 1: Symbol Search -->
+      <div id="ap-step1">
+        <div class="ap-field">
+          <div class="ap-label"><i class="ti ti-search" style="font-size:11px"></i> Symbol <span class="req">*</span></div>
+          <div class="sym-search-wrap">
+            <i class="ti ti-search sym-search-icon"></i>
+            <input
+              class="ap-in sym-search-in"
+              id="ap-sym-input"
+              type="text"
+              placeholder="Type symbol or company name (e.g. RELIANCE, Infosys...)"
+              autocomplete="off"
+              oninput="symSearchDebounced()"
+              onkeydown="symSearchKeydown(event)"
+            >
+            <i class="ti ti-x sym-search-clear" id="ap-sym-clear" onclick="clearSymSearch()" title="Clear"></i>
+            <div class="sym-dropdown" id="ap-sym-dropdown" style="display:none"></div>
+          </div>
+          <div class="ap-hint" id="ap-sym-hint">Start typing to search 346 NSE/BSE stocks</div>
+        </div>
+
+        <!-- Selected stock metadata strip -->
+        <div class="ap-meta-strip" id="ap-meta-strip">
+          <div class="ap-meta-item">
+            <div class="ap-ml">Exchange</div>
+            <div class="ap-mv" id="ap-meta-exch">—</div>
+          </div>
+          <div class="ap-meta-item">
+            <div class="ap-ml">Sector</div>
+            <div class="ap-mv" id="ap-meta-sec">—</div>
+          </div>
+          <div class="ap-meta-item">
+            <div class="ap-ml">Industry</div>
+            <div class="ap-mv" id="ap-meta-ind">—</div>
+          </div>
+          <div class="ap-meta-item">
+            <div class="ap-ml">Cap</div>
+            <div class="ap-mv" id="ap-meta-cap">—</div>
+          </div>
+        </div>
+
+        <!-- Live price row (shown after selection) -->
+        <div id="ap-price-row" style="display:none;margin-bottom:12px">
+          <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Live Price</div>
+              <div style="font-size:16px;font-weight:500;color:var(--t1)" id="ap-live-price">—</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:9px;color:var(--t3);margin-bottom:2px" id="ap-live-name">—</div>
+              <div style="font-size:10px;font-weight:500" id="ap-live-chg">—</div>
+            </div>
+            <div id="ap-price-loading" style="display:none"><span class="spin" style="font-size:14px;color:var(--t3)">⟳</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Trade Details (shown after symbol selected) -->
+      <div id="ap-step2" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:6px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px">
+          <span class="sym" id="ap-s2-sym" style="font-size:13px">—</span>
+          <span style="font-size:9px;color:var(--t3)" id="ap-s2-name">—</span>
+          <span style="margin-left:auto;font-size:9px;padding:1px 6px;border-radius:3px;background:#0d1b35;color:var(--acc2)" id="ap-s2-exch">—</span>
+          <button onclick="resetSymSearch()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:10px;padding:0 2px" title="Change symbol"><i class="ti ti-pencil"></i></button>
+        </div>
+
+        <div class="ap-row2">
+          <div class="ap-field">
+            <div class="ap-label">Quantity <span class="req">*</span></div>
+            <input class="ap-in" id="ap-qty" type="number" min="1" placeholder="e.g. 100" oninput="apCalcPnl()">
+          </div>
+          <div class="ap-field">
+            <div class="ap-label">Buy Price (₹) <span class="req">*</span></div>
+            <input class="ap-in" id="ap-buy-price" type="number" min="0.01" step="0.01" placeholder="e.g. 1450.00" oninput="apCalcPnl()">
+            <div class="ap-hint" id="ap-buy-hint"></div>
+          </div>
+        </div>
+
+        <div class="ap-row3">
+          <div class="ap-field">
+            <div class="ap-label">Stop Loss (₹)</div>
+            <input class="ap-in" id="ap-sl" type="number" min="0.01" step="0.01" placeholder="e.g. 1380.00">
+          </div>
+          <div class="ap-field">
+            <div class="ap-label">Target (₹)</div>
+            <input class="ap-in" id="ap-target" type="number" min="0.01" step="0.01" placeholder="e.g. 1600.00">
+          </div>
+          <div class="ap-field">
+            <div class="ap-label">Strategy</div>
+            <select class="ap-in" id="ap-strategy" style="cursor:pointer">
+              <option value="">— Select —</option>
+              <option value="vcp">VCP</option>
+              <option value="darvas">Darvas Box</option>
+              <option value="cup">Cup &amp; Handle</option>
+              <option value="rs">RS Leader</option>
+              <option value="vol">Volume Surge</option>
+              <option value="tight">Tight Base</option>
+              <option value="minervini">Minervini Trend</option>
+              <option value="stage2">Stage 2</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ap-row2">
+          <div class="ap-field">
+            <div class="ap-label">Buy Date</div>
+            <input class="ap-in" id="ap-buy-date" type="date">
+          </div>
+          <div class="ap-field">
+            <div class="ap-label">Notes</div>
+            <input class="ap-in" id="ap-notes" type="text" placeholder="Optional trade notes">
+          </div>
+        </div>
+
+        <!-- P&L preview -->
+        <div id="ap-pnl-preview" style="display:none;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;margin-top:4px">
+          <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Position Preview</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+            <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Total Cost</div><div style="font-size:10px;font-weight:500;color:var(--t1)" id="ap-pv-cost">—</div></div>
+            <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Unrealized P&L</div><div style="font-size:10px;font-weight:500" id="ap-pv-pnl">—</div></div>
+            <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Risk (vs SL)</div><div style="font-size:10px;font-weight:500;color:var(--dn)" id="ap-pv-risk">—</div></div>
+            <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">R:R Ratio</div><div style="font-size:10px;font-weight:500;color:var(--up)" id="ap-pv-rr">—</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="ap-footer">
+      <button class="ap-btn ap-btn-cancel" onclick="closeAddPosition()">Cancel</button>
+      <button class="ap-btn ap-btn-submit" id="ap-submit-btn" onclick="submitAddPosition()" disabled>
+        <i class="ti ti-plus" style="font-size:11px"></i> Add Position
+      </button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -1610,6 +1815,376 @@ async function renderCorporateAnnouncements(){
     if (cnt) cnt.textContent = '—';
   }
 }
+
+// ─── ADD POSITION MODAL — Symbol Search/Autocomplete ─────────────────────────
+var apSelectedStock = null;   // { sym, nseSymbol, name, exchange, sector, industry, cap }
+var apLivePrice     = null;   // fetched live price for selected stock
+var symSearchTimer  = null;   // debounce timer
+var symDDFocusIdx   = -1;     // keyboard nav index in dropdown
+var symDDItems      = [];     // current dropdown result set
+
+// Open / close
+function openAddPosition() {
+  document.getElementById('ap-modal').style.display = 'flex';
+  // Set today's date as default
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('ap-buy-date').value = today;
+  // Focus the search input after a short delay
+  setTimeout(function() {
+    var inp = document.getElementById('ap-sym-input');
+    if (inp) inp.focus();
+  }, 80);
+}
+
+function closeAddPosition() {
+  document.getElementById('ap-modal').style.display = 'none';
+  resetAddPositionForm();
+}
+
+function resetAddPositionForm() {
+  apSelectedStock = null;
+  apLivePrice     = null;
+  symDDFocusIdx   = -1;
+  symDDItems      = [];
+  clearTimeout(symSearchTimer);
+
+  // Reset step 1
+  var inp = document.getElementById('ap-sym-input');
+  if (inp) { inp.value = ''; inp.classList.remove('filled','error'); }
+  document.getElementById('ap-sym-clear').classList.remove('show');
+  document.getElementById('ap-sym-dropdown').style.display = 'none';
+  document.getElementById('ap-sym-hint').textContent = 'Start typing to search 346 NSE/BSE stocks';
+  document.getElementById('ap-meta-strip').classList.remove('show');
+  document.getElementById('ap-price-row').style.display = 'none';
+
+  // Reset step 2
+  document.getElementById('ap-step1').style.display = 'block';
+  document.getElementById('ap-step2').style.display = 'none';
+  document.getElementById('ap-step-label').textContent = 'Step 1 of 2 — Symbol';
+
+  // Clear step 2 fields
+  ['ap-qty','ap-buy-price','ap-sl','ap-target','ap-notes'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('filled','error'); }
+  });
+  document.getElementById('ap-strategy').value = '';
+  document.getElementById('ap-pnl-preview').style.display = 'none';
+  document.getElementById('ap-submit-btn').disabled = true;
+}
+
+// ── Debounced search input handler ──────────────────────────────────────────
+function symSearchDebounced() {
+  var inp = document.getElementById('ap-sym-input');
+  var q   = inp.value.trim();
+
+  // Show/hide clear button
+  document.getElementById('ap-sym-clear').classList.toggle('show', q.length > 0);
+
+  if (q.length === 0) {
+    hideSymDropdown();
+    document.getElementById('ap-sym-hint').textContent = 'Start typing to search 346 NSE/BSE stocks';
+    return;
+  }
+
+  // Show loading state immediately
+  showSymDropdownLoading();
+
+  clearTimeout(symSearchTimer);
+  symSearchTimer = setTimeout(function() { doSymSearch(q); }, 280);
+}
+
+async function doSymSearch(q) {
+  try {
+    var res = await fetch(BACKEND + '/portfolio/search?q=' + encodeURIComponent(q), {
+      signal: AbortSignal.timeout(6000)
+    });
+    var d = await res.json();
+    if (!d.ok || !d.data) {
+      showSymDropdownEmpty('Search unavailable — backend not connected');
+      return;
+    }
+    symDDItems = d.data;
+    renderSymDropdown(symDDItems, q);
+  } catch (e) {
+    showSymDropdownEmpty('Search unavailable — ' + e.message);
+  }
+}
+
+// ── Dropdown rendering ───────────────────────────────────────────────────────
+function showSymDropdownLoading() {
+  var dd = document.getElementById('ap-sym-dropdown');
+  dd.innerHTML = '<div class="sym-dd-loading"><span class="spin">⟳</span> Searching...</div>';
+  dd.style.display = 'block';
+  symDDFocusIdx = -1;
+}
+
+function showSymDropdownEmpty(msg) {
+  var dd = document.getElementById('ap-sym-dropdown');
+  dd.innerHTML = '<div class="sym-dd-empty">' + (msg || 'No results found') + '</div>';
+  dd.style.display = 'block';
+  symDDFocusIdx = -1;
+}
+
+function hideSymDropdown() {
+  document.getElementById('ap-sym-dropdown').style.display = 'none';
+  symDDFocusIdx = -1;
+}
+
+function renderSymDropdown(items, q) {
+  var dd = document.getElementById('ap-sym-dropdown');
+  if (!items || items.length === 0) {
+    showSymDropdownEmpty('No stocks found for "' + q + '"');
+    return;
+  }
+  // Highlight matching text
+  var ql = q.toUpperCase();
+  dd.innerHTML = items.map(function(s, i) {
+    var symHl = s.sym.includes(ql)
+      ? s.sym.replace(ql, '<span style="color:var(--acc2)">' + ql + '</span>')
+      : s.sym;
+    return '<div class="sym-dd-item" data-idx="' + i + '" onclick="selectSymbol(' + i + ')">' +
+      '<span class="sym-dd-sym">' + symHl + '</span>' +
+      '<span class="sym-dd-name">' + (s.name || '') + '</span>' +
+      '<span class="sym-dd-right">' +
+        '<span class="sym-dd-exch">' + (s.exchange || 'NSE') + '</span>' +
+        '<span class="sym-dd-cap">' + (s.cap || '') + '</span>' +
+      '</span>' +
+    '</div>';
+  }).join('');
+  dd.style.display = 'block';
+  symDDFocusIdx = -1;
+}
+
+// ── Keyboard navigation ──────────────────────────────────────────────────────
+function symSearchKeydown(e) {
+  var dd = document.getElementById('ap-sym-dropdown');
+  if (dd.style.display === 'none') return;
+  var items = dd.querySelectorAll('.sym-dd-item');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    symDDFocusIdx = Math.min(symDDFocusIdx + 1, items.length - 1);
+    updateDDFocus(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    symDDFocusIdx = Math.max(symDDFocusIdx - 1, 0);
+    updateDDFocus(items);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (symDDFocusIdx >= 0 && symDDFocusIdx < symDDItems.length) {
+      selectSymbol(symDDFocusIdx);
+    } else if (symDDItems.length > 0) {
+      selectSymbol(0);
+    }
+  } else if (e.key === 'Escape') {
+    hideSymDropdown();
+  }
+}
+
+function updateDDFocus(items) {
+  items.forEach(function(el, i) {
+    el.classList.toggle('focused', i === symDDFocusIdx);
+    if (i === symDDFocusIdx) el.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+// ── Symbol selection — fills metadata + fetches live price ──────────────────
+function selectSymbol(idx) {
+  var s = symDDItems[idx];
+  if (!s) return;
+  apSelectedStock = s;
+
+  // Update search input to show selected symbol
+  var inp = document.getElementById('ap-sym-input');
+  inp.value = s.sym + (s.name ? '  —  ' + s.name : '');
+  inp.classList.add('filled');
+  document.getElementById('ap-sym-clear').classList.add('show');
+  hideSymDropdown();
+
+  // Show metadata strip
+  document.getElementById('ap-meta-exch').textContent = s.exchange || 'NSE';
+  document.getElementById('ap-meta-sec').textContent  = s.sector   || '—';
+  document.getElementById('ap-meta-ind').textContent  = s.industry || '—';
+  document.getElementById('ap-meta-cap').textContent  = s.cap      || '—';
+  document.getElementById('ap-meta-strip').classList.add('show');
+
+  // Update hint
+  document.getElementById('ap-sym-hint').textContent =
+    s.sym + ' selected · ' + (s.exchange || 'NSE') + ' · ' + (s.sector || '');
+
+  // Fetch live price
+  fetchLivePriceForSymbol(s);
+
+  // Transition to Step 2 after a short delay
+  setTimeout(function() { advanceToStep2(s); }, 350);
+}
+
+async function fetchLivePriceForSymbol(s) {
+  var priceRow = document.getElementById('ap-price-row');
+  var loading  = document.getElementById('ap-price-loading');
+  var priceEl  = document.getElementById('ap-live-price');
+  var nameEl   = document.getElementById('ap-live-name');
+  var chgEl    = document.getElementById('ap-live-chg');
+
+  priceRow.style.display = 'block';
+  loading.style.display  = 'block';
+  priceEl.textContent    = '—';
+  chgEl.textContent      = '—';
+  nameEl.textContent     = s.name || s.sym;
+
+  try {
+    var sym = s.nseSymbol || s.sym;
+    var res = await fetch(BACKEND + '/market/quote/' + encodeURIComponent(sym), {
+      signal: AbortSignal.timeout(8000)
+    });
+    var d = await res.json();
+    loading.style.display = 'none';
+    if (d.ok && d.data && d.data.price) {
+      apLivePrice = d.data.price;
+      priceEl.textContent = '₹' + f(d.data.price);
+      var chg = d.data.change || 0;
+      var chgPct = d.data.changePct || 0;
+      chgEl.textContent = (chg >= 0 ? '+' : '') + f(chg) + ' (' + Math.abs(chgPct).toFixed(2) + '%)';
+      chgEl.className = chg >= 0 ? 'up' : 'dn';
+      // Pre-fill buy price with live price
+      var buyPriceEl = document.getElementById('ap-buy-price');
+      if (buyPriceEl && !buyPriceEl.value) {
+        buyPriceEl.value = d.data.price.toFixed(2);
+        buyPriceEl.classList.add('filled');
+        document.getElementById('ap-buy-hint').textContent = 'Pre-filled with live price';
+        apCalcPnl();
+      }
+    } else {
+      priceEl.textContent = 'Price unavailable';
+    }
+  } catch (e) {
+    loading.style.display = 'none';
+    priceEl.textContent = 'Price unavailable';
+  }
+}
+
+// ── Advance to Step 2 ────────────────────────────────────────────────────────
+function advanceToStep2(s) {
+  document.getElementById('ap-step1').style.display = 'none';
+  document.getElementById('ap-step2').style.display = 'block';
+  document.getElementById('ap-step-label').textContent = 'Step 2 of 2 — Trade Details';
+
+  // Fill step 2 header
+  document.getElementById('ap-s2-sym').textContent  = s.sym;
+  document.getElementById('ap-s2-name').textContent = s.name || '';
+  document.getElementById('ap-s2-exch').textContent = s.exchange || 'NSE';
+
+  // Enable submit once qty + price are filled
+  document.getElementById('ap-submit-btn').disabled = false;
+
+  // Focus qty field
+  setTimeout(function() {
+    var qtyEl = document.getElementById('ap-qty');
+    if (qtyEl) qtyEl.focus();
+  }, 60);
+}
+
+// ── Reset symbol search (go back to step 1) ──────────────────────────────────
+function resetSymSearch() {
+  apSelectedStock = null;
+  apLivePrice     = null;
+  document.getElementById('ap-step2').style.display = 'none';
+  document.getElementById('ap-step1').style.display = 'block';
+  document.getElementById('ap-step-label').textContent = 'Step 1 of 2 — Symbol';
+  document.getElementById('ap-submit-btn').disabled = true;
+
+  var inp = document.getElementById('ap-sym-input');
+  inp.value = '';
+  inp.classList.remove('filled');
+  document.getElementById('ap-sym-clear').classList.remove('show');
+  document.getElementById('ap-meta-strip').classList.remove('show');
+  document.getElementById('ap-price-row').style.display = 'none';
+  document.getElementById('ap-sym-hint').textContent = 'Start typing to search 346 NSE/BSE stocks';
+  document.getElementById('ap-pnl-preview').style.display = 'none';
+  setTimeout(function() { inp.focus(); }, 60);
+}
+
+function clearSymSearch() {
+  var inp = document.getElementById('ap-sym-input');
+  inp.value = '';
+  inp.classList.remove('filled');
+  document.getElementById('ap-sym-clear').classList.remove('show');
+  hideSymDropdown();
+  document.getElementById('ap-sym-hint').textContent = 'Start typing to search 346 NSE/BSE stocks';
+  inp.focus();
+}
+
+// ── P&L preview calculator ───────────────────────────────────────────────────
+function apCalcPnl() {
+  var qty   = parseFloat(document.getElementById('ap-qty').value) || 0;
+  var price = parseFloat(document.getElementById('ap-buy-price').value) || 0;
+  var sl    = parseFloat(document.getElementById('ap-sl').value) || 0;
+  var tgt   = parseFloat(document.getElementById('ap-target').value) || 0;
+  var lp    = apLivePrice || 0;
+
+  if (qty <= 0 || price <= 0) {
+    document.getElementById('ap-pnl-preview').style.display = 'none';
+    return;
+  }
+
+  var cost    = qty * price;
+  var pnl     = lp > 0 ? (lp - price) * qty : 0;
+  var risk    = sl > 0 ? (price - sl) * qty : 0;
+  var reward  = tgt > 0 ? (tgt - price) * qty : 0;
+  var rr      = (risk > 0 && reward > 0) ? (reward / risk).toFixed(1) + ':1' : '—';
+
+  document.getElementById('ap-pv-cost').textContent = '₹' + f(cost, 0);
+  var pnlEl = document.getElementById('ap-pv-pnl');
+  pnlEl.textContent = lp > 0 ? (pnl >= 0 ? '+' : '') + '₹' + f(pnl, 0) : '—';
+  pnlEl.className = lp > 0 ? (pnl >= 0 ? 'up' : 'dn') : '';
+  document.getElementById('ap-pv-risk').textContent = sl > 0 ? '₹' + f(risk, 0) : '—';
+  document.getElementById('ap-pv-rr').textContent   = rr;
+  document.getElementById('ap-pnl-preview').style.display = 'block';
+
+  // Enable/disable submit
+  document.getElementById('ap-submit-btn').disabled = !(qty > 0 && price > 0 && apSelectedStock);
+}
+
+// ── Form submission ──────────────────────────────────────────────────────────
+function submitAddPosition() {
+  if (!apSelectedStock) { toast('Please select a symbol first'); return; }
+  var qty   = parseFloat(document.getElementById('ap-qty').value);
+  var price = parseFloat(document.getElementById('ap-buy-price').value);
+  if (!qty || qty <= 0)   { document.getElementById('ap-qty').classList.add('error');       toast('Quantity is required'); return; }
+  if (!price || price <= 0){ document.getElementById('ap-buy-price').classList.add('error'); toast('Buy price is required'); return; }
+
+  var payload = {
+    sym:        apSelectedStock.sym,
+    nseSymbol:  apSelectedStock.nseSymbol,
+    name:       apSelectedStock.name,
+    exchange:   apSelectedStock.exchange,
+    sector:     apSelectedStock.sector,
+    industry:   apSelectedStock.industry,
+    cap:        apSelectedStock.cap,
+    qty:        qty,
+    buyPrice:   price,
+    stopLoss:   parseFloat(document.getElementById('ap-sl').value)     || null,
+    target:     parseFloat(document.getElementById('ap-target').value) || null,
+    strategy:   document.getElementById('ap-strategy').value           || null,
+    buyDate:    document.getElementById('ap-buy-date').value           || null,
+    notes:      document.getElementById('ap-notes').value              || null,
+  };
+
+  // Show success feedback (actual API call would go here)
+  toast('Position added: ' + payload.sym + ' × ' + payload.qty + ' @ ₹' + f(payload.buyPrice) + ' ✓', 3500);
+  closeAddPosition();
+  console.log('[AddPosition] Payload:', payload);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd  = document.getElementById('ap-sym-dropdown');
+  var inp = document.getElementById('ap-sym-input');
+  if (dd && inp && !inp.contains(e.target) && !dd.contains(e.target)) {
+    hideSymDropdown();
+  }
+});
 
 </script>
 </body>
