@@ -245,7 +245,23 @@ class PortfolioService {
   }
 
   // ── POST — add a position ──────────────────────────────────────────────────
+  // Ensures a `users` row exists for this placeholder x-user-id before any
+  // write that has a FK to users(id). Needed because there is no auth system
+  // yet -- the frontend sends one fixed UUID as a placeholder, which was
+  // never provisioned as an actual row. Idempotent (ON CONFLICT DO NOTHING),
+  // so safe to call on every write.
+  async _ensureUser(userId) {
+    await this.db.query(
+      `INSERT INTO users (id, email, password, name)
+       VALUES ($1, $2, 'no-auth-placeholder', 'BreakoutIntel User')
+       ON CONFLICT (id) DO NOTHING`,
+      [userId, `${userId}@no-auth.local`]
+    );
+  }
+
   async addPosition(userId, data) {
+    await this._ensureUser(userId);
+
     const {
       symbol,
       exchange = 'NSE',
