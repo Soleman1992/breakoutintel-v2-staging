@@ -455,28 +455,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 <div id="view-portfolio" style="display:none">
   <div style="padding:20px">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-      <div class="kpi-card"><div class="kpi-l">Total Value</div><div class="kpi-v">₹24,85,000</div><div class="kpi-s">Deployed capital</div></div>
-      <div class="kpi-card"><div class="kpi-l">Open P&L</div><div class="kpi-v up">+₹4,57,480</div><div class="kpi-s">+18.4% unrealized</div></div>
-      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v up">68%</div><div class="kpi-s">22W / 10L last 30</div></div>
-      <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v wc">4.1%</div><div class="kpi-s">Portfolio level</div></div>
+      <div class="kpi-card"><div class="kpi-l">Total Value</div><div class="kpi-v" id="pf-total">—</div><div class="kpi-s" id="pf-total-s">Deployed capital</div></div>
+      <div class="kpi-card"><div class="kpi-l">Open P&L</div><div class="kpi-v" id="pf-pnl">—</div><div class="kpi-s" id="pf-pnl-s">Unrealized</div></div>
+      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v" id="pf-winrate">—</div><div class="kpi-s">Not available yet</div></div>
+      <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s">Not available yet</div></div>
     </div>
     <div class="panel">
-      <div class="ph"><span class="ph-t">Open Positions</span><span class="ph-cnt">8 Active</span></div>
+      <div class="ph"><span class="ph-t">Open Positions</span><span class="ph-cnt" id="pf-cnt">—</span></div>
       <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
         <table class="sc-tbl">
-          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Strategy</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
-          <tbody>
-            <tr onclick="openModal(0)"><td style="color:var(--t3)">1</td><td><span class="sym">DIXON</span></td><td>50</td><td>₹13,200</td><td class="up">₹14,280</td><td class="up">+₹54,000</td><td class="up">+8.18%</td><td><span class="pat">VCP</span></td><td class="dn">₹13,750</td><td class="up">₹15,250</td><td>12</td></tr>
-            <tr onclick="openModal(1)"><td style="color:var(--t3)">2</td><td><span class="sym">HCLTECH</span></td><td>200</td><td>₹1,380</td><td class="up">₹1,482</td><td class="up">+₹20,400</td><td class="up">+7.39%</td><td><span class="pat">RS Leader</span></td><td class="dn">₹1,400</td><td class="up">₹1,620</td><td>8</td></tr>
-            <tr onclick="openModal(2)"><td style="color:var(--t3)">3</td><td><span class="sym">PERSISTENT</span></td><td>30</td><td>₹4,950</td><td class="up">₹5,400</td><td class="up">+₹13,500</td><td class="up">+9.09%</td><td><span class="pat">Cup</span></td><td class="dn">₹5,100</td><td class="up">₹5,900</td><td>18</td></tr>
-            <tr onclick="openModal(3)"><td style="color:var(--t3)">4</td><td><span class="sym">POLYCAB</span></td><td>80</td><td>₹6,500</td><td class="up">₹6,840</td><td class="up">+₹27,200</td><td class="up">+5.23%</td><td><span class="pat">Cup</span></td><td class="dn">₹6,550</td><td class="up">₹7,400</td><td>6</td></tr>
-            <tr onclick="openModal(4)"><td style="color:var(--t3)">5</td><td><span class="sym">COFORGE</span></td><td>20</td><td>₹8,600</td><td class="up">₹9,200</td><td class="up">+₹12,000</td><td class="up">+6.98%</td><td><span class="pat">RS Leader</span></td><td class="dn">₹8,700</td><td class="up">₹9,900</td><td>14</td></tr>
-            <tr onclick="openModal(5)"><td style="color:var(--t3)">6</td><td><span class="sym">APOLLOHOSP</span></td><td>25</td><td>₹6,800</td><td class="up">₹7,100</td><td class="up">+₹7,500</td><td class="up">+4.41%</td><td><span class="pat">Stage 2</span></td><td class="dn">₹6,750</td><td class="up">₹7,700</td><td>9</td></tr>
-            <tr onclick="openModal(6)"><td style="color:var(--t3)">7</td><td><span class="sym">TITAN</span></td><td>60</td><td>₹3,620</td><td class="dn">₹3,580</td><td class="dn">-₹2,400</td><td class="dn">-1.10%</td><td><span class="pat">Darvas</span></td><td class="dn">₹3,560</td><td class="up">₹3,900</td><td>4</td></tr>
-            <tr onclick="openModal(7)"><td style="color:var(--t3)">8</td><td><span class="sym">BAJFINANCE</span></td><td>15</td><td>₹7,700</td><td class="up">₹7,850</td><td class="up">+₹2,250</td><td class="up">+1.95%</td><td><span class="pat">VCP</span></td><td class="dn">₹7,450</td><td class="up">₹8,500</td><td>3</td></tr>
-          </tbody>
+          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
+          <tbody id="pf-body"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
         </table>
       </div>
+      <div class="data-src"><span id="pf-src">—</span><span id="pf-ts">—</span></div>
     </div>
   </div>
 </div>
@@ -1235,6 +1227,7 @@ function switchView(view) {
   if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
+  if (view === 'portfolio') renderPortfolioView();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
@@ -1548,6 +1541,85 @@ function renderStratTable() {
 
 function renderStrategiesView() {
   renderStratTable();
+}
+
+// ─── PORTFOLIO (live, DB-backed via /portfolio/* — Phase 1/2 API) ────────────
+// x-user-id is a placeholder header until real auth ships (see backend
+// comment at index.js:355). Using one fixed UUID consistently for now so
+// reads/writes from this browser hit the same logical "account".
+const PORTFOLIO_USER_ID = '11111111-1111-1111-1111-111111111111';
+
+async function renderPortfolioView(){
+  var body = document.getElementById('pf-body');
+  var cnt  = document.getElementById('pf-cnt');
+  var src  = document.getElementById('pf-src');
+  var ts   = document.getElementById('pf-ts');
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr>';
+
+  try{
+    var headers = {'x-user-id': PORTFOLIO_USER_ID};
+    var [posRes, sumRes] = await Promise.all([
+      fetch(BACKEND+'/portfolio/positions?live=true', {headers, signal:AbortSignal.timeout(20000)}),
+      fetch(BACKEND+'/portfolio/summary', {headers, signal:AbortSignal.timeout(20000)}),
+    ]);
+    var posData = await posRes.json();
+    var sumData = await sumRes.json();
+    if (!posData.ok) throw new Error(posData.error || ('HTTP '+posRes.status));
+    if (!sumData.ok) throw new Error(sumData.error || ('HTTP '+sumRes.status));
+
+    var positions = posData.positions || [];
+    var summary   = sumData.data || {};
+
+    // KPI cards — only show numbers the API actually provides
+    document.getElementById('pf-total').textContent =
+      summary.currentValue!=null ? '₹'+f(summary.currentValue,0) :
+      (summary.totalInvested!=null ? '₹'+f(summary.totalInvested,0) : '—');
+    document.getElementById('pf-total-s').textContent =
+      summary.currentValue!=null ? 'Live value' : 'Invested (live prices unavailable)';
+
+    var pnlEl = document.getElementById('pf-pnl');
+    if (summary.totalPnL!=null){
+      pnlEl.textContent = (summary.totalPnL>=0?'+':'-')+'₹'+f(Math.abs(summary.totalPnL),0);
+      pnlEl.className = 'kpi-v '+(summary.totalPnL>=0?'up':'dn');
+      document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct)+' unrealized';
+    } else {
+      pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
+      document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
+    }
+
+    // Win Rate / Max Drawdown: not returned by /portfolio/summary today —
+    // left as "—" rather than inventing numbers. Follow-up item, not faked.
+    document.getElementById('pf-winrate').textContent = '—';
+    document.getElementById('pf-drawdown').textContent = '—';
+
+    if (cnt) cnt.textContent = positions.length + ' Active';
+    if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
+    if (ts)  ts.textContent  = nowIST();
+
+    body.innerHTML = positions.length ? positions.map((p,i)=>`
+      <tr>
+        <td style="color:var(--t3)">${i+1}</td>
+        <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name||p.sector||''}</div></td>
+        <td>${f(p.quantity,0)}</td>
+        <td>₹${f(p.average_buy_price)}</td>
+        <td>${p.cmp!=null?'₹'+f(p.cmp):'—'}</td>
+        <td class="${p.pnl>0?'up':p.pnl<0?'dn':''}">${p.pnl!=null?(p.pnl>=0?'+':'-')+'₹'+f(Math.abs(p.pnl),0):'—'}</td>
+        <td class="${p.pnlPct>0?'up':p.pnlPct<0?'dn':''}">${pc(p.pnlPct)}</td>
+        <td class="dn">${p.stop_loss?'₹'+f(p.stop_loss):'—'}</td>
+        <td class="up">${p.target?'₹'+f(p.target):'—'}</td>
+        <td>${p.daysHeld!=null?p.daysHeld:'—'}</td>
+      </tr>`).join('') :
+      '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--t3)">No open positions yet — add your first trade to get started.</td></tr>';
+
+  }catch(e){
+    body.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${e.message}</td></tr>`;
+    ['pf-total','pf-pnl','pf-winrate','pf-drawdown'].forEach(id=>{var el=document.getElementById(id); if(el){el.textContent='—'; el.className='kpi-v';}});
+    if (cnt) cnt.textContent = '—';
+    if (src) src.textContent = 'Backend unreachable';
+    if (ts)  ts.textContent  = nowIST();
+  }
 }
 
 // ─── CORPORATE ANNOUNCEMENTS (real NSE, filtered to scan universe) ───────────
