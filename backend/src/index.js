@@ -612,23 +612,6 @@ app.post('/ai/analyze', async (req, res) => {
   }
 });
 
-// ── Catch-all: serve index.html for any unknown route ────────────────────────
-app.get('*', (req, res) => {
-  const indexPath = path.join(REPO_ROOT, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error('[Static] index.html not found at:', indexPath);
-      res.status(200).send('<h2>BreakoutIntel API running. <a href="/health">Health</a> | <a href="/market/indices">Indices</a></h2>');
-    }
-  });
-});
-
-// ── Error handler ─────────────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error('[Error]', err.message);
-  res.status(500).json({ ok: false, error: 'Internal server error' });
-});
-
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
   // 1. Start HTTP server FIRST — Render health check must pass quickly
@@ -750,6 +733,22 @@ async function start() {
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
   }
+
+  // ── Catch-all + error handler — registered last so API routes take priority ─
+  app.get('*', (req, res) => {
+    const indexPath = path.join(REPO_ROOT, 'index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error('[Static] index.html not found at:', indexPath);
+        res.status(200).send('<h2>BreakoutIntel API running. <a href="/health">Health</a> | <a href="/market/indices">Indices</a></h2>');
+      }
+    });
+  });
+
+  app.use((err, req, res, next) => {
+    console.error('[Error]', err.message);
+    res.status(500).json({ ok: false, error: 'Internal server error' });
+  });
 
   // Graceful shutdown
   const shutdown = async () => {
