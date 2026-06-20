@@ -591,10 +591,6 @@ app.get('/portfolio/analytics/health', async (req, res) => {
   }
 });
 
-// ── Portfolio Intelligence Routes — Phase 5 ──────────────────────────────────
-const intelligenceRouter = require('./routes/intelligence');
-app.use('/portfolio/intelligence', intelligenceRouter(intelligence));
-
 // ── AI Analysis ───────────────────────────────────────────────────────────────
 app.post('/ai/analyze', async (req, res) => {
   try {
@@ -696,6 +692,13 @@ async function start() {
       const IntelligenceService = require('./services/intelligenceService');
       intelligence = new IntelligenceService(db, null, analytics, null);
       console.log('[Intelligence] Service ready ✓');
+
+      // ── Register intelligence router now that the service is live ──────────
+      // Must be registered here (not at module load time) so the router
+      // receives the real IntelligenceService instance, not null.
+      const intelligenceRouter = require('./routes/intelligence');
+      app.use('/portfolio/intelligence', intelligenceRouter(intelligence));
+      console.log('[Intelligence] Routes registered ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
