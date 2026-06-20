@@ -658,6 +658,10 @@ async function start() {
       await db.query('SELECT 1');
       console.log('[PostgreSQL] Connected ✓');
 
+      // Run schema + migrations (idempotent — safe on every startup)
+      const runMigrations = require('./models/migrate');
+      await runMigrations(db);
+
       // Instantiate portfolio service now that DB is available
       // market is passed after it is initialised in step 4 below;
       // portfolioService holds a reference so it will be live by the time
