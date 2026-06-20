@@ -461,7 +461,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s">Not available yet</div></div>
     </div>
     <div class="panel">
-      <div class="ph"><span class="ph-t">Open Positions</span><span class="ph-cnt" id="pf-cnt">—</span></div>
+      <div class="ph"><span class="ph-t">Open Positions</span><span style="display:flex;align-items:center;gap:8px"><button onclick="openAddPositionModal()" style="background:var(--acc);border:none;color:#fff;border-radius:4px;padding:4px 10px;font-size:9px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:4px"><i class="ti ti-plus" style="font-size:11px"></i>Add Position</button><span class="ph-cnt" id="pf-cnt">—</span></span></div>
       <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
         <table class="sc-tbl">
           <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
@@ -585,6 +585,70 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 <div class="toast" id="toast-el"></div>
+
+<!-- ADD POSITION MODAL -->
+<div class="modal-bg" id="add-position-modal" style="display:none" onclick="if(event.target===this)closeAddPositionModal()">
+  <div class="modal-box" style="width:420px">
+    <div class="modal-ph">
+      <div><div style="font-size:13px;font-weight:500;color:var(--t1)">Add Position</div><div style="font-size:9px;color:var(--t3)">Creates a real row in your portfolio</div></div>
+      <button onclick="closeAddPositionModal()" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:16px"><i class="ti ti-x"></i></button>
+    </div>
+    <form id="add-position-form" onsubmit="submitAddPosition(event)" style="padding:14px">
+      <div id="ap-error" style="display:none;background:#2e0d0d;color:var(--dn);border:1px solid #5a1a1a;border-radius:5px;padding:7px 10px;font-size:10px;margin-bottom:10px"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 90px;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Symbol *</label>
+          <input id="ap-symbol" required style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit;text-transform:uppercase" placeholder="e.g. RELIANCE">
+        </div>
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Exchange</label>
+          <select id="ap-exchange" style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 4px;font-family:inherit">
+            <option value="NSE">NSE</option>
+            <option value="BSE">BSE</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Quantity *</label>
+          <input id="ap-quantity" type="number" step="0.01" min="0.01" required style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit">
+        </div>
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Buy Price *</label>
+          <input id="ap-price" type="number" step="0.01" min="0.01" required style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit">
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Buy Date</label>
+        <input id="ap-date" type="date" style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Stop Loss</label>
+          <input id="ap-stoploss" type="number" step="0.01" min="0" style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit">
+        </div>
+        <div>
+          <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Target</label>
+          <input id="ap-target" type="number" step="0.01" min="0" style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit">
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:9px;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Notes</label>
+        <textarea id="ap-notes" rows="2" style="width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:5px;color:var(--t1);font-size:11px;padding:6px 8px;font-family:inherit;resize:vertical"></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" onclick="closeAddPositionModal()" style="background:var(--bg0);border:1px solid var(--bd);color:var(--t2);border-radius:5px;padding:7px 14px;font-size:10px;cursor:pointer;font-family:inherit">Cancel</button>
+        <button type="submit" id="ap-submit-btn" style="background:var(--acc);border:none;color:#fff;border-radius:5px;padding:7px 16px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:600">Add Position</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -1619,6 +1683,72 @@ async function renderPortfolioView(){
     if (cnt) cnt.textContent = '—';
     if (src) src.textContent = 'Backend unreachable';
     if (ts)  ts.textContent  = nowIST();
+  }
+}
+
+// ─── ADD POSITION MODAL ───────────────────────────────────────────────────
+function openAddPositionModal(){
+  document.getElementById('add-position-form').reset();
+  document.getElementById('ap-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('ap-error').style.display = 'none';
+  document.getElementById('add-position-modal').style.display = 'flex';
+}
+
+function closeAddPositionModal(){
+  document.getElementById('add-position-modal').style.display = 'none';
+}
+
+async function submitAddPosition(e){
+  e.preventDefault();
+  var errEl = document.getElementById('ap-error');
+  var btn   = document.getElementById('ap-submit-btn');
+  errEl.style.display = 'none';
+
+  var symbol   = document.getElementById('ap-symbol').value.trim().toUpperCase();
+  var exchange = document.getElementById('ap-exchange').value;
+  var quantity = parseFloat(document.getElementById('ap-quantity').value);
+  var price    = parseFloat(document.getElementById('ap-price').value);
+  var buyDate  = document.getElementById('ap-date').value;
+  var stopLoss = document.getElementById('ap-stoploss').value;
+  var target   = document.getElementById('ap-target').value;
+  var notes    = document.getElementById('ap-notes').value.trim();
+
+  if (!symbol || !quantity || quantity<=0 || !price || price<=0){
+    errEl.textContent = 'Symbol, quantity, and buy price are required and must be greater than 0.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  var payload = {
+    symbol: symbol,
+    exchange: exchange,
+    quantity: quantity,
+    average_buy_price: price,
+    buy_date: buyDate || undefined,
+    stop_loss: stopLoss ? parseFloat(stopLoss) : null,
+    target: target ? parseFloat(target) : null,
+    notes: notes || null,
+  };
+
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try{
+    var res = await fetch(BACKEND+'/portfolio/positions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'x-user-id': PORTFOLIO_USER_ID},
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20000),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
+
+    closeAddPositionModal();
+    toast('Position added — '+symbol+' ✓');
+    renderPortfolioView();
+  }catch(err){
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Add Position';
   }
 }
 
