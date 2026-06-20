@@ -356,14 +356,17 @@ app.get('/market/breadth', async (req, res) => {
 // is added in a later phase). If no DB, returns 503 gracefully.
 
 // GET /portfolio/search?q=<term>
-// In-memory search against UNIVERSE (346 stocks). Zero network calls.
+// Primary: in-memory search against UNIVERSE (346 stocks). Zero network calls.
+// Fallback: if fewer than 3 results AND market service is ready, probe Yahoo
+//           Finance to resolve the symbol so any NSE/BSE stock can be added.
 // Returns: sym, nseSymbol, name, exchange, sector, industry, cap, capCategory
-app.get('/portfolio/search', (req, res) => {
+app.get('/portfolio/search', async (req, res) => {
   try {
     if (!portfolio) return res.status(503).json({ ok: false, error: 'Portfolio service not ready' });
     const q = (req.query.q || req.query.search || '').toString().trim();
     if (!q) return res.status(400).json({ ok: false, error: 'q parameter required' });
-    const results = portfolio.searchStocks(q).map(s => ({
+
+    const universeResults = portfolio.searchStocks(q).map(s => ({
       sym:         s.sym,
       nseSymbol:   s.nseSymbol,
       name:        s.name,
@@ -371,9 +374,51 @@ app.get('/portfolio/search', (req, res) => {
       sector:      s.sector,
       industry:    s.industry,
       cap:         s.cap,
-      capCategory: s.cap,   // alias for UI convenience
+      capCategory: s.cap,
     }));
-    res.json({ ok: true, data: results });
+
+    // If we have good universe hits, return them immediately
+    if (universeResults.length >= 3) {
+      return res.json({ ok: true, data: universeResults, source: 'universe' });
+    }
+
+    // Fallback: try Yahoo Finance for the exact symbol (NSE first, then BSE)
+    // This allows any listed NSE/BSE stock to be added, not just the 346 in universe
+    if (market) {
+      const base = q.replace(/\.(NS|BO)$/i, '').toUpperCase();
+      const candidates = [`${base}.NS`, `${base}.BO`];
+      const yahooHits = [];
+
+      for (const sym of candidates) {
+        try {
+          const quote = await market.fetchYahooQuote(sym);
+          if (quote && quote.ok && quote.price) {
+            const exchange = sym.endsWith('.BO') ? 'BSE' : 'NSE';
+            // Avoid duplicates already in universe results
+            const alreadyIn = universeResults.some(r => r.nseSymbol === base);
+            if (!alreadyIn) {
+              yahooHits.push({
+                sym:         sym,
+                nseSymbol:   base,
+                name:        quote.name || base,
+                exchange,
+                sector:      quote.sector   || null,
+                industry:    quote.industry || null,
+                cap:         null,
+                capCategory: null,
+                livePrice:   quote.price,
+              });
+            }
+            break; // found on NSE, no need to try BSE
+          }
+        } catch (_) { /* ignore individual failures */ }
+      }
+
+      const combined = [...universeResults, ...yahooHits].slice(0, 10);
+      return res.json({ ok: true, data: combined, source: combined.length > universeResults.length ? 'universe+yahoo' : 'universe' });
+    }
+
+    res.json({ ok: true, data: universeResults, source: 'universe' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

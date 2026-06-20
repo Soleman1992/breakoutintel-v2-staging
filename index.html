@@ -511,13 +511,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="ph">
         <span class="ph-t">Open Positions</span>
         <span style="display:flex;gap:8px;align-items:center">
-          <span class="ph-cnt">8 Active</span>
+          <span class="ph-cnt" id="pf-cnt">—</span>
           <button onclick="openAddPosition()" style="background:var(--acc);border:none;color:#fff;font-size:9px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;font-weight:500"><i class="ti ti-plus" style="font-size:11px"></i> Add Position</button>
         </span>
       </div>
       <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
         <table class="sc-tbl">
-          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&L</th><th>P&L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
+          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&amp;L</th><th>P&amp;L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
           <tbody id="pf-body"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
         </table>
       </div>
@@ -2284,35 +2284,176 @@ function apCalcPnl() {
   document.getElementById('ap-submit-btn').disabled = !(qty > 0 && price > 0 && apSelectedStock);
 }
 
-// ── Form submission ──────────────────────────────────────────────────────────
-function submitAddPosition() {
+// ── Form submission — POST to /portfolio/positions then refresh table ─────────
+async function submitAddPosition() {
   if (!apSelectedStock) { toast('Please select a symbol first'); return; }
   var qty   = parseFloat(document.getElementById('ap-qty').value);
   var price = parseFloat(document.getElementById('ap-buy-price').value);
   if (!qty || qty <= 0)   { document.getElementById('ap-qty').classList.add('error');       toast('Quantity is required'); return; }
   if (!price || price <= 0){ document.getElementById('ap-buy-price').classList.add('error'); toast('Buy price is required'); return; }
 
+  var btn = document.getElementById('ap-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Saving...';
+
+  // Build payload matching portfolioService.addPosition() expected fields
   var payload = {
-    sym:        apSelectedStock.sym,
-    nseSymbol:  apSelectedStock.nseSymbol,
-    name:       apSelectedStock.name,
-    exchange:   apSelectedStock.exchange,
-    sector:     apSelectedStock.sector,
-    industry:   apSelectedStock.industry,
-    cap:        apSelectedStock.cap,
-    qty:        qty,
-    buyPrice:   price,
-    stopLoss:   parseFloat(document.getElementById('ap-sl').value)     || null,
-    target:     parseFloat(document.getElementById('ap-target').value) || null,
-    strategy:   document.getElementById('ap-strategy').value           || null,
-    buyDate:    document.getElementById('ap-buy-date').value           || null,
-    notes:      document.getElementById('ap-notes').value              || null,
+    symbol:      apSelectedStock.nseSymbol || apSelectedStock.sym,
+    exchange:    apSelectedStock.exchange  || 'NSE',
+    companyName: apSelectedStock.name      || apSelectedStock.sym,
+    sector:      apSelectedStock.sector    || null,
+    industry:    apSelectedStock.industry  || null,
+    cap:         apSelectedStock.cap       || null,
+    quantity:    qty,
+    buyPrice:    price,
+    stopLoss:    parseFloat(document.getElementById('ap-sl').value)     || null,
+    target:      parseFloat(document.getElementById('ap-target').value) || null,
+    strategy:    document.getElementById('ap-strategy').value           || null,
+    buyDate:     document.getElementById('ap-buy-date').value           || null,
+    notes:       document.getElementById('ap-notes').value              || null,
   };
 
-  // Show success feedback (actual API call would go here)
-  toast('Position added: ' + payload.sym + ' × ' + payload.qty + ' @ ₹' + f(payload.buyPrice) + ' ✓', 3500);
-  closeAddPosition();
-  console.log('[AddPosition] Payload:', payload);
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions', {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      'x-user-id':    PORTFOLIO_USER_ID,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+
+    if (d.ok) {
+      toast('✓ ' + payload.symbol + ' × ' + qty + ' @ ₹' + f(price) + ' added to portfolio', 3500);
+      closeAddPosition();
+      // Refresh the live portfolio table
+      renderPortfolioView();
+    } else {
+      // DB not configured — store locally and show in table anyway
+      if (res.status === 503) {
+        toast('DB offline — position saved locally only', 3000);
+        addPositionToLocalTable(payload);
+        closeAddPosition();
+      } else {
+        toast('Error: ' + (d.error || 'Could not save position'), 4000);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-plus" style="font-size:11px"></i> Add Position';
+      }
+    }
+  } catch (e) {
+    // Network error — add to local table so user sees their entry
+    toast('Backend unreachable — showing locally', 3000);
+    addPositionToLocalTable(payload);
+    closeAddPosition();
+  }
+}
+
+// ── Load live positions from API and re-render the portfolio table ────────────
+var portfolioPositions = [];   // in-memory cache of positions
+
+async function loadPortfolioPositions() {
+  var tbody = document.getElementById('portfolio-tbody');
+  var cntEl = document.getElementById('portfolio-pos-cnt');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:12px;color:var(--t3);text-align:center"><span class="spin">⟳</span> Loading positions...</td></tr>';
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions?live=true', {
+      headers: { 'x-user-id': 'default' },
+      signal: AbortSignal.timeout(15000),
+    });
+    var d = await res.json();
+
+    if (d.ok && d.positions && d.positions.length > 0) {
+      portfolioPositions = d.positions;
+      renderPortfolioTable(d.positions);
+      if (cntEl) cntEl.textContent = d.positions.length + ' Active';
+    } else if (d.ok && d.positions && d.positions.length === 0) {
+      portfolioPositions = [];
+      tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;color:var(--t3);text-align:center">No positions yet — click "Add Position" to get started</td></tr>';
+      if (cntEl) cntEl.textContent = '0 Active';
+    } else {
+      // DB not configured — keep existing static rows
+      if (cntEl) cntEl.textContent = '8 Active';
+    }
+  } catch (e) {
+    // Network error — keep existing static rows
+    console.warn('[Portfolio] Could not load positions:', e.message);
+  }
+}
+
+function renderPortfolioTable(positions) {
+  var tbody = document.getElementById('portfolio-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = positions.map(function(p, i) {
+    var sym      = p.symbol || '—';
+    var qty      = Number(p.quantity) || 0;
+    var buyPrice = Number(p.average_buy_price || p.buyPrice) || 0;
+    var cmp      = p.cmp || null;
+    var pnl      = p.pnl != null ? p.pnl : null;
+    var pnlPct   = p.pnlPct != null ? p.pnlPct : null;
+    var sl       = p.stop_loss || p.stopLoss || null;
+    var tgt      = p.target || null;
+    var strat    = p.strategy || '—';
+    var days     = p.daysHeld != null ? p.daysHeld : '—';
+
+    var cmpTxt   = cmp != null ? '₹' + f(cmp) : '—';
+    var pnlTxt   = pnl != null ? (pnl >= 0 ? '+' : '') + '₹' + f(Math.abs(pnl), 0) : '—';
+    var pnlPctTxt= pnlPct != null ? (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%' : '—';
+    var pnlCls   = pnl != null ? (pnl >= 0 ? 'up' : 'dn') : '';
+
+    return '<tr>' +
+      '<td style="color:var(--t3)">' + (i + 1) + '</td>' +
+      '<td><span class="sym">' + sym + '</span></td>' +
+      '<td>' + qty + '</td>' +
+      '<td>₹' + f(buyPrice) + '</td>' +
+      '<td class="' + (cmp != null ? (cmp >= buyPrice ? 'up' : 'dn') : '') + '">' + cmpTxt + '</td>' +
+      '<td class="' + pnlCls + '">' + pnlTxt + '</td>' +
+      '<td class="' + pnlCls + '">' + pnlPctTxt + '</td>' +
+      '<td><span class="pat">' + strat + '</span></td>' +
+      '<td class="dn">' + (sl ? '₹' + f(sl) : '—') + '</td>' +
+      '<td class="up">' + (tgt ? '₹' + f(tgt) : '—') + '</td>' +
+      '<td>' + days + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Add position to local table (when DB is offline) ─────────────────────────
+function addPositionToLocalTable(payload) {
+  var tbody = document.getElementById('portfolio-tbody');
+  if (!tbody) return;
+
+  // Remove "no positions" placeholder row if present
+  var placeholder = tbody.querySelector('td[colspan="11"]');
+  if (placeholder) tbody.innerHTML = '';
+
+  var rowCount = tbody.querySelectorAll('tr').length + 1;
+  var row = document.createElement('tr');
+  row.innerHTML =
+    '<td style="color:var(--t3)">' + rowCount + '</td>' +
+    '<td><span class="sym">' + payload.symbol + '</span></td>' +
+    '<td>' + payload.quantity + '</td>' +
+    '<td>₹' + f(payload.buyPrice) + '</td>' +
+    '<td class="up">₹' + f(apLivePrice || payload.buyPrice) + '</td>' +
+    '<td class="' + (apLivePrice && apLivePrice > payload.buyPrice ? 'up' : 'dn') + '">' +
+      (apLivePrice ? (apLivePrice >= payload.buyPrice ? '+' : '') + '₹' + f((apLivePrice - payload.buyPrice) * payload.quantity, 0) : '—') +
+    '</td>' +
+    '<td class="' + (apLivePrice && apLivePrice > payload.buyPrice ? 'up' : 'dn') + '">' +
+      (apLivePrice ? (apLivePrice >= payload.buyPrice ? '+' : '') + (((apLivePrice - payload.buyPrice) / payload.buyPrice) * 100).toFixed(2) + '%' : '—') +
+    '</td>' +
+    '<td><span class="pat">' + (payload.strategy || '—') + '</span></td>' +
+    '<td class="dn">' + (payload.stopLoss ? '₹' + f(payload.stopLoss) : '—') + '</td>' +
+    '<td class="up">' + (payload.target ? '₹' + f(payload.target) : '—') + '</td>' +
+    '<td>0</td>';
+  tbody.insertBefore(row, tbody.firstChild);
+
+  // Update count badge
+  var cntEl = document.getElementById('portfolio-pos-cnt');
+  if (cntEl) cntEl.textContent = tbody.querySelectorAll('tr').length + ' Active';
 }
 
 // Close dropdown when clicking outside
