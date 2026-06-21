@@ -164,6 +164,38 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .modal-ll{font-size:9px;color:var(--t3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em}
 .modal-vl{font-size:13px;font-weight:500;color:var(--t1)}
 
+/* POSITION DETAIL MODAL */
+.pd-modal-bg{position:fixed;inset:0;background:rgba(5,11,22,.92);z-index:115;display:flex;align-items:center;justify-content:center}
+.pd-modal-box{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto}
+.pd-ph{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.pd-tabs{display:flex;border-bottom:1px solid var(--bd)}
+.pd-tab{padding:7px 14px;font-size:10px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:.1s}
+.pd-tab.active{color:var(--acc2);border-bottom-color:var(--acc2)}
+.pd-tab:hover{color:var(--t2)}
+.pd-body{padding:16px}
+.pd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border-radius:6px;overflow:hidden;margin-bottom:14px}
+.pd-info-cell{background:var(--bg2);padding:8px 12px}
+.pd-info-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.pd-info-v{font-size:12px;font-weight:500;color:var(--t1)}
+.pd-field{margin-bottom:10px}
+.pd-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.pd-in{width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:11px;padding:7px 10px;font-family:inherit;transition:.15s}
+.pd-in:focus{outline:none;border-color:var(--acc);background:var(--bg2)}
+.pd-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pd-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pd-footer{padding:10px 16px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pd-btn{font-size:10px;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-weight:500;transition:.15s}
+.pd-btn-cancel{background:var(--bg2);color:var(--t2);border:1px solid var(--bd)}
+.pd-btn-cancel:hover{background:var(--bg3)}
+.pd-btn-update{background:var(--acc);color:#fff}
+.pd-btn-update:hover{background:var(--acc2)}
+.pd-btn-sell{background:#0d2e1a;color:var(--up);border:1px solid #1a4a2a}
+.pd-btn-sell:hover{background:#0f3820}
+.pd-btn-delete{background:#2e0d0d;color:var(--dn);border:1px solid #4a1a1a}
+.pd-btn-delete:hover{background:#3a1010}
+.pd-btn:disabled{opacity:.5;cursor:not-allowed}
+.pd-sell-preview{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;margin-top:8px;display:none}
+
 /* ADD POSITION MODAL */
 .ap-modal-bg{position:fixed;inset:0;background:rgba(5,11,22,.92);z-index:110;display:flex;align-items:center;justify-content:center}
 .ap-modal-box{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto}
@@ -504,8 +536,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       <div class="kpi-card"><div class="kpi-l">Total Value</div><div class="kpi-v" id="pf-total">—</div><div class="kpi-s" id="pf-total-s">Deployed capital</div></div>
       <div class="kpi-card"><div class="kpi-l">Open P&L</div><div class="kpi-v" id="pf-pnl">—</div><div class="kpi-s" id="pf-pnl-s">Unrealized</div></div>
-      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v" id="pf-winrate">—</div><div class="kpi-s">Not available yet</div></div>
-      <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s">Not available yet</div></div>
+      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v" id="pf-winrate">—</div><div class="kpi-s" id="pf-winrate-s">Closed trades</div></div>
+      <div class="kpi-card"><div class="kpi-l">Profit Factor</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s" id="pf-drawdown-s">Gross profit / loss</div></div>
     </div>
     <div class="panel">
       <div class="ph">
@@ -515,13 +547,31 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
           <button onclick="openAddPosition()" style="background:var(--acc);border:none;color:#fff;font-size:9px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;font-weight:500"><i class="ti ti-plus" style="font-size:11px"></i> Add Position</button>
         </span>
       </div>
-      <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
+      <div class="sc-wrap" style="max-height:calc(100vh - 340px)">
         <table class="sc-tbl">
-          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&amp;L</th><th>P&amp;L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
-          <tbody id="pf-body"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
+          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&amp;L</th><th>P&amp;L %</th><th>Stop Loss</th><th>Target</th><th>Days</th><th style="color:var(--t3)">Actions</th></tr></thead>
+          <tbody id="pf-body"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
         </table>
       </div>
       <div class="data-src"><span id="pf-src">—</span><span id="pf-ts">—</span></div>
+    </div>
+
+    <!-- TRADE HISTORY PANEL -->
+    <div class="panel" style="margin-top:10px">
+      <div class="ph">
+        <span class="ph-t">Trade History</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="ph-cnt" id="th-cnt">—</span>
+          <span class="ph-s" id="th-realized" style="color:var(--t2)"></span>
+        </span>
+      </div>
+      <div class="sc-wrap" style="max-height:220px">
+        <table class="sc-tbl">
+          <thead><tr><th>#</th><th>Symbol</th><th>Action</th><th>Qty</th><th>Price</th><th>Total</th><th>P&amp;L</th><th>P&amp;L %</th><th>Days Held</th><th>Date</th></tr></thead>
+          <tbody id="th-body"><tr><td colspan="10" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading history...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="data-src"><span id="th-src">—</span><span id="th-ts">—</span></div>
     </div>
   </div>
 </div>
@@ -622,6 +672,122 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div><!-- end main -->
 </div><!-- end body -->
 </div><!-- end term -->
+
+<!-- POSITION DETAIL MODAL -->
+<div class="pd-modal-bg" id="pd-modal" style="display:none" onclick="if(event.target===this)closePdModal()">
+  <div class="pd-modal-box">
+    <div class="pd-ph">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--t1)" id="pd-title">—</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px" id="pd-sub">—</div>
+      </div>
+      <button onclick="closePdModal()" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:16px;padding:2px"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="pd-tabs">
+      <div class="pd-tab active" id="pd-tab-view"   onclick="pdSwitchTab('view')">Overview</div>
+      <div class="pd-tab"        id="pd-tab-edit"   onclick="pdSwitchTab('edit')"><i class="ti ti-pencil" style="font-size:10px"></i> Edit</div>
+      <div class="pd-tab"        id="pd-tab-sell"   onclick="pdSwitchTab('sell')"><i class="ti ti-trending-down" style="font-size:10px"></i> Sell</div>
+      <div class="pd-tab"        id="pd-tab-delete" onclick="pdSwitchTab('delete')" style="color:var(--dn)"><i class="ti ti-trash" style="font-size:10px"></i> Delete</div>
+    </div>
+
+    <!-- TAB: Overview -->
+    <div id="pd-pane-view" class="pd-body">
+      <div class="pd-info-grid" id="pd-info-grid"></div>
+      <div style="font-size:9px;color:var(--t3);text-align:center;margin-top:4px">Click <b style="color:var(--acc2)">Edit</b> to update, <b style="color:var(--up)">Sell</b> to exit, or <b style="color:var(--dn)">Delete</b> to remove this position.</div>
+    </div>
+
+    <!-- TAB: Edit -->
+    <div id="pd-pane-edit" class="pd-body" style="display:none">
+      <div class="pd-row2">
+        <div class="pd-field">
+          <div class="pd-label">Quantity <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-edit-qty" type="number" min="1" placeholder="e.g. 100">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Avg Buy Price (₹) <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-edit-price" type="number" min="0.01" step="0.01" placeholder="e.g. 1450.00">
+        </div>
+      </div>
+      <div class="pd-row3">
+        <div class="pd-field">
+          <div class="pd-label">Stop Loss (₹)</div>
+          <input class="pd-in" id="pd-edit-sl" type="number" min="0.01" step="0.01" placeholder="e.g. 1380.00">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Target (₹)</div>
+          <input class="pd-in" id="pd-edit-target" type="number" min="0.01" step="0.01" placeholder="e.g. 1600.00">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Buy Date</div>
+          <input class="pd-in" id="pd-edit-date" type="date">
+        </div>
+      </div>
+      <div class="pd-field">
+        <div class="pd-label">Notes</div>
+        <input class="pd-in" id="pd-edit-notes" type="text" placeholder="Optional trade notes">
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-update" id="pd-update-btn" onclick="submitUpdatePosition()">
+          <i class="ti ti-check" style="font-size:11px"></i> Save Changes
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Sell -->
+    <div id="pd-pane-sell" class="pd-body" style="display:none">
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:10px;color:var(--t2)">
+        <span id="pd-sell-holding">—</span> shares held · Avg cost <span id="pd-sell-avgcost">—</span>
+      </div>
+      <div class="pd-row2">
+        <div class="pd-field">
+          <div class="pd-label">Qty to Sell <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-sell-qty" type="number" min="1" placeholder="e.g. 50" oninput="pdCalcSellPreview()">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Sell Price (₹) <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-sell-price" type="number" min="0.01" step="0.01" placeholder="e.g. 1550.00" oninput="pdCalcSellPreview()">
+        </div>
+      </div>
+      <div class="pd-field">
+        <div class="pd-label">Notes</div>
+        <input class="pd-in" id="pd-sell-notes" type="text" placeholder="Optional exit notes">
+      </div>
+      <div class="pd-sell-preview" id="pd-sell-preview">
+        <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Exit Preview</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Proceeds</div><div style="font-size:10px;font-weight:500;color:var(--t1)" id="pd-sp-proceeds">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Realized P&L</div><div style="font-size:10px;font-weight:500" id="pd-sp-pnl">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">P&L %</div><div style="font-size:10px;font-weight:500" id="pd-sp-pnlpct">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Remaining</div><div style="font-size:10px;font-weight:500;color:var(--t2)" id="pd-sp-remaining">—</div></div>
+        </div>
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-sell" id="pd-sell-btn" onclick="submitSellPosition()">
+          <i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Delete -->
+    <div id="pd-pane-delete" class="pd-body" style="display:none">
+      <div style="text-align:center;padding:16px 0">
+        <i class="ti ti-alert-triangle" style="font-size:32px;color:var(--dn);opacity:.7"></i>
+        <div style="font-size:12px;font-weight:500;color:var(--t1);margin:10px 0 6px" id="pd-del-title">Delete this position?</div>
+        <div style="font-size:10px;color:var(--t3);line-height:1.6;max-width:340px;margin:0 auto">
+          This permanently removes the position record from the database. Trade history entries are preserved. This action cannot be undone.
+        </div>
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-delete" id="pd-delete-btn" onclick="submitDeletePosition()">
+          <i class="ti ti-trash" style="font-size:11px"></i> Delete Position
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL -->
 <div class="modal-bg" id="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
@@ -2297,20 +2463,21 @@ async function submitAddPosition() {
   btn.innerHTML = '<span class="spin">⟳</span> Saving...';
 
   // Build payload matching portfolioService.addPosition() expected fields
+  // Backend destructures snake_case: average_buy_price, company_name, buy_date, stop_loss
   var payload = {
-    symbol:      apSelectedStock.nseSymbol || apSelectedStock.sym,
-    exchange:    apSelectedStock.exchange  || 'NSE',
-    companyName: apSelectedStock.name      || apSelectedStock.sym,
-    sector:      apSelectedStock.sector    || null,
-    industry:    apSelectedStock.industry  || null,
-    cap:         apSelectedStock.cap       || null,
-    quantity:    qty,
-    buyPrice:    price,
-    stopLoss:    parseFloat(document.getElementById('ap-sl').value)     || null,
-    target:      parseFloat(document.getElementById('ap-target').value) || null,
-    strategy:    document.getElementById('ap-strategy').value           || null,
-    buyDate:     document.getElementById('ap-buy-date').value           || null,
-    notes:       document.getElementById('ap-notes').value              || null,
+    symbol:            apSelectedStock.nseSymbol || apSelectedStock.sym,
+    exchange:          apSelectedStock.exchange  || 'NSE',
+    company_name:      apSelectedStock.name      || apSelectedStock.sym,
+    sector:            apSelectedStock.sector    || null,
+    industry:          apSelectedStock.industry  || null,
+    cap_category:      apSelectedStock.cap       || null,
+    quantity:          qty,
+    average_buy_price: price,
+    stop_loss:         parseFloat(document.getElementById('ap-sl').value)     || null,
+    target:            parseFloat(document.getElementById('ap-target').value) || null,
+    strategy:          document.getElementById('ap-strategy').value           || null,
+    buy_date:          document.getElementById('ap-buy-date').value           || null,
+    notes:             document.getElementById('ap-notes').value              || null,
   };
 
   try {
@@ -2464,6 +2631,445 @@ document.addEventListener('click', function(e) {
     hideSymDropdown();
   }
 });
+
+// ─── PORTFOLIO: UPDATED renderPortfolioView with Performance + History ────────
+// Replaces the old renderPortfolioView that left Win Rate / Drawdown as "—"
+// and never called /portfolio/performance or /portfolio/history.
+async function renderPortfolioView() {
+  var body = document.getElementById('pf-body');
+  var cnt  = document.getElementById('pf-cnt');
+  var src  = document.getElementById('pf-src');
+  var ts   = document.getElementById('pf-ts');
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr>';
+
+  var headers = { 'x-user-id': PORTFOLIO_USER_ID };
+
+  try {
+    // Fire all three requests in parallel
+    var [posRes, sumRes, perfRes] = await Promise.all([
+      fetch(BACKEND + '/portfolio/positions?live=true', { headers, signal: AbortSignal.timeout(20000) }),
+      fetch(BACKEND + '/portfolio/summary',             { headers, signal: AbortSignal.timeout(20000) }),
+      fetch(BACKEND + '/portfolio/performance',         { headers, signal: AbortSignal.timeout(20000) }),
+    ]);
+
+    var posData  = await posRes.json();
+    var sumData  = await sumRes.json();
+    var perfData = await perfRes.json();
+
+    if (!posData.ok) throw new Error(posData.error || ('HTTP ' + posRes.status));
+    if (!sumData.ok) throw new Error(sumData.error || ('HTTP ' + sumRes.status));
+
+    var positions = posData.positions || [];
+    var summary   = sumData.data      || {};
+    var perf      = (perfData.ok && perfData.data) ? perfData.data : null;
+
+    // ── KPI: Total Value ──────────────────────────────────────────────────────
+    document.getElementById('pf-total').textContent =
+      summary.currentValue != null ? '₹' + f(summary.currentValue, 0) :
+      (summary.totalInvested != null ? '₹' + f(summary.totalInvested, 0) : '—');
+    document.getElementById('pf-total-s').textContent =
+      summary.currentValue != null ? 'Live value' : 'Invested (live prices unavailable)';
+
+    // ── KPI: Open P&L ─────────────────────────────────────────────────────────
+    var pnlEl = document.getElementById('pf-pnl');
+    if (summary.totalPnL != null) {
+      pnlEl.textContent = (summary.totalPnL >= 0 ? '+' : '-') + '₹' + f(Math.abs(summary.totalPnL), 0);
+      pnlEl.className   = 'kpi-v ' + (summary.totalPnL >= 0 ? 'up' : 'dn');
+      document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct) + ' unrealized';
+    } else {
+      pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
+      document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
+    }
+
+    // ── KPI: Win Rate — from /portfolio/performance ───────────────────────────
+    var wrEl = document.getElementById('pf-winrate');
+    var wrSEl = document.getElementById('pf-winrate-s');
+    if (perf && perf.winRate != null) {
+      wrEl.textContent  = perf.winRate.toFixed(1) + '%';
+      wrEl.className    = 'kpi-v ' + (perf.winRate >= 50 ? 'up' : 'dn');
+      wrSEl.textContent = perf.winningTrades + 'W / ' + perf.losingTrades + 'L · ' + perf.closedTrades + ' closed';
+    } else {
+      wrEl.textContent  = '—';
+      wrEl.className    = 'kpi-v';
+      wrSEl.textContent = perf ? 'No closed trades yet' : 'Unavailable';
+    }
+
+    // ── KPI: Profit Factor — from /portfolio/performance ─────────────────────
+    // getPerformance() does not return maxDrawdown; profitFactor is the honest
+    // alternative (gross profit / gross loss). Shown as "—" when no closed trades.
+    var pfEl  = document.getElementById('pf-drawdown');
+    var pfSEl = document.getElementById('pf-drawdown-s');
+    if (perf && perf.profitFactor != null) {
+      pfEl.textContent  = perf.profitFactor.toFixed(2) + '×';
+      pfEl.className    = 'kpi-v ' + (perf.profitFactor >= 1.5 ? 'up' : perf.profitFactor >= 1 ? 'wc' : 'dn');
+      pfSEl.textContent = '₹' + f(perf.grossProfit, 0) + ' / ₹' + f(perf.grossLoss, 0);
+    } else {
+      pfEl.textContent  = '—';
+      pfEl.className    = 'kpi-v';
+      pfSEl.textContent = perf ? 'No closed trades yet' : 'Unavailable';
+    }
+
+    // ── Open Positions count + source ─────────────────────────────────────────
+    if (cnt) cnt.textContent = positions.length + ' Active';
+    if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
+    if (ts)  ts.textContent  = nowIST();
+
+    // ── Open Positions table rows ─────────────────────────────────────────────
+    body.innerHTML = positions.length ? positions.map((p, i) => `
+      <tr onclick="openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')})" style="cursor:pointer">
+        <td style="color:var(--t3)">${i + 1}</td>
+        <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name || p.sector || ''}</div></td>
+        <td>${f(p.quantity, 0)}</td>
+        <td>₹${f(p.average_buy_price)}</td>
+        <td>${p.cmp != null ? '₹' + f(p.cmp) : '—'}</td>
+        <td class="${p.pnl > 0 ? 'up' : p.pnl < 0 ? 'dn' : ''}">${p.pnl != null ? (p.pnl >= 0 ? '+' : '-') + '₹' + f(Math.abs(p.pnl), 0) : '—'}</td>
+        <td class="${p.pnlPct > 0 ? 'up' : p.pnlPct < 0 ? 'dn' : ''}">${pc(p.pnlPct)}</td>
+        <td class="dn">${p.stop_loss ? '₹' + f(p.stop_loss) : '—'}</td>
+        <td class="up">${p.target ? '₹' + f(p.target) : '—'}</td>
+        <td>${p.daysHeld != null ? p.daysHeld : '—'}</td>
+        <td>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'edit')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#0d1b35;color:var(--acc2);cursor:pointer;margin-right:3px"
+                title="Edit">✎</span>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'sell')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#0d2e1a;color:var(--up);cursor:pointer;margin-right:3px"
+                title="Sell">↓ Sell</span>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'delete')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#2e0d0d;color:var(--dn);cursor:pointer"
+                title="Delete">✕</span>
+        </td>
+      </tr>`).join('') :
+      '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--t3)">No open positions yet — add your first trade to get started.</td></tr>';
+
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${e.message}</td></tr>`;
+    ['pf-total','pf-pnl','pf-winrate','pf-drawdown'].forEach(id => {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'kpi-v'; }
+    });
+    if (cnt) cnt.textContent = '—';
+    if (src) src.textContent = 'Backend unreachable';
+    if (ts)  ts.textContent  = nowIST();
+  }
+
+  // Load trade history in parallel (non-blocking — failure just shows "—")
+  renderTradeHistory();
+}
+
+// ─── TRADE HISTORY ────────────────────────────────────────────────────────────
+async function renderTradeHistory() {
+  var body = document.getElementById('th-body');
+  var cnt  = document.getElementById('th-cnt');
+  var src  = document.getElementById('th-src');
+  var ts   = document.getElementById('th-ts');
+  var rlz  = document.getElementById('th-realized');
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="10" style="padding:12px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</td></tr>';
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/history', {
+      headers: { 'x-user-id': PORTFOLIO_USER_ID },
+      signal: AbortSignal.timeout(15000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    var history = d.data || [];
+    if (cnt) cnt.textContent = history.length;
+    if (src) src.textContent = 'Live DB · trade_history table';
+    if (ts)  ts.textContent  = nowIST();
+
+    // Compute total realized P&L from SELL/PARTIAL_SELL rows
+    var totalRealized = history
+      .filter(h => h.transaction_type === 'SELL' || h.transaction_type === 'PARTIAL_SELL')
+      .reduce((s, h) => s + (Number(h.pnl) || 0), 0);
+
+    if (rlz && history.length > 0) {
+      rlz.textContent = 'Realized P&L: ' + (totalRealized >= 0 ? '+' : '') + '₹' + f(Math.abs(totalRealized), 0);
+      rlz.style.color = totalRealized >= 0 ? 'var(--up)' : 'var(--dn)';
+    } else if (rlz) {
+      rlz.textContent = '';
+    }
+
+    if (!history.length) {
+      body.innerHTML = '<tr><td colspan="10" style="padding:16px;text-align:center;color:var(--t3)">No trade history yet — buy/sell transactions will appear here.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = history.map((h, i) => {
+      var isSell = h.transaction_type === 'SELL' || h.transaction_type === 'PARTIAL_SELL';
+      var isBuy  = h.transaction_type === 'BUY';
+      var actionCls = isBuy ? 'cat-m' : 'cat-a';
+      var actionBg  = isBuy ? '#0d1b35' : '#0d2e1a';
+      var actionCol = isBuy ? 'var(--acc2)' : 'var(--up)';
+      if (isSell && h.pnl != null && h.pnl < 0) { actionBg = '#2e0d0d'; actionCol = 'var(--dn)'; }
+
+      var pnlTxt = (isSell && h.pnl != null)
+        ? (h.pnl >= 0 ? '+' : '') + '₹' + f(Math.abs(h.pnl), 0)
+        : '—';
+      var pnlCls = (isSell && h.pnl != null) ? (h.pnl >= 0 ? 'up' : 'dn') : '';
+      var pnlPctTxt = (isSell && h.pnl_pct != null)
+        ? (h.pnl_pct >= 0 ? '+' : '') + Number(h.pnl_pct).toFixed(2) + '%'
+        : '—';
+
+      var dateStr = h.executed_at
+        ? new Date(h.executed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
+        : '—';
+
+      return `<tr>
+        <td style="color:var(--t3)">${i + 1}</td>
+        <td><span class="sym">${h.symbol || '—'}</span><div style="font-size:9px;color:var(--t3)">${h.company_name || ''}</div></td>
+        <td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${actionBg};color:${actionCol};font-weight:500">${h.transaction_type || h.action || '—'}</span></td>
+        <td>${f(h.quantity, 0)}</td>
+        <td>₹${f(h.price)}</td>
+        <td>₹${f(h.total_value, 0)}</td>
+        <td class="${pnlCls}">${pnlTxt}</td>
+        <td class="${pnlCls}">${pnlPctTxt}</td>
+        <td style="color:var(--t3)">${h.holding_days != null ? h.holding_days + 'd' : '—'}</td>
+        <td style="font-size:9px;color:var(--t3)">${dateStr}</td>
+      </tr>`;
+    }).join('');
+
+  } catch (e) {
+    if (body) body.innerHTML = `<tr><td colspan="10" style="padding:12px;text-align:center;color:var(--t3)">History unavailable — ${e.message}</td></tr>`;
+    if (cnt) cnt.textContent = '—';
+  }
+}
+
+// ─── POSITION DETAIL MODAL ────────────────────────────────────────────────────
+// State for the currently open position
+var pdCurrentPosition = null;
+
+function openPositionDetailModal(positionData, initialTab) {
+  // positionData may be a plain object (from onclick) or a JSON string
+  var p = (typeof positionData === 'string') ? JSON.parse(positionData) : positionData;
+  pdCurrentPosition = p;
+
+  // Header
+  document.getElementById('pd-title').textContent = p.symbol + (p.exchange ? ' · ' + p.exchange : '');
+  document.getElementById('pd-sub').textContent   =
+    (p.company_name || p.sector || '') +
+    (p.strategy ? ' · ' + p.strategy : '') +
+    (p.status ? ' · ' + p.status.toUpperCase() : '');
+
+  // Overview grid
+  var cmp = p.cmp != null ? '₹' + f(p.cmp) : '—';
+  var pnlTxt = p.pnl != null ? (p.pnl >= 0 ? '+' : '-') + '₹' + f(Math.abs(p.pnl), 0) : '—';
+  var pnlPctTxt = p.pnlPct != null ? (p.pnlPct >= 0 ? '+' : '') + Number(p.pnlPct).toFixed(2) + '%' : '—';
+  var pnlCls = p.pnl != null ? (p.pnl >= 0 ? 'up' : 'dn') : '';
+  document.getElementById('pd-info-grid').innerHTML = `
+    <div class="pd-info-cell"><div class="pd-info-l">Symbol</div><div class="pd-info-v">${p.symbol}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Exchange</div><div class="pd-info-v">${p.exchange || 'NSE'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Quantity</div><div class="pd-info-v">${f(p.quantity, 0)}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Avg Buy Price</div><div class="pd-info-v">₹${f(p.average_buy_price)}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">CMP</div><div class="pd-info-v">${cmp}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Unrealized P&L</div><div class="pd-info-v ${pnlCls}">${pnlTxt} (${pnlPctTxt})</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Stop Loss</div><div class="pd-info-v dn">${p.stop_loss ? '₹' + f(p.stop_loss) : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Target</div><div class="pd-info-v up">${p.target ? '₹' + f(p.target) : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Days Held</div><div class="pd-info-v">${p.daysHeld != null ? p.daysHeld : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Buy Date</div><div class="pd-info-v">${p.buy_date ? new Date(p.buy_date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—'}</div></div>
+    <div class="pd-info-cell" style="grid-column:span 2"><div class="pd-info-l">Notes</div><div class="pd-info-v" style="font-size:10px;color:var(--t2)">${p.notes || '—'}</div></div>
+  `;
+
+  // Pre-fill Edit tab fields
+  document.getElementById('pd-edit-qty').value    = p.quantity || '';
+  document.getElementById('pd-edit-price').value  = p.average_buy_price || '';
+  document.getElementById('pd-edit-sl').value     = p.stop_loss || '';
+  document.getElementById('pd-edit-target').value = p.target || '';
+  document.getElementById('pd-edit-date').value   = p.buy_date ? p.buy_date.slice(0, 10) : '';
+  document.getElementById('pd-edit-notes').value  = p.notes || '';
+
+  // Pre-fill Sell tab
+  document.getElementById('pd-sell-holding').textContent = f(p.quantity, 0);
+  document.getElementById('pd-sell-avgcost').textContent = '₹' + f(p.average_buy_price);
+  document.getElementById('pd-sell-qty').value   = '';
+  document.getElementById('pd-sell-price').value = p.cmp ? p.cmp.toFixed(2) : '';
+  document.getElementById('pd-sell-notes').value = '';
+  document.getElementById('pd-sell-preview').style.display = 'none';
+  pdCalcSellPreview();
+
+  // Delete tab
+  document.getElementById('pd-del-title').textContent =
+    'Delete ' + p.symbol + ' (' + f(p.quantity, 0) + ' shares)?';
+
+  // Reset button states
+  document.getElementById('pd-update-btn').disabled = false;
+  document.getElementById('pd-update-btn').innerHTML = '<i class="ti ti-check" style="font-size:11px"></i> Save Changes';
+  document.getElementById('pd-sell-btn').disabled = false;
+  document.getElementById('pd-sell-btn').innerHTML = '<i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell';
+  document.getElementById('pd-delete-btn').disabled = false;
+  document.getElementById('pd-delete-btn').innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
+
+  // Switch to requested tab (default: view)
+  pdSwitchTab(initialTab || 'view');
+
+  document.getElementById('pd-modal').style.display = 'flex';
+}
+
+function closePdModal() {
+  document.getElementById('pd-modal').style.display = 'none';
+  pdCurrentPosition = null;
+}
+
+function pdSwitchTab(tab) {
+  var tabs  = ['view', 'edit', 'sell', 'delete'];
+  tabs.forEach(function(t) {
+    var tabEl  = document.getElementById('pd-tab-' + t);
+    var paneEl = document.getElementById('pd-pane-' + t);
+    if (tabEl)  tabEl.classList.toggle('active', t === tab);
+    if (paneEl) paneEl.style.display = (t === tab) ? 'block' : 'none';
+  });
+}
+
+// ── Sell preview calculator ───────────────────────────────────────────────────
+function pdCalcSellPreview() {
+  var p = pdCurrentPosition;
+  if (!p) return;
+  var qty   = parseFloat(document.getElementById('pd-sell-qty').value)   || 0;
+  var price = parseFloat(document.getElementById('pd-sell-price').value) || 0;
+  var avgCost = Number(p.average_buy_price) || 0;
+  var holding = Number(p.quantity) || 0;
+
+  if (qty <= 0 || price <= 0) {
+    document.getElementById('pd-sell-preview').style.display = 'none';
+    return;
+  }
+
+  var proceeds  = qty * price;
+  var costBasis = qty * avgCost;
+  var pnl       = proceeds - costBasis;
+  var pnlPct    = avgCost > 0 ? (pnl / costBasis) * 100 : 0;
+  var remaining = holding - qty;
+
+  document.getElementById('pd-sp-proceeds').textContent  = '₹' + f(proceeds, 0);
+  var pnlEl = document.getElementById('pd-sp-pnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '₹' + f(pnl, 0);
+  pnlEl.className   = pnl >= 0 ? 'up' : 'dn';
+  var pnlPctEl = document.getElementById('pd-sp-pnlpct');
+  pnlPctEl.textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+  pnlPctEl.className   = pnlPct >= 0 ? 'up' : 'dn';
+  document.getElementById('pd-sp-remaining').textContent = remaining >= 0 ? f(remaining, 0) + ' shares' : '⚠ exceeds holding';
+  document.getElementById('pd-sell-preview').style.display = 'block';
+}
+
+// ── Submit: Update position (PUT /portfolio/positions/:id) ────────────────────
+async function submitUpdatePosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var qty   = parseFloat(document.getElementById('pd-edit-qty').value);
+  var price = parseFloat(document.getElementById('pd-edit-price').value);
+  if (!qty || qty <= 0)    { toast('Quantity must be > 0'); return; }
+  if (!price || price <= 0){ toast('Buy price must be > 0'); return; }
+
+  var btn = document.getElementById('pd-update-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Saving...';
+
+  var payload = {
+    quantity:          qty,
+    average_buy_price: price,
+    stop_loss:         parseFloat(document.getElementById('pd-edit-sl').value)     || null,
+    target:            parseFloat(document.getElementById('pd-edit-target').value) || null,
+    buy_date:          document.getElementById('pd-edit-date').value               || null,
+    notes:             document.getElementById('pd-edit-notes').value              || null,
+  };
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions/' + p.id, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': PORTFOLIO_USER_ID },
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    toast('✓ ' + p.symbol + ' updated', 2500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Update failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:11px"></i> Save Changes';
+  }
+}
+
+// ── Submit: Sell position (POST /portfolio/sell) ──────────────────────────────
+async function submitSellPosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var qty   = parseFloat(document.getElementById('pd-sell-qty').value);
+  var price = parseFloat(document.getElementById('pd-sell-price').value);
+  var notes = document.getElementById('pd-sell-notes').value || null;
+
+  if (!qty || qty <= 0)    { toast('Sell quantity must be > 0'); return; }
+  if (!price || price <= 0){ toast('Sell price must be > 0'); return; }
+  if (qty > Number(p.quantity)) { toast('Sell qty exceeds holding (' + f(p.quantity, 0) + ')'); return; }
+
+  var btn = document.getElementById('pd-sell-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Processing...';
+
+  var payload = {
+    position_id: p.id,
+    quantity:    qty,
+    price:       price,
+    notes:       notes,
+  };
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/sell', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': PORTFOLIO_USER_ID },
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    var isFull = qty >= Number(p.quantity);
+    toast('✓ ' + p.symbol + ' — ' + (isFull ? 'fully exited' : f(qty, 0) + ' shares sold @ ₹' + f(price)), 3500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Sell failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell';
+  }
+}
+
+// ── Submit: Delete position (DELETE /portfolio/positions/:id) ─────────────────
+async function submitDeletePosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var btn = document.getElementById('pd-delete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Deleting...';
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions/' + p.id, {
+      method:  'DELETE',
+      headers: { 'x-user-id': PORTFOLIO_USER_ID },
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    toast('✓ ' + p.symbol + ' position deleted', 2500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
+  }
+}
 
 </script>
 </body>
