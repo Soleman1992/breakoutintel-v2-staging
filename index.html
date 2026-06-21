@@ -2204,78 +2204,11 @@ function renderStrategiesView() {
 // reads/writes from this browser hit the same logical "account".
 const PORTFOLIO_USER_ID = '11111111-1111-1111-1111-111111111111';
 
-async function renderPortfolioView(){
-  var body = document.getElementById('pf-body');
-  var cnt  = document.getElementById('pf-cnt');
-  var src  = document.getElementById('pf-src');
-  var ts   = document.getElementById('pf-ts');
-  if (!body) return;
-
-  body.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr>';
-
-  try{
-    var headers = {'x-user-id': PORTFOLIO_USER_ID};
-    var [posRes, sumRes] = await Promise.all([
-      fetch(BACKEND+'/portfolio/positions?live=true', {headers, signal:AbortSignal.timeout(20000)}),
-      fetch(BACKEND+'/portfolio/summary', {headers, signal:AbortSignal.timeout(20000)}),
-    ]);
-    var posData = await posRes.json();
-    var sumData = await sumRes.json();
-    if (!posData.ok) throw new Error(posData.error || ('HTTP '+posRes.status));
-    if (!sumData.ok) throw new Error(sumData.error || ('HTTP '+sumRes.status));
-
-    var positions = posData.positions || [];
-    var summary   = sumData.data || {};
-
-    // KPI cards — only show numbers the API actually provides
-    document.getElementById('pf-total').textContent =
-      summary.currentValue!=null ? '₹'+f(summary.currentValue,0) :
-      (summary.totalInvested!=null ? '₹'+f(summary.totalInvested,0) : '—');
-    document.getElementById('pf-total-s').textContent =
-      summary.currentValue!=null ? 'Live value' : 'Invested (live prices unavailable)';
-
-    var pnlEl = document.getElementById('pf-pnl');
-    if (summary.totalPnL!=null){
-      pnlEl.textContent = (summary.totalPnL>=0?'+':'-')+'₹'+f(Math.abs(summary.totalPnL),0);
-      pnlEl.className = 'kpi-v '+(summary.totalPnL>=0?'up':'dn');
-      document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct)+' unrealized';
-    } else {
-      pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
-      document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
-    }
-
-    // Win Rate / Max Drawdown: not returned by /portfolio/summary today —
-    // left as "—" rather than inventing numbers. Follow-up item, not faked.
-    document.getElementById('pf-winrate').textContent = '—';
-    document.getElementById('pf-drawdown').textContent = '—';
-
-    if (cnt) cnt.textContent = positions.length + ' Active';
-    if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
-    if (ts)  ts.textContent  = nowIST();
-
-    body.innerHTML = positions.length ? positions.map((p,i)=>`
-      <tr>
-        <td style="color:var(--t3)">${i+1}</td>
-        <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name||p.sector||''}</div></td>
-        <td>${f(p.quantity,0)}</td>
-        <td>₹${f(p.average_buy_price)}</td>
-        <td>${p.cmp!=null?'₹'+f(p.cmp):'—'}</td>
-        <td class="${p.pnl>0?'up':p.pnl<0?'dn':''}">${p.pnl!=null?(p.pnl>=0?'+':'-')+'₹'+f(Math.abs(p.pnl),0):'—'}</td>
-        <td class="${p.pnlPct>0?'up':p.pnlPct<0?'dn':''}">${pc(p.pnlPct)}</td>
-        <td class="dn">${p.stop_loss?'₹'+f(p.stop_loss):'—'}</td>
-        <td class="up">${p.target?'₹'+f(p.target):'—'}</td>
-        <td>${p.daysHeld!=null?p.daysHeld:'—'}</td>
-      </tr>`).join('') :
-      '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--t3)">No open positions yet — add your first trade to get started.</td></tr>';
-
-  }catch(e){
-    body.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${e.message}</td></tr>`;
-    ['pf-total','pf-pnl','pf-winrate','pf-drawdown'].forEach(id=>{var el=document.getElementById(id); if(el){el.textContent='—'; el.className='kpi-v';}});
-    if (cnt) cnt.textContent = '—';
-    if (src) src.textContent = 'Backend unreachable';
-    if (ts)  ts.textContent  = nowIST();
-  }
-}
+// NOTE: renderPortfolioView() is defined once, further down this file, in the
+// "PORTFOLIO: UPDATED renderPortfolioView with Performance + History" section.
+// An earlier, simpler version of this function used to be duplicated here;
+// since JS function declarations are last-wins, it was silently dead code
+// (audit hazard) — removed rather than left in place.
 
 // ─── ADD POSITION MODAL ───────────────────────────────────────────────────
 function openAddPositionModal(){
@@ -2916,9 +2849,13 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ─── PORTFOLIO: UPDATED renderPortfolioView with Performance + History ────────
-// Replaces the old renderPortfolioView that left Win Rate / Drawdown as "—"
-// and never called /portfolio/performance or /portfolio/history.
+// ─── PORTFOLIO: renderPortfolioView with Performance + History ────────────────
+// Win Rate / Profit Factor are sourced from GET /portfolio/analytics/health —
+// the exact same endpoint the Dashboard's loadDashboardPortfolioKPIs() calls
+// for its Win Rate KPI. Previously this page called the separate
+// /portfolio/performance route, which ran its own independent SQL against the
+// same positions table — two implementations of the same calculation that
+// could silently drift apart over time. Now both pages share one source.
 async function renderPortfolioView() {
   var body = document.getElementById('pf-body');
   var cnt  = document.getElementById('pf-cnt');
@@ -2932,22 +2869,22 @@ async function renderPortfolioView() {
 
   try {
     // Fire all three requests in parallel
-    var [posRes, sumRes, perfRes] = await Promise.all([
+    var [posRes, sumRes, healthRes] = await Promise.all([
       fetch(BACKEND + '/portfolio/positions?live=true', { headers, signal: AbortSignal.timeout(20000) }),
       fetch(BACKEND + '/portfolio/summary',             { headers, signal: AbortSignal.timeout(20000) }),
-      fetch(BACKEND + '/portfolio/performance',         { headers, signal: AbortSignal.timeout(20000) }),
+      fetch(BACKEND + '/portfolio/analytics/health',    { headers, signal: AbortSignal.timeout(20000) }),
     ]);
 
-    var posData  = await posRes.json();
-    var sumData  = await sumRes.json();
-    var perfData = await perfRes.json();
+    var posData    = await posRes.json();
+    var sumData    = await sumRes.json();
+    var healthData = await healthRes.json();
 
     if (!posData.ok) throw new Error(posData.error || ('HTTP ' + posRes.status));
     if (!sumData.ok) throw new Error(sumData.error || ('HTTP ' + sumRes.status));
 
     var positions = posData.positions || [];
     var summary   = sumData.data      || {};
-    var perf      = (perfData.ok && perfData.data) ? perfData.data : null;
+    var health    = (healthData.ok && healthData.data) ? healthData.data : null;
 
     // ── KPI: Total Value ──────────────────────────────────────────────────────
     document.getElementById('pf-total').textContent =
@@ -2967,32 +2904,35 @@ async function renderPortfolioView() {
       document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
     }
 
-    // ── KPI: Win Rate — from /portfolio/performance ───────────────────────────
+    // ── KPI: Win Rate — from /portfolio/analytics/health (same source the
+    // Dashboard's Win Rate KPI uses) ────────────────────────────────────────
     var wrEl = document.getElementById('pf-winrate');
     var wrSEl = document.getElementById('pf-winrate-s');
-    if (perf && perf.winRate != null) {
-      wrEl.textContent  = perf.winRate.toFixed(1) + '%';
-      wrEl.className    = 'kpi-v ' + (perf.winRate >= 50 ? 'up' : 'dn');
-      wrSEl.textContent = perf.winningTrades + 'W / ' + perf.losingTrades + 'L · ' + perf.closedTrades + ' closed';
+    if (health && health.winRate != null) {
+      wrEl.textContent  = health.winRate.toFixed(1) + '%';
+      wrEl.className    = 'kpi-v ' + (health.winRate >= 50 ? 'up' : 'dn');
+      wrSEl.textContent = health.winningTrades + 'W / ' + health.losingTrades + 'L · ' + health.closedTrades + ' closed';
     } else {
       wrEl.textContent  = '—';
       wrEl.className    = 'kpi-v';
-      wrSEl.textContent = perf ? 'No closed trades yet' : 'Unavailable';
+      wrSEl.textContent = health ? 'No closed trades yet' : 'Unavailable';
     }
 
-    // ── KPI: Profit Factor — from /portfolio/performance ─────────────────────
-    // getPerformance() does not return maxDrawdown; profitFactor is the honest
-    // alternative (gross profit / gross loss). Shown as "—" when no closed trades.
+    // ── KPI: Profit Factor — from /portfolio/analytics/health ────────────────
+    // getHealth() does not return a true historical max-drawdown (that needs
+    // NAV-snapshot history this schema doesn't have); profitFactor is the
+    // honest alternative (gross profit / gross loss). Shown as "—" when no
+    // closed trades exist.
     var pfEl  = document.getElementById('pf-drawdown');
     var pfSEl = document.getElementById('pf-drawdown-s');
-    if (perf && perf.profitFactor != null) {
-      pfEl.textContent  = perf.profitFactor.toFixed(2) + '×';
-      pfEl.className    = 'kpi-v ' + (perf.profitFactor >= 1.5 ? 'up' : perf.profitFactor >= 1 ? 'wc' : 'dn');
-      pfSEl.textContent = '₹' + f(perf.grossProfit, 0) + ' / ₹' + f(perf.grossLoss, 0);
+    if (health && health.profitFactor != null) {
+      pfEl.textContent  = health.profitFactor.toFixed(2) + '×';
+      pfEl.className    = 'kpi-v ' + (health.profitFactor >= 1.5 ? 'up' : health.profitFactor >= 1 ? 'wc' : 'dn');
+      pfSEl.textContent = '₹' + f(health.grossProfit, 0) + ' / ₹' + f(health.grossLoss, 0);
     } else {
       pfEl.textContent  = '—';
       pfEl.className    = 'kpi-v';
-      pfSEl.textContent = perf ? 'No closed trades yet' : 'Unavailable';
+      pfSEl.textContent = health ? 'No closed trades yet' : 'Unavailable';
     }
 
     // ── Open Positions count + source ─────────────────────────────────────────
