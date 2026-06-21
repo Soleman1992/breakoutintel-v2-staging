@@ -354,7 +354,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="data-src"><span id="sec-src">Yahoo Finance sector indices · NSE India</span><span id="sec-ts2">—</span></div>
     </div>
     <div class="panel">
-      <div class="ph"><span class="ph-t">Alerts Center</span><span class="ph-live"><span class="pulse"></span><span id="al-cnt">4</span> LIVE</span></div>
+      <div class="ph"><span class="ph-t">Alerts Center</span><span class="ph-live"><span class="pulse"></span><span id="al-cnt">—</span> LIVE</span></div>
       <div id="alerts-feed"></div>
     </div>
   </div>
@@ -587,12 +587,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="panel">
         <div class="ph"><span class="ph-t">Sentiment Gauge</span></div>
         <div style="padding:14px;text-align:center">
-          <div style="font-size:36px;font-weight:500;color:var(--up)">BULLISH</div>
-          <div style="font-size:10px;color:var(--t3);margin:4px 0 12px">Overall market sentiment</div>
+          <div style="font-size:36px;font-weight:500;color:var(--t3)" id="sent-label">—</div>
+          <div style="font-size:10px;color:var(--t3);margin:4px 0 12px">Overall market sentiment · /market/health</div>
           <div style="height:8px;background:#0d1829;border-radius:4px;overflow:hidden">
-            <div style="width:72%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px"></div>
+            <div id="sent-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px;transition:width .6s"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span>72% Bullish</span><span>Bullish</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span id="sent-score">loading...</span><span>Bullish</span></div>
         </div>
       </div>
       <div class="panel">
@@ -998,14 +998,7 @@ var AI_TIPS={
   tight:'Tight Base — 3–5% range for 10+ days, drying volume. Supply exhaustion. Very tight stop available.',
 };
 
-var FALLBACK_SECTORS=[
-  {n:'IT / Technology',c:2.34},{n:'Banking & Finance',c:1.82},{n:'FMCG',c:1.12},
-  {n:'Auto',c:.89},{n:'Metals',c:.22},{n:'Pharma',c:-.56},{n:'Realty',c:-1.24},
-];
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-function r(a,b){return a+(Math.random()*(b-a))}
-function j(v,p){return Math.round(v*(1+r(-(p||.002),(p||.002)))*100)/100}
 function f(n,d){if(n==null||n===undefined||isNaN(n))return '—';return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d})}
 function pc(n){if(n==null||isNaN(n))return '—';return (n>0?'+':'')+Number(n).toFixed(2)+'%'}
 function nowIST(){return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'Asia/Kolkata'})}
@@ -1175,6 +1168,10 @@ function updateIndicesFromData(indices){
     vc.className='idx-ch '+(vix.change<0?'up':'dn');
   }
   liveData.indices=indices;
+  // Rebuild the intraday chart with real chartData now that it's available —
+  // previously this never happened post-init, leaving fabricated points on
+  // screen indefinitely even after real data loaded.
+  buildMktChart(activeTab);
   // Update active market tab
   updateMktTabDisplay();
   document.getElementById('mkt-ts').textContent=nowIST();
@@ -1211,13 +1208,14 @@ function updateAdvDecFromData(d){
 function updateSectorsFromData(sectors){
   if(!sectors||!sectors.length)return;
   // sectors from backend: [{name:'IT',changePct:2.1,ok:true},...]
+  // Real data only: keep sectors whose fetch actually succeeded. Never pad
+  // with fabricated values when fewer than expected sectors report ok:true.
   var mapped=sectors.map(s=>({
     n:({'IT':'IT / Technology','PHARMA':'Pharma','FMCG':'FMCG','AUTO':'Auto','METAL':'Metals','REALTY':'Realty','BANK':'Banking & Finance'}[s.name]||s.name),
     c:s.changePct||0,
     ok:s.ok
-  }));
-  // Add any missing with fallback
-  if(mapped.length<4) mapped=FALLBACK_SECTORS.map(s=>({...s,c:j(s.c,.03)}));
+  })).filter(s=>s.ok!==false);
+  if(!mapped.length) return; // leave existing/loading state — never fabricate
   renderSectors(mapped);
 }
 
@@ -1279,14 +1277,10 @@ function buildSpark(id,data,col,fill){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:400}}
   });
 }
-function buildSparks(){
-  buildSpark('sp1',[38,42,39,45,47,44,49,49],'#22C55E');
-  buildSpark('sp2',[5,6,7,7,8,8,8,8],'#3B82F6','rgba(59,130,246,.07)');
-  buildSpark('sp3',[8,10,12,14,15,17,18,18.4],'#22C55E');
-  buildSpark('sp4',[4.8,5.1,5.5,5.8,6.0,6.1,6.2,6.2],'#F59E0B','rgba(245,158,11,.07)');
-  buildSpark('sp5',[62,64,65,67,66,68,68,68],'#22C55E');
-  buildSpark('sp6',[60,63,65,68,70,71,72,72],'#3B82F6','rgba(59,130,246,.07)');
-}
+// NOTE: KPI sparklines (sp1-sp6) intentionally render nothing until a real
+// historical time-series source is wired up. The previous buildSparks()
+// function populated them with hardcoded fake arrays — removed per the
+// project's no-fabricated-data rule rather than replaced with another guess.
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 function renderSectors(secs){
@@ -1316,21 +1310,71 @@ function buildDonut(secs){
   });
 }
 
-// ─── ALERTS ───────────────────────────────────────────────────────────────────
-var ALERTS=[
-  {ic:'BO',ib:'#0d2e1a',ic2:'#22C55E',t:'DIXON TECH — Breakout Confirmed',s:'Volume 3.8× avg · Price ₹14,280 · Above resistance ₹14,100',tm:'09:42',sev:'#22C55E'},
-  {ic:'V',ib:'#2a1e06',ic2:'#F59E0B',t:'TATAELXSI — Volume Surge',s:'Vol 5.2× avg · Pre-breakout zone · VCP stage 4',tm:'10:15',sev:'#F59E0B'},
-  {ic:'GAP',ib:'#0d1b35',ic2:'#3B82F6',t:'POLYCAB — Gap-Up Open',s:'Gapped +2.4% · Strong earnings catalyst · Cup breakout',tm:'09:15',sev:'#3B82F6'},
-  {ic:'FII',ib:'#0d2e1a',ic2:'#22C55E',t:'HCLTECH — FII Buying Detected',s:'Bulk deal ₹182 Cr · Block deal pattern confirmed',tm:'11:30',sev:'#22C55E'},
-];
-function renderAlerts(){
-  document.getElementById('alerts-feed').innerHTML=ALERTS.map(a=>`
+// ─── ALERTS — real data: scanner breakout/volume alerts + portfolio intelligence ──
+// Replaces the previous hardcoded ALERTS array. Deferred call (see init()) so
+// PORTFOLIO_USER_ID, declared later in this script, is initialized first.
+async function loadAlerts(){
+  var feed  = document.getElementById('alerts-feed');
+  var cntEl = document.getElementById('al-cnt');
+  var items = [];
+
+  var results = await Promise.allSettled([
+    fetch(BACKEND+'/scanner/breakout-alerts?limit=5',{signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+    fetch(BACKEND+'/scanner/volume-alerts?limit=5',{signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+    fetch(BACKEND+'/portfolio/intelligence/alerts?live=true',{headers:{'x-user-id':PORTFOLIO_USER_ID},signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+  ]);
+  var boRes=results[0], volRes=results[1], intRes=results[2];
+
+  if(boRes.status==='fulfilled' && boRes.value.ok){
+    boRes.value.data.forEach(function(a){
+      items.push({
+        ic:'BO', ib:'#0d2e1a', ic2:'#22C55E',
+        t:a.sym+' — '+(a.alertType||'Breakout'),
+        s:'Conf '+(a.conf!=null?a.conf+'/10':'—')+' · RS '+(a.rs!=null?a.rs:'—')+' · CMP ₹'+f(a.cmp),
+        tm:a.scannedAt?new Date(a.scannedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:'#22C55E', ts:a.scannedAt||0,
+      });
+    });
+  }
+  if(volRes.status==='fulfilled' && volRes.value.ok){
+    volRes.value.data.forEach(function(a){
+      items.push({
+        ic:'VOL', ib:'#2a1e06', ic2:'#F59E0B',
+        t:a.sym+' — '+(a.alertType||'Volume Surge'),
+        s:(a.volRatio!=null?f(a.volRatio,1)+'x avg volume':'')+' · CMP ₹'+f(a.cmp),
+        tm:a.scannedAt?new Date(a.scannedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:'#F59E0B', ts:a.scannedAt||0,
+      });
+    });
+  }
+  if(intRes.status==='fulfilled' && intRes.value.ok && intRes.value.data && intRes.value.data.alerts){
+    var sevColor={CRITICAL:'#EF4444',WARNING:'#F59E0B',INFO:'#3B82F6'};
+    var sevBg={CRITICAL:'#2e0d0d',WARNING:'#2a1e06',INFO:'#0d1b35'};
+    intRes.value.data.alerts.forEach(function(a){
+      items.push({
+        ic:a.severity==='CRITICAL'?'!':a.severity==='WARNING'?'W':'i',
+        ib:sevBg[a.severity]||'#0d1b35', ic2:sevColor[a.severity]||'#3B82F6',
+        t:(a.symbol||'Portfolio')+' — '+a.type,
+        s:a.message,
+        tm:a.generatedAt?new Date(a.generatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:sevColor[a.severity]||'#3B82F6', ts:a.generatedAt?new Date(a.generatedAt).getTime():0,
+      });
+    });
+  }
+
+  items.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  items = items.slice(0,8);
+  if(cntEl) cntEl.textContent = items.length;
+  if(!feed) return;
+  feed.innerHTML = items.length ? items.map(a=>`
     <div class="al-it">
       <div class="al-ic" style="background:${a.ib};color:${a.ic2}">${a.ic}</div>
       <div class="al-b"><div class="al-t">${a.t}</div><div class="al-s">${a.s}</div></div>
       <div class="al-m"><div class="al-tm">${a.tm}</div><div class="sev" style="background:${a.sev}"></div></div>
-    </div>`).join('');
+    </div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No alerts currently — scanner and portfolio signals will appear here</div>';
 }
+
 
 // ─── SCANNER TABLE ────────────────────────────────────────────────────────────
 function renderScan(){
@@ -1422,17 +1466,17 @@ function buildMktChart(tab){
   var d=liveData.indices[TAB_MAP[tab]?.srcKey];
   var c=document.getElementById('mktC');if(!c)return;
   if(mktChartInst)mktChartInst.destroy();
-  var base=(d&&d.price)||23252;
-  var pts=[],p=d?d.previousClose:base*0.994;
-  for(var i=0;i<78;i++){p=j(p,.0018);pts.push(Math.round(p*100)/100)}
-  // Set last point to actual current price
-  if(d&&d.price)pts[pts.length-1]=d.price;
-  var labels=[];
-  for(var h=9;h<=15;h++)for(var m=0;m<60;m+=5){if(h===9&&m<15)continue;if(h===15&&m>30)continue;labels.push(h+':'+(m<10?'0':'')+m)}
+  // Real data only — Yahoo's chartData (5-min interval intraday closes),
+  // already returned by fetchYahooQuote() on the backend. No fabricated
+  // random-walk filler. If not yet loaded, the chart simply renders empty.
+  var pts = (d && Array.isArray(d.chartData)) ? d.chartData.filter(v=>v!=null) : [];
+  var labelsAll=[];
+  for(var h=9;h<=15;h++)for(var m=0;m<60;m+=5){if(h===9&&m<15)continue;if(h===15&&m>30)continue;labelsAll.push(h+':'+(m<10?'0':'')+m)}
+  var labels=labelsAll.slice(0,pts.length);
   var isUp=(d?.change||0)>=0;
   mktChartInst=new Chart(c,{
     type:'line',
-    data:{labels:labels.slice(0,pts.length),datasets:[{data:pts,borderColor:isUp?'#22C55E':'#EF4444',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:isUp?'rgba(34,197,94,.06)':'rgba(239,68,68,.06)',tension:.3}]},
+    data:{labels:labels,datasets:[{data:pts,borderColor:isUp?'#22C55E':'#EF4444',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:isUp?'rgba(34,197,94,.06)':'rgba(239,68,68,.06)',tension:.3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:v=>'₹'+f(v.raw,2)}}},scales:{x:{grid:{color:'rgba(30,58,95,.3)'},ticks:{color:'#4B607E',font:{size:8},maxTicksLimit:8}},y:{grid:{color:'rgba(30,58,95,.3)'},ticks:{color:'#4B607E',font:{size:8},callback:v=>f(v,0)}}}}
   });
 }
@@ -1562,6 +1606,42 @@ async function loadMarketHealth() {
   }
 }
 
+// ─── SENTIMENT GAUGE (News view) — reuses GET /market/health, same real ──────
+// deterministic score as the dashboard Market Health KPI. Replaces the
+// previous hardcoded 72%/BULLISH bar. Lazy-loaded only when News view opens.
+async function loadSentimentGauge(){
+  var labelEl=document.getElementById('sent-label');
+  var barEl=document.getElementById('sent-bar');
+  var scoreEl=document.getElementById('sent-score');
+  if(!labelEl||!barEl||!scoreEl) return;
+  try{
+    var res=await fetch(BACKEND+'/market/health',{signal:AbortSignal.timeout(10000)});
+    var d=await res.json();
+    if(!d.ok || d.score==null){
+      labelEl.textContent=d.label||'Unavailable'; labelEl.style.color='var(--t3)';
+      barEl.style.width='0%';
+      scoreEl.textContent='Market health service unavailable';
+      return;
+    }
+    var bullish = d.label==='STRONGLY BULLISH'||d.label==='BULLISH';
+    var bearish = d.label==='STRONGLY BEARISH'||d.label==='BEARISH';
+    var col = bullish?'var(--up)':bearish?'var(--dn)':'var(--warn)';
+    labelEl.textContent=d.label;
+    labelEl.style.color=col;
+    barEl.style.width=Math.max(0,Math.min(100,d.score))+'%';
+    barEl.style.background = bearish
+      ? 'linear-gradient(90deg,var(--dn),#b91c1c)'
+      : bullish
+        ? 'linear-gradient(90deg,var(--up),#16a34a)'
+        : 'linear-gradient(90deg,var(--warn),#b45309)';
+    scoreEl.textContent = d.score+'% · '+d.label+(d.dataComplete===false?' · partial data':'');
+  }catch(e){
+    labelEl.textContent='Unavailable'; labelEl.style.color='var(--t3)';
+    barEl.style.width='0%';
+    scoreEl.textContent='Data unavailable';
+  }
+}
+
 // ─── DASHBOARD PORTFOLIO KPIs ─────────────────────────────────────────────────
 // Calls /portfolio/summary + /portfolio/analytics/health + /portfolio/analytics/risk
 // in parallel and wires k-pos, k-ret, k-risk, k-wr on the dashboard.
@@ -1686,10 +1766,11 @@ async function loadDashboardPortfolioKPIs() {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init(){
-  // Render static elements immediately
-  buildSparks();
-  renderAlerts();
-  renderSectors(FALLBACK_SECTORS.map(s=>({...s,c:j(s.c,.02)})));
+  // buildMktChart/renderSectors are intentionally NOT seeded with fabricated
+  // data here. The chart renders empty until real Yahoo chartData arrives
+  // (buildMktChart is re-invoked from updateIndicesFromData). The sector
+  // panel keeps its HTML "Fetching sector data..." placeholder until real
+  // sector data arrives via updateSectorsFromData().
   buildMktChart('n50');
   updateClock();
 
@@ -1745,6 +1826,11 @@ async function init(){
   setTimeout(loadDashboardPortfolioKPIs, 1500);
   setInterval(loadDashboardPortfolioKPIs, 15000);
 
+  // Alerts Center — real scanner + portfolio intelligence data (deferred so
+  // PORTFOLIO_USER_ID, declared later in this script, is initialized first)
+  setTimeout(loadAlerts, 1800);
+  setInterval(loadAlerts, 60000);
+
   document.getElementById('footer-ts').textContent='Initialized: '+nowIST();
 }
 
@@ -1782,7 +1868,7 @@ function switchView(view) {
 
   // Lazy-load view content
   if (view === 'scanner') renderScan2();
-  if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); }
+  if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); loadSentimentGauge(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
@@ -1863,33 +1949,44 @@ function scan2Tab(el, key) {
 
 function filterScan2() { renderScan2(); }
 
-// ─── NEWS FEED ────────────────────────────────────────────────────────────────
-var NEWS_ITEMS = [
-  {tag:'FII',col:'#22C55E',bg:'#0d2e1a',title:'FII Net Buyers for 5th Consecutive Session',body:'Foreign institutional investors bought ₹2,847 Cr worth of equities. IT and Banking sectors saw maximum inflows. Sentiment remains strongly bullish.',time:'11:45 AM',impact:'HIGH'},
-  {tag:'RBI',col:'#3B82F6',bg:'#0d1b35',title:'RBI Holds Rates, Signals Accommodative Stance',body:'The Reserve Bank of India kept the repo rate unchanged at 6.5%. Governor noted inflation is within target band. Markets react positively — Nifty up 0.8%.',time:'10:30 AM',impact:'HIGH'},
-  {tag:'RES',col:'#F59E0B',bg:'#2a1e06',title:'DIXON Technologies Q4 Results: PAT up 68% YoY',body:'Dixon Tech reported strong quarterly results. Revenue grew 42% to ₹4,280 Cr. EMS business shows no slowdown. Stock near 52-week high on heavy volumes.',time:'09:55 AM',impact:'MED'},
-  {tag:'SEC',col:'#22C55E',bg:'#0d2e1a',title:'IT Sector Sees Renewed Buying Interest',body:'HCL Tech, Persistent Systems, and Coforge lead the IT recovery. Deal wins pipeline improving. Rupee depreciation adds tailwind for export earnings.',time:'09:30 AM',impact:'MED'},
-  {tag:'GLB',col:'#EF4444',bg:'#2e0d0d',title:'US Markets Mixed Ahead of Fed Minutes',body:'S&P 500 futures flat. Nasdaq slightly lower. Fed minutes due tonight — markets watching for any hawkish signals. India VIX at 14.72, suggesting low fear.',time:'08:45 AM',impact:'LOW'},
-  {tag:'IPO',col:'#3B82F6',bg:'#0d1b35',title:'Strong IPO Pipeline for Q1 FY26',body:'SEBI approves 12 new IPOs. Total issue size ₹18,400 Cr. Anchor investor interest strong across sectors. Grey market premiums positive for most issues.',time:'08:15 AM',impact:'LOW'},
-  {tag:'BLK',col:'#22C55E',bg:'#0d2e1a',title:'Block Deal: HCLTECH — ₹182 Cr by FII',body:'A major FII purchased 12.2 lakh shares of HCL Technologies at ₹1,491 on BSE. This is a bullish accumulation signal. Stock added to high-confidence watchlist.',time:'Yesterday',impact:'HIGH'},
-];
-
-function renderNewsFeed() {
+// ─── NEWS FEED — real NSE corporate announcements (no fabricated headlines) ──
+// Replaces the previous hardcoded NEWS_ITEMS array. Reuses the same real
+// /market/corporate-announcements endpoint already powering the Corporate
+// Announcements panel, rather than maintaining a second fake data source.
+var newsFeedLoaded = false;
+async function renderNewsFeed() {
   var feed = document.getElementById('news-feed');
-  if (!feed || feed.children.length > 0) return;
-  feed.innerHTML = NEWS_ITEMS.map(n => `
-    <div class="al-it" style="padding:10px 14px;cursor:pointer" onclick="this.style.opacity='.6'">
-      <div class="al-ic" style="background:${n.bg};color:${n.col};width:36px;height:36px;font-size:9px;flex-shrink:0">${n.tag}</div>
+  if (!feed || newsFeedLoaded) return;
+  feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>';
+  try {
+    var res = await fetch(BACKEND + '/market/corporate-announcements?limit=20', { signal: AbortSignal.timeout(25000) });
+    var d = await res.json();
+    newsFeedLoaded = true;
+    if (!d.ok || !d.data || !d.data.length) {
+      feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No market announcements available currently</div>';
+      return;
+    }
+    feed.innerHTML = d.data.map(a => {
+      var col = (typeof CORP_ANN_COLORS !== 'undefined' && CORP_ANN_COLORS[a.category]) || { c: 'var(--t2)', bg: '#1a1f2e' };
+      return `
+    <div class="al-it" style="padding:10px 14px">
+      <div class="al-ic" style="background:${col.bg};color:${col.c};width:36px;height:36px;font-size:9px;flex-shrink:0">${(a.category||'NEWS').slice(0,3).toUpperCase()}</div>
       <div class="al-b" style="flex:1">
-        <div style="font-size:11px;font-weight:500;color:var(--t1);margin-bottom:3px">${n.title}</div>
-        <div style="font-size:9px;color:var(--t3);line-height:1.5">${n.body}</div>
+        <div style="font-size:11px;font-weight:500;color:var(--t1);margin-bottom:3px">${a.sym} — ${a.subject||''}</div>
+        <div style="font-size:9px;color:var(--t3);line-height:1.5">${a.sector||''}</div>
         <div style="margin-top:5px;display:flex;gap:8px;align-items:center">
-          <span style="font-size:9px;color:var(--t3)">${n.time}</span>
-          <span style="font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;background:${n.impact==='HIGH'?'#0d2e1a':n.impact==='MED'?'#2a1e06':'#1a1f2e'};color:${n.impact==='HIGH'?'var(--up)':n.impact==='MED'?'var(--warn)':'var(--t3)'}">${n.impact}</span>
+          <span style="font-size:9px;color:var(--t3)">${a.timestamp||''}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;background:${col.bg};color:${col.c}">${a.category||'General'}</span>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
+  } catch (e) {
+    newsFeedLoaded = true;
+    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+  }
 }
+
 
 // ─── SMART MONEY ACTIVITY (real NSE: Bulk/Block Deals, Delivery Volume, Institutional) ──
 var smartMoneyData  = {};   // cache per tab: { ok, data, source, error }
