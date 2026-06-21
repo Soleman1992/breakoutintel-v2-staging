@@ -1181,7 +1181,20 @@ function updateIndicesFromData(indices){
 }
 
 function updateAdvDecFromData(d){
-  if(!d||!d.advances)return;
+  // ok:false means NSE was unreachable — show explicit "unavailable", never 0/0
+  if(!d||d.ok===false){
+    document.getElementById('r-ad').textContent='— / —';
+    document.getElementById('int-adv').textContent='—';
+    document.getElementById('int-dec').textContent='—';
+    document.getElementById('int-ab').style.width='0%';
+    document.getElementById('int-db').style.width='0%';
+    document.getElementById('r-adb').style.width='4px';
+    document.getElementById('r-dcb').style.width='4px';
+    document.getElementById('int-ts').textContent='NSE unavailable · '+nowIST();
+    return;
+  }
+  // Guard against null values (ok:true but advances/declines not yet populated)
+  if(d.advances==null||d.declines==null)return;
   var tot=(d.advances+d.declines)||1;
   document.getElementById('r-ad').textContent=f(d.advances,0)+' / '+f(d.declines,0);
   document.getElementById('int-adv').textContent=f(d.advances,0);
@@ -1505,6 +1518,50 @@ function startCountdown(){
   },1000);
 }
 
+// ─── MARKET HEALTH KPI (k-health / k-score) ──────────────────────────────────
+// Calls GET /market/health — deterministic rule-based score (no randomness).
+// Label colour: STRONGLY BULLISH/BULLISH → green, NEUTRAL → warn, BEARISH/STRONGLY BEARISH → red.
+// Shows "—" and "Unavailable" when backend is unreachable or market service is initialising.
+async function loadMarketHealth() {
+  var healthEl = document.getElementById('k-health');
+  var scoreEl  = document.getElementById('k-score');
+  if (!healthEl || !scoreEl) return;
+
+  try {
+    var res = await fetch(BACKEND + '/market/health', { signal: AbortSignal.timeout(10000) });
+    var d   = await res.json();
+
+    if (!d.ok || d.score == null) {
+      // Backend returned ok:false (market service initialising or error)
+      healthEl.textContent = d.label || 'Unavailable';
+      healthEl.className   = 'health-bull';
+      healthEl.style.color = 'var(--t3)';
+      scoreEl.textContent  = 'Score: — / 100' + (d.dataComplete === false ? ' · partial data' : '');
+      return;
+    }
+
+    // Colour by label
+    var col;
+    if      (d.label === 'STRONGLY BULLISH') col = 'var(--up)';
+    else if (d.label === 'BULLISH')          col = 'var(--up)';
+    else if (d.label === 'NEUTRAL')          col = 'var(--warn)';
+    else if (d.label === 'BEARISH')          col = 'var(--dn)';
+    else                                     col = 'var(--dn)';   // STRONGLY BEARISH
+
+    healthEl.textContent = d.label;
+    healthEl.className   = 'health-bull';
+    healthEl.style.color = col;
+    scoreEl.textContent  = 'Score: ' + d.score + '/100' + (d.dataComplete ? '' : ' · partial');
+    flash('k-health');
+
+  } catch (e) {
+    // Network error — show explicit unavailable, never stale static text
+    console.warn('[MarketHealth] fetch failed:', e.message);
+    if (healthEl) { healthEl.textContent = '—'; healthEl.style.color = 'var(--t3)'; }
+    if (scoreEl)  scoreEl.textContent = 'Score: unavailable';
+  }
+}
+
 // ─── DASHBOARD PORTFOLIO KPIs ─────────────────────────────────────────────────
 // Calls /portfolio/summary + /portfolio/analytics/health + /portfolio/analytics/risk
 // in parallel and wires k-pos, k-ret, k-risk, k-wr on the dashboard.
@@ -1679,6 +1736,10 @@ async function init(){
 
   // Market breadth refresh every 60s
   setInterval(fetchMarketBreadth, 60000);
+
+  // Market Health KPI — load once on init, then refresh every 15s
+  setTimeout(loadMarketHealth, 2000);
+  setInterval(loadMarketHealth, 15000);
 
   // Dashboard portfolio KPIs — load once on init, then refresh every 15s
   setTimeout(loadDashboardPortfolioKPIs, 1500);

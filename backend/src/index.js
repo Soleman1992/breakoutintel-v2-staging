@@ -351,6 +351,19 @@ app.get('/market/breadth', async (req, res) => {
   }
 });
 
+// ── Market — Health Score (deterministic rule-based, no randomness) ───────────
+// Weights: Nifty50 30pts + BankNifty 15pts + Midcap 15pts + VIX 20pts + A/D 20pts
+// Labels: >=75 STRONGLY BULLISH | >=60 BULLISH | >=45 NEUTRAL | >=30 BEARISH | <30 STRONGLY BEARISH
+app.get('/market/health', async (req, res) => {
+  try {
+    if (!market) return res.json({ ok: false, score: null, label: 'Unavailable', dataComplete: false, message: 'Market service initializing' });
+    const data = await market.getMarketHealth();
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Portfolio Routes — Phase 1 + Phase 2 ─────────────────────────────────────
 // user_id is taken from the x-user-id header (placeholder until auth middleware
 // is added in a later phase). If no DB, returns 503 gracefully.
