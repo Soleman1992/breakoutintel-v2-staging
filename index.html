@@ -328,9 +328,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-l">Breakout Candidates <i class="ti ti-trending-up" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-cand">—</div><div class="kpi-s" id="k-cand-s">loading...</div><div class="kpi-spark"><canvas id="sp1"></canvas></div></div>
     <div class="kpi-card"><div class="kpi-l">Active Positions <i class="ti ti-briefcase" style="font-size:11px;color:var(--acc2)"></i></div><div class="kpi-v" id="k-pos">—</div><div class="kpi-s" id="k-pos-s">loading...</div><div class="kpi-spark"><canvas id="sp2"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Portfolio Return MTD <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-ret">—</div><div class="kpi-s" id="k-ret-s">loading...</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Total Return <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-ret">—</div><div class="kpi-s" id="k-ret-s">loading...</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
     <div class="kpi-card"><div class="kpi-l">Portfolio Risk <i class="ti ti-shield" style="font-size:11px;color:var(--warn)"></i></div><div class="kpi-v" id="k-risk">—</div><div class="kpi-s" id="k-risk-s">loading...</div><div class="kpi-spark"><canvas id="sp4"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Win Rate (Last 30) <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-wr">—</div><div class="kpi-s" id="k-wr-s">loading...</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Win Rate <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-wr">—</div><div class="kpi-s" id="k-wr-s">loading...</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
     <div class="kpi-card"><div class="kpi-l">Market Health <i class="ti ti-pulse" style="font-size:11px;color:var(--up)"></i></div><div class="health-bull" id="k-health">BULLISH</div><div class="kpi-s" id="k-score">Score: 72/100</div><div class="kpi-spark"><canvas id="sp6"></canvas></div></div>
   </div>
 
@@ -1664,10 +1664,17 @@ async function loadDashboardPortfolioKPIs() {
     var risk   = (riskData.ok   && riskData.data)   ? riskData.data   : null;
 
     // ── k-pos: Active Positions ───────────────────────────────────────────────
+    // IMPORTANT: sum.positionCount (from /portfolio/summary) counts ALL
+    // positions regardless of status, including closed ones — getPositions()
+    // has no status filter. health.openTrades (from /portfolio/analytics/health)
+    // correctly filters to status IN ('open','partial'), matching what "Active
+    // Positions" actually means. Always use health.openTrades here — never the
+    // unfiltered summary count, even as a fallback, or a closed position would
+    // silently inflate this number the moment any trade is fully sold.
     var posEl  = document.getElementById('k-pos');
     var posSEl = document.getElementById('k-pos-s');
     if (posEl && posSEl) {
-      var posCount = sum ? sum.positionCount : (health ? health.openTrades : null);
+      var posCount = health ? health.openTrades : null;
       if (posCount != null) {
         posEl.textContent  = posCount;
         posEl.className    = 'kpi-v';
@@ -1680,13 +1687,14 @@ async function loadDashboardPortfolioKPIs() {
       flash('k-pos');
     }
 
-    // ── k-ret: Portfolio Return MTD ───────────────────────────────────────────
-    // Use unrealized P&L % from /portfolio/summary (totalPnLPct).
-    // Falls back to realized P&L from health if summary unavailable.
+    // ── k-ret: Total Return (unrealized, since inception) ─────────────────────
+    // Use unrealized P&L % from /portfolio/summary (totalPnLPct). True
+    // month-to-date return would require NAV-snapshot history this schema
+    // doesn't have — labeled honestly as "Total Return" rather than "MTD".
     var retEl  = document.getElementById('k-ret');
     var retSEl = document.getElementById('k-ret-s');
     if (retEl && retSEl) {
-      var posCount2 = sum ? sum.positionCount : 0;
+      var posCount2 = health ? health.openTrades : 0;
       if (sum && sum.totalPnLPct != null) {
         var pct = sum.totalPnLPct;
         retEl.textContent  = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
@@ -2883,6 +2891,13 @@ async function renderPortfolioView() {
     if (!sumData.ok) throw new Error(sumData.error || ('HTTP ' + sumRes.status));
 
     var positions = posData.positions || [];
+    // getPositions()/getEnrichedPositions() return ALL positions regardless
+    // of status (open, partial, AND closed) — there's no status filter at
+    // that layer, since other features (e.g. position edit/history) may
+    // legitimately need the full list. The "Open Positions" panel itself
+    // must filter to open/partial only, or a fully-sold position would keep
+    // appearing here indefinitely with quantity 0 and a broken-looking row.
+    var openPositions = positions.filter(p => p.status === 'open' || p.status === 'partial');
     var summary   = sumData.data      || {};
     var health    = (healthData.ok && healthData.data) ? healthData.data : null;
 
@@ -2901,7 +2916,7 @@ async function renderPortfolioView() {
       document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct) + ' unrealized';
     } else {
       pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
-      document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
+      document.getElementById('pf-pnl-s').textContent = openPositions.length ? 'Prices unavailable' : 'No open positions';
     }
 
     // ── KPI: Win Rate — from /portfolio/analytics/health (same source the
@@ -2936,12 +2951,12 @@ async function renderPortfolioView() {
     }
 
     // ── Open Positions count + source ─────────────────────────────────────────
-    if (cnt) cnt.textContent = positions.length + ' Active';
+    if (cnt) cnt.textContent = openPositions.length + ' Active';
     if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
     if (ts)  ts.textContent  = nowIST();
 
-    // ── Open Positions table rows ─────────────────────────────────────────────
-    body.innerHTML = positions.length ? positions.map((p, i) => `
+    // ── Open Positions table rows (status-filtered — open/partial only) ──────
+    body.innerHTML = openPositions.length ? openPositions.map((p, i) => `
       <tr onclick="openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')})" style="cursor:pointer">
         <td style="color:var(--t3)">${i + 1}</td>
         <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name || p.sector || ''}</div></td>
