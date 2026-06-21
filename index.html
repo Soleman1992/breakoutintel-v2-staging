@@ -327,10 +327,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <!-- KPI -->
   <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-l">Breakout Candidates <i class="ti ti-trending-up" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-cand">—</div><div class="kpi-s" id="k-cand-s">loading...</div><div class="kpi-spark"><canvas id="sp1"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Active Positions <i class="ti ti-briefcase" style="font-size:11px;color:var(--acc2)"></i></div><div class="kpi-v" id="k-pos">8</div><div class="kpi-s">Open trades</div><div class="kpi-spark"><canvas id="sp2"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Portfolio Return MTD <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v up" id="k-ret">+18.4%</div><div class="kpi-s">Unrealized</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Portfolio Risk <i class="ti ti-shield" style="font-size:11px;color:var(--warn)"></i></div><div class="kpi-v wc" id="k-risk">6.2%</div><div class="kpi-s">Max drawdown: 4.1%</div><div class="kpi-spark"><canvas id="sp4"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Win Rate (Last 30) <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v up" id="k-wr">68%</div><div class="kpi-s">22W / 10L</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Active Positions <i class="ti ti-briefcase" style="font-size:11px;color:var(--acc2)"></i></div><div class="kpi-v" id="k-pos">—</div><div class="kpi-s" id="k-pos-s">loading...</div><div class="kpi-spark"><canvas id="sp2"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Portfolio Return MTD <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-ret">—</div><div class="kpi-s" id="k-ret-s">loading...</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Portfolio Risk <i class="ti ti-shield" style="font-size:11px;color:var(--warn)"></i></div><div class="kpi-v" id="k-risk">—</div><div class="kpi-s" id="k-risk-s">loading...</div><div class="kpi-spark"><canvas id="sp4"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Win Rate (Last 30) <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-wr">—</div><div class="kpi-s" id="k-wr-s">loading...</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
     <div class="kpi-card"><div class="kpi-l">Market Health <i class="ti ti-pulse" style="font-size:11px;color:var(--up)"></i></div><div class="health-bull" id="k-health">BULLISH</div><div class="kpi-s" id="k-score">Score: 72/100</div><div class="kpi-spark"><canvas id="sp6"></canvas></div></div>
   </div>
 
@@ -1505,6 +1505,128 @@ function startCountdown(){
   },1000);
 }
 
+// ─── DASHBOARD PORTFOLIO KPIs ─────────────────────────────────────────────────
+// Calls /portfolio/summary + /portfolio/analytics/health + /portfolio/analytics/risk
+// in parallel and wires k-pos, k-ret, k-risk, k-wr on the dashboard.
+// Zero-position / no-data state always shows — (never fabricated numbers).
+async function loadDashboardPortfolioKPIs() {
+  var headers = { 'x-user-id': PORTFOLIO_USER_ID };
+  try {
+    var [sumRes, healthRes, riskRes] = await Promise.all([
+      fetch(BACKEND + '/portfolio/summary',          { headers, signal: AbortSignal.timeout(12000) }),
+      fetch(BACKEND + '/portfolio/analytics/health', { headers, signal: AbortSignal.timeout(12000) }),
+      fetch(BACKEND + '/portfolio/analytics/risk',   { headers, signal: AbortSignal.timeout(12000) }),
+    ]);
+
+    var sumData    = await sumRes.json();
+    var healthData = await healthRes.json();
+    var riskData   = await riskRes.json();
+
+    var sum    = (sumData.ok    && sumData.data)    ? sumData.data    : null;
+    var health = (healthData.ok && healthData.data) ? healthData.data : null;
+    var risk   = (riskData.ok   && riskData.data)   ? riskData.data   : null;
+
+    // ── k-pos: Active Positions ───────────────────────────────────────────────
+    var posEl  = document.getElementById('k-pos');
+    var posSEl = document.getElementById('k-pos-s');
+    if (posEl && posSEl) {
+      var posCount = sum ? sum.positionCount : (health ? health.openTrades : null);
+      if (posCount != null) {
+        posEl.textContent  = posCount;
+        posEl.className    = 'kpi-v';
+        posSEl.textContent = posCount === 0 ? 'No positions' : 'Open trades';
+      } else {
+        posEl.textContent  = '—';
+        posEl.className    = 'kpi-v';
+        posSEl.textContent = 'No positions';
+      }
+      flash('k-pos');
+    }
+
+    // ── k-ret: Portfolio Return MTD ───────────────────────────────────────────
+    // Use unrealized P&L % from /portfolio/summary (totalPnLPct).
+    // Falls back to realized P&L from health if summary unavailable.
+    var retEl  = document.getElementById('k-ret');
+    var retSEl = document.getElementById('k-ret-s');
+    if (retEl && retSEl) {
+      var posCount2 = sum ? sum.positionCount : 0;
+      if (sum && sum.totalPnLPct != null) {
+        var pct = sum.totalPnLPct;
+        retEl.textContent  = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        retEl.className    = 'kpi-v ' + (pct >= 0 ? 'up' : 'dn');
+        retSEl.textContent = 'Unrealized';
+      } else if (posCount2 === 0) {
+        retEl.textContent  = '—';
+        retEl.className    = 'kpi-v';
+        retSEl.textContent = 'No positions';
+      } else {
+        // Positions exist but live prices unavailable
+        retEl.textContent  = '—';
+        retEl.className    = 'kpi-v';
+        retSEl.textContent = 'Prices unavailable';
+      }
+      flash('k-ret');
+    }
+
+    // ── k-risk: Portfolio Risk (exposure %) ───────────────────────────────────
+    // exposurePct from /portfolio/analytics/risk = capital deployed / total capital.
+    // Subtext: HHI concentration label.
+    var riskEl  = document.getElementById('k-risk');
+    var riskSEl = document.getElementById('k-risk-s');
+    if (riskEl && riskSEl) {
+      if (risk && risk.positionCount > 0 && risk.exposurePct != null) {
+        var exp = risk.exposurePct;
+        riskEl.textContent  = exp.toFixed(1) + '%';
+        riskEl.className    = 'kpi-v ' + (exp > 80 ? 'dn' : exp > 50 ? 'wc' : 'up');
+        riskSEl.textContent = 'Exposure · ' + (risk.hhiLabel || 'Portfolio');
+      } else if (risk && risk.positionCount === 0) {
+        riskEl.textContent  = '—';
+        riskEl.className    = 'kpi-v';
+        riskSEl.textContent = 'No positions';
+      } else {
+        riskEl.textContent  = '—';
+        riskEl.className    = 'kpi-v';
+        riskSEl.textContent = 'Unavailable';
+      }
+      flash('k-risk');
+    }
+
+    // ── k-wr: Win Rate ────────────────────────────────────────────────────────
+    // winRate from /portfolio/analytics/health (all-time closed trades).
+    // Subtext: winningTradesW / losingTradesL.
+    var wrEl  = document.getElementById('k-wr');
+    var wrSEl = document.getElementById('k-wr-s');
+    if (wrEl && wrSEl) {
+      if (health && health.winRate != null) {
+        wrEl.textContent  = health.winRate.toFixed(1) + '%';
+        wrEl.className    = 'kpi-v ' + (health.winRate >= 50 ? 'up' : 'dn');
+        wrSEl.textContent = health.winningTrades + 'W / ' + health.losingTrades + 'L';
+      } else if (health && health.closedTrades === 0) {
+        wrEl.textContent  = '—';
+        wrEl.className    = 'kpi-v';
+        wrSEl.textContent = 'No closed trades';
+      } else {
+        wrEl.textContent  = '—';
+        wrEl.className    = 'kpi-v';
+        wrSEl.textContent = 'Unavailable';
+      }
+      flash('k-wr');
+    }
+
+  } catch (e) {
+    // On any network/parse error: show — across all four cards, never fabricate
+    console.warn('[KPI] Dashboard portfolio KPIs failed:', e.message);
+    ['k-pos','k-ret','k-risk','k-wr'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'kpi-v'; }
+    });
+    var subtexts = { 'k-pos-s':'No positions', 'k-ret-s':'Unavailable', 'k-risk-s':'Unavailable', 'k-wr-s':'Unavailable' };
+    Object.entries(subtexts).forEach(function([id, txt]) {
+      var el = document.getElementById(id); if (el) el.textContent = txt;
+    });
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init(){
   // Render static elements immediately
@@ -1557,6 +1679,10 @@ async function init(){
 
   // Market breadth refresh every 60s
   setInterval(fetchMarketBreadth, 60000);
+
+  // Dashboard portfolio KPIs — load once on init, then refresh every 15s
+  setTimeout(loadDashboardPortfolioKPIs, 1500);
+  setInterval(loadDashboardPortfolioKPIs, 15000);
 
   document.getElementById('footer-ts').textContent='Initialized: '+nowIST();
 }
