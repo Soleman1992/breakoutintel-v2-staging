@@ -351,6 +351,127 @@ class MarketDataService {
       snapshotAt:   Date.now(),
     };
   }
+  // ── MTF OHLCV ─────────────────────────────────────────────────────────────
+  // Multi-timeframe OHLCV fetchers for the consensus engine.
+  // Bar format: { t (unix ms), o, h, l, c, v }
+  //
+  // Cache TTLs (tiered by bar duration):
+  //   Weekly  → 7 days   (recompute on weekly close only)
+  //   Daily   → 24 hours (recompute EOD)
+  //   4H      → 4 hours  (recompute every 4H bar close)
+  //
+  // 4H bars are synthesised from 60m Yahoo data, aggregated day-aware
+  // using IST boundaries (UTC+5:30) so bars never span overnight gaps.
+
+  _toNSESymbol(ticker) {
+    if (ticker.includes('.') || ticker.startsWith('^')) return ticker;
+    return `${ticker}.NS`;
+  }
+
+  async _fetchYahooOHLCV(symbol, interval, range) {
+    const cacheKey = `ohlcv:${symbol}:${interval}`;
+    const cached   = await this._safeRedisGet(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    try {
+      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+      const resp = await axios.get(url, { headers: YAHOO_HEADERS, timeout: 12000 });
+      const result = resp.data?.chart?.result?.[0];
+      if (!result) throw new Error('No chart data');
+
+      const timestamps = result.timestamp || [];
+      const q    = result.indicators?.quote?.[0] || {};
+      const bars = [];
+
+      for (let i = 0; i < timestamps.length; i++) {
+        if (q.close?.[i] == null) continue;
+        bars.push({
+          t: timestamps[i] * 1000,
+          o: q.open?.[i]   ?? q.close[i],
+          h: q.high?.[i]   ?? q.close[i],
+          l: q.low?.[i]    ?? q.close[i],
+          c: q.close[i],
+          v: q.volume?.[i] || 0,
+        });
+      }
+
+      const ttl = interval === '1wk' ? 7 * 24 * 3600
+                : interval === '1d'  ?      24 * 3600
+                :                           4  * 3600;
+
+      await this._safeRedisSet(cacheKey, ttl, JSON.stringify(bars));
+      return bars;
+    } catch (e) {
+      console.warn(`[OHLCV] ${symbol} ${interval}:`, e.message);
+      return [];
+    }
+  }
+
+  _aggregate4H(hourlyBars) {
+    if (!hourlyBars.length) return [];
+
+    const byDate = {};
+    for (const bar of hourlyBars) {
+      const istDate = new Date(bar.t + 19800000).toISOString().slice(0, 10);
+      if (!byDate[istDate]) byDate[istDate] = [];
+      byDate[istDate].push(bar);
+    }
+
+    const result = [];
+    for (const dateKey of Object.keys(byDate).sort()) {
+      const dayBars = byDate[dateKey];
+      for (let i = 0; i < dayBars.length; i += 4) {
+        const chunk = dayBars.slice(i, i + 4);
+        result.push({
+          t: chunk[0].t,
+          o: chunk[0].o,
+          h: Math.max(...chunk.map(b => b.h)),
+          l: Math.min(...chunk.map(b => b.l)),
+          c: chunk[chunk.length - 1].c,
+          v: chunk.reduce((sum, b) => sum + b.v, 0),
+        });
+      }
+    }
+    return result;
+  }
+
+  async fetchDailyOHLCV(ticker) {
+    return this._fetchYahooOHLCV(this._toNSESymbol(ticker), '1d', '1y');
+  }
+
+  async fetchWeeklyOHLCV(ticker) {
+    return this._fetchYahooOHLCV(this._toNSESymbol(ticker), '1wk', '2y');
+  }
+
+  async fetchFourHourOHLCV(ticker) {
+    const symbol   = this._toNSESymbol(ticker);
+    const cacheKey = `ohlcv:${symbol}:4h`;
+    const cached   = await this._safeRedisGet(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const hourly = await this._fetchYahooOHLCV(symbol, '60m', '60d');
+    const bars   = this._aggregate4H(hourly);
+
+    await this._safeRedisSet(cacheKey, 4 * 3600, JSON.stringify(bars));
+    return bars;
+  }
+
+  async fetchMTFOHLCV(ticker) {
+    const [W, D, H4] = await Promise.allSettled([
+      this.fetchWeeklyOHLCV(ticker),
+      this.fetchDailyOHLCV(ticker),
+      this.fetchFourHourOHLCV(ticker),
+    ]);
+    return {
+      ticker,
+      W:  W.status  === 'fulfilled' ? W.value  : [],
+      D:  D.status  === 'fulfilled' ? D.value  : [],
+      H4: H4.status === 'fulfilled' ? H4.value : [],
+      fetchedAt: Date.now(),
+      ok: true,
+    };
+  }
+
 }
 
 module.exports = MarketDataService;
