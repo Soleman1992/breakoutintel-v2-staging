@@ -3105,71 +3105,6 @@ function apCalcPnl() {
 }
 
 // ── Form submission — POST to /portfolio/positions then refresh table ─────────
-async function submitAddPosition() {
-  if (!apSelectedStock) { toast('Please select a symbol first'); return; }
-  var qty   = parseFloat(document.getElementById('ap-qty').value);
-  var price = parseFloat(document.getElementById('ap-buy-price').value);
-  if (!qty || qty <= 0)   { document.getElementById('ap-qty').classList.add('error');       toast('Quantity is required'); return; }
-  if (!price || price <= 0){ document.getElementById('ap-buy-price').classList.add('error'); toast('Buy price is required'); return; }
-
-  var btn = document.getElementById('ap-submit-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin">⟳</span> Saving...';
-
-  // Build payload matching portfolioService.addPosition() expected fields
-  // Backend destructures snake_case: average_buy_price, company_name, buy_date, stop_loss
-  var payload = {
-    symbol:            apSelectedStock.nseSymbol || apSelectedStock.sym,
-    exchange:          apSelectedStock.exchange  || 'NSE',
-    company_name:      apSelectedStock.name      || apSelectedStock.sym,
-    sector:            apSelectedStock.sector    || null,
-    industry:          apSelectedStock.industry  || null,
-    cap_category:      apSelectedStock.cap       || null,
-    quantity:          qty,
-    average_buy_price: price,
-    stop_loss:         parseFloat(document.getElementById('ap-sl').value)     || null,
-    target:            parseFloat(document.getElementById('ap-target').value) || null,
-    strategy:          document.getElementById('ap-strategy').value           || null,
-    buy_date:          document.getElementById('ap-buy-date').value           || null,
-    notes:             document.getElementById('ap-notes').value              || null,
-  };
-
-  try {
-    var res = await fetch(BACKEND + '/portfolio/positions', {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      'x-user-id':    PORTFOLIO_USER_ID,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10000),
-    });
-    var d = await res.json();
-
-    if (d.ok) {
-      toast('✓ ' + payload.symbol + ' × ' + qty + ' @ ₹' + f(price) + ' added to portfolio', 3500);
-      closeAddPosition();
-      // Refresh the live portfolio table
-      renderPortfolioView();
-    } else {
-      // DB not configured — store locally and show in table anyway
-      if (res.status === 503) {
-        toast('DB offline — position saved locally only', 3000);
-        addPositionToLocalTable(payload);
-        closeAddPosition();
-      } else {
-        toast('Error: ' + (d.error || 'Could not save position'), 4000);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-plus" style="font-size:11px"></i> Add Position';
-      }
-    }
-  } catch (e) {
-    // Network error — add to local table so user sees their entry
-    toast('Backend unreachable — showing locally', 3000);
-    addPositionToLocalTable(payload);
-    closeAddPosition();
-  }
-}
 
 // ── Load live positions from API and re-render the portfolio table ────────────
 var portfolioPositions = [];   // in-memory cache of positions
@@ -3878,7 +3813,7 @@ async function openRankDrill(ticker) {
         '<div style="display:flex;align-items:center;gap:7px">' +
           '<span style="font-size:24px;font-weight:700;color:' + tc + '">' + (r.consensusScore||0) + '</span>' +
           '<span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:3px 10px;border-radius:5px">Tier ' + (r.tier||'—') + '</span>' +
-          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
         '</div>' +
       '</div>' +
       '<div class="rk-metric-grid">' +
@@ -3920,6 +3855,8 @@ async function updateRankingStatus() {
 
 // ─── PHASE 8: VALIDATION ──────────────────────────────────────────────────────
 
+function closeRkPanel(){var p=document.getElementById('rk-panel');if(p)p.className='rk-panel';}
+
 async function openValidationPanel() {
   var panel = document.getElementById('rk-panel');
   if (!panel) return;
@@ -3934,7 +3871,7 @@ async function openValidationPanel() {
       panel.innerHTML = '<div style="padding:16px"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation</div>' +
         '<div style="font-size:11px;color:var(--color-text-danger);background:var(--color-background-danger);padding:10px;border-radius:6px">' + (r.error || 'No data') + '</div>' +
         '<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:12px">Trigger a scan first: click Scan Now and wait ~3 minutes.</div>' +
-        '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
+        '<button onclick="closeRkPanel()" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
       return;
     }
 
@@ -3980,7 +3917,7 @@ async function openValidationPanel() {
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<span style="font-size:22px;font-weight:500;color:'+healthColor+'">' + r.health + '</span>' +
           '<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;color:'+healthColor+';background:var(--color-background-secondary)">' + r.status + '</span>' +
-          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
         '</div></div>' +
 
       '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">' +
