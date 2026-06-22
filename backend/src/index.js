@@ -25,6 +25,7 @@ let transactions = null;
 let analytics = null;
 let intelligence = null;
 let newsIntelligence = null;
+let rankingOrch  = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -879,6 +880,24 @@ async function start() {
     console.error('[Services] Load error (non-fatal):', e.message);
   }
 
+  // 5. Ranking Orchestrator (consensus engine pipeline)
+  try {
+    const RankingOrchestrator = require('./services/rankingOrchestrator');
+    rankingOrch = new RankingOrchestrator(market, db, redisClient, wss);
+    rankingOrch.startScheduler();
+    console.log('[RankingOrch] Consensus engine pipeline ready ✓');
+    // Initial scan deferred 120s to let server fully stabilise
+    setTimeout(() => {
+      if (!rankingOrch) return;
+      console.log('[RankingOrch] Running initial scan...');
+      rankingOrch.runScan({ categoryFilter: ['LARGECAP'] })
+        .catch(e => console.warn('[RankingOrch] Initial scan error:', e.message));
+    }, 120_000);
+    console.log('[RankingOrch] Initial scan scheduled (120s) ✓');
+  } catch (e) {
+    console.warn('[RankingOrch] Failed to start (non-fatal):', e.message);
+  }
+
   // ── News Intelligence Center ───────────────────────────────────────────────
   // All routes return { ok, data } — gracefully degrade when service not ready.
 
@@ -892,6 +911,51 @@ async function start() {
       const sentiment= req.query.sentiment || null;
       const result   = await newsIntelligence.getNews({ limit, offset, category, sentiment });
       res.json(result);
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // ── Rankings API (consensus engine — Phase 7) ───────────────────────────────
+
+  // GET /rankings — top ranked stocks, filterable by category/tier/minScore
+  app.get('/rankings', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.json({ ok: true, data: [], message: 'Ranking engine initializing' });
+      const category = req.query.category?.toUpperCase() || null;
+      const tier     = req.query.tier?.toUpperCase()     || null;
+      const minScore = parseInt(req.query.minScore || '0');
+      const limit    = Math.min(parseInt(req.query.limit || '50'), 200);
+      const data = await rankingOrch.getTopRankings({ category, tier, minScore, limit });
+      res.json({ ok: true, data, count: data.length, source: 'redis' });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/status — scan state + last run metadata
+  app.get('/rankings/status', async (req, res) => {
+    try {
+      const status = rankingOrch?.getStatus() ?? { isRunning: false, lastRunId: null };
+      res.json({ ok: true, data: status });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/stock/:ticker — full consensus record for one stock
+  app.get('/rankings/stock/:ticker', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.status(503).json({ ok: false, error: 'Ranking engine initializing' });
+      const data = await rankingOrch.getStockConsensus(req.params.ticker.toUpperCase());
+      if (!data) return res.status(404).json({ ok: false, error: 'Stock not in latest ranking snapshot' });
+      res.json({ ok: true, data });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // POST /rankings/scan — manually trigger a full scan (admin use)
+  app.post('/rankings/scan', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.status(503).json({ ok: false, error: 'Ranking engine not ready' });
+      if (rankingOrch.isRunning) return res.json({ ok: true, message: 'Scan already running' });
+      const categoryFilter = req.body?.categoryFilter || null;
+      res.json({ ok: true, message: 'Scan triggered', runningAt: new Date().toISOString() });
+      rankingOrch.runScan(categoryFilter ? { categoryFilter } : {})
+        .catch(e => console.warn('[RankingOrch] Manual scan error:', e.message));
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
   });
 

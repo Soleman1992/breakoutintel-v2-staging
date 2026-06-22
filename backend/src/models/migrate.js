@@ -32,6 +32,7 @@ const SQL_FILES = [
   path.join(MIGRATIONS_DIR, '005_rename_buy_price_and_backfill_target.sql'),
   path.join(MIGRATIONS_DIR, '006_news_intelligence.sql'),
   path.join(MIGRATIONS_DIR, '007_news_scoring_columns.sql'),
+  path.join(MIGRATIONS_DIR, '008_consensus_engine.sql'),
 ];
 
 async function runMigrations(pool) {
