@@ -437,7 +437,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
         <div class="int-cell"><div class="int-l">FII Net</div><div class="int-v up" id="int-fii">—</div></div>
         <div class="int-cell"><div class="int-l">DII Net</div><div class="int-v up" id="int-dii">—</div></div>
       </div>
-      <div class="data-src"><span>NSE equity data · SEBI FII/DII</span><span id="int-ts">—</span></div>
+      <div class="data-src"><span>Yahoo Finance · 344 stocks · FII/DII N/A</span><span id="int-ts">—</span></div>
     </div>
   </div>
 
@@ -1163,20 +1163,52 @@ async function fetchScannerStats(){
   }
 }
 
-// Market Breadth — real NSE Nifty 500 advance/decline + new highs/lows
-// Fills in the 'New 52W High' / 'New 52W Low' cells in the Market Internals
-// panel (int-adv/int-dec are already wired to a separate real advDec source).
-async function fetchMarketBreadth(){
+// Market Internals — computed from scanner's Yahoo Finance data (344 stocks)
+// Populates: Advance/Decline, New 52W High/Low, Total Volume
+// FII/DII genuinely requires licensed data — shown as N/A
+async function fetchMarketInternals(){
   try{
-    var res=await fetch(BACKEND+'/market/breadth',{signal:AbortSignal.timeout(15000)});
+    var res=await fetch(BACKEND+'/market/internals',{signal:AbortSignal.timeout(10000)});
     var d=await res.json();
-    if(d.ok&&d.data){
-      document.getElementById('int-nh').textContent=f(d.data.newHigh,0);
-      document.getElementById('int-nl').textContent=f(d.data.newLow,0);
+    if(!d.ok||!d.data){
+      // Scanner still warming up — leave existing values, update timestamp
+      document.getElementById('int-ts').textContent=(d.message||'Scanner warming up')+'  ·  '+nowIST();
+      return;
     }
-    // if !d.ok, leave cells as '—' (no fake data)
+    var data=d.data;
+
+    // Advance / Decline
+    var tot=(data.advances+data.declines)||1;
+    document.getElementById('int-adv').textContent=data.advances!=null?f(data.advances,0):'—';
+    document.getElementById('int-dec').textContent=data.declines!=null?f(data.declines,0):'—';
+    if(document.getElementById('int-ab'))
+      document.getElementById('int-ab').style.width=Math.round(data.advances/tot*100)+'%';
+    if(document.getElementById('int-db'))
+      document.getElementById('int-db').style.width=Math.round(data.declines/tot*100)+'%';
+    // Also update the top-bar A/D ticker if NSE hasn't already populated it
+    var topAd=document.getElementById('r-ad');
+    if(topAd&&topAd.textContent==='— / —'){
+      topAd.textContent=f(data.advances,0)+' / '+f(data.declines,0);
+    }
+
+    // 52W High / Low counts
+    document.getElementById('int-nh').textContent=data.newHigh!=null?f(data.newHigh,0):'—';
+    document.getElementById('int-nl').textContent=data.newLow!=null?f(data.newLow,0):'—';
+
+    // Total Volume (in crores: 1 cr = 10M shares)
+    var vol=data.totalVolume||0;
+    var volStr=vol>0?(vol>=1e7?f(vol/1e7,1)+' Cr':f(vol/1e5,1)+' L'):'—';
+    document.getElementById('int-vol').textContent=volStr;
+
+    // FII / DII — not available on free tier
+    document.getElementById('int-fii').textContent='N/A';
+    document.getElementById('int-dii').textContent='N/A';
+
+    var src=document.querySelector('#int-date')?.closest('.panel')?.querySelector('.data-src span');
+    document.getElementById('int-ts').textContent=nowIST();
+    document.getElementById('int-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   }catch(e){
-    console.warn('[REST] market breadth failed:',e.message);
+    console.warn('[REST] market internals failed:',e.message);
   }
 }
 
@@ -1850,7 +1882,7 @@ async function init(){
   },2500);
 
   // Market breadth (NSE Nifty 500 advance/decline + 52wk high/low) — real data
-  setTimeout(fetchMarketBreadth, 3500);
+  setTimeout(fetchMarketInternals, 3500);
 
   setInterval(updateClock,1000);
   startCountdown();
@@ -1865,7 +1897,7 @@ async function init(){
   setInterval(()=>{ if(!wsReady) fetchScanner(); },45000);
 
   // Market breadth refresh every 60s
-  setInterval(fetchMarketBreadth, 60000);
+  setInterval(fetchMarketInternals, 60000);
 
   // Market Health KPI — load once on init, then refresh every 15s
   setTimeout(loadMarketHealth, 2000);

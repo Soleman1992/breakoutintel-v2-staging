@@ -327,6 +327,61 @@ app.get('/scanner/institutional', async (req, res) => {
   }
 });
 
+// ── Market — Internals (A/D, 52W H/L, Volume from Yahoo Finance scanner data) ──
+// NSE API is blocked from cloud server IPs, so we derive these from the
+// scanner's last results which are fetched from Yahoo Finance (344 stocks).
+// No new API calls — reads scanner.lastResults which is Redis-cached.
+// FII/DII is genuinely unavailable without a licensed data feed.
+app.get('/market/internals', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: false, message: 'Scanner not ready', data: null });
+
+    const results = scanner.lastResults || [];
+    const meta    = scanner.lastMeta   || {};
+
+    if (!results.length) {
+      return res.json({ ok: false, message: 'Scanner warming up — check back in ~2 minutes', data: null });
+    }
+
+    let advances = 0, declines = 0, unchanged = 0;
+    let newHigh  = 0, newLow   = 0;
+    let totalVolume = 0;
+
+    results.forEach(r => {
+      // Advance / Decline (>0.05% threshold avoids noise from perfectly flat ticks)
+      if (r.chg >  0.05) advances++;
+      else if (r.chg < -0.05) declines++;
+      else unchanged++;
+
+      // Near 52W High — within 1% of year high
+      if (r.hi52w && r.cmp && r.cmp >= r.hi52w * 0.99) newHigh++;
+      // Near 52W Low — within 1% of year low
+      if (r.lo52w && r.cmp && r.cmp <= r.lo52w * 1.01) newLow++;
+
+      totalVolume += (r.curVolume || 0);
+    });
+
+    res.json({
+      ok:   true,
+      data: {
+        advances,
+        declines,
+        unchanged,
+        newHigh,
+        newLow,
+        totalVolume,
+        fiiNet:       null,  // requires licensed data — not available on free tier
+        diiNet:       null,
+        stocksScanned: results.length,
+        lastScanAt:   meta.lastScanAt || null,
+      },
+      source: 'Yahoo Finance · scanner universe (344 stocks)',
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Market — Corporate Announcements (real NSE data, filtered to universe) ───
 app.get('/market/corporate-announcements', async (req, res) => {
   try {
