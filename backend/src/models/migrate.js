@@ -33,6 +33,7 @@ const SQL_FILES = [
   path.join(MIGRATIONS_DIR, '006_news_intelligence.sql'),
   path.join(MIGRATIONS_DIR, '007_news_scoring_columns.sql'),
   path.join(MIGRATIONS_DIR, '008_consensus_engine.sql'),
+  path.join(MIGRATIONS_DIR, '009_weight_config.sql'),
 ];
 
 async function runMigrations(pool) {

@@ -179,6 +179,122 @@ async function updateRankingStatus() {
   } catch(e) {}
 }
 
+
+// ─── PHASE 8: VALIDATION ──────────────────────────────────────────────────────
+
+async function openValidationPanel() {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary)"><i class="ti ti-shield-check" style="font-size:28px;display:block;margin-bottom:8px"></i>Running validation...</div>';
+
+  try {
+    var resp = await fetch(BACKEND + '/rankings/validate', { signal: AbortSignal.timeout(20000) });
+    var r = await resp.json();
+
+    if (!r.ok) {
+      panel.innerHTML = '<div style="padding:16px"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation</div>' +
+        '<div style="font-size:11px;color:var(--color-text-danger);background:var(--color-background-danger);padding:10px;border-radius:6px">' + (r.error || 'No data') + '</div>' +
+        '<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:12px">Trigger a scan first: click Scan Now and wait ~3 minutes.</div>' +
+        '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
+      return;
+    }
+
+    var healthColor = r.health >= 80 ? 'var(--color-text-success)' : r.health >= 60 ? 'var(--color-text-warning)' : 'var(--color-text-danger)';
+    var CORR_C = { correlated: 'var(--color-text-danger)', moderate: 'var(--color-text-warning)', independent: 'var(--color-text-success)' };
+
+    var corrRows = (r.correlations?.pairs || []).map(function(p) {
+      return '<tr><td style="padding:4px 6px;font-size:11px">' + p.labelA + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px">' + p.labelB + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px;font-weight:500;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.r != null ? p.r : '—') + '</td>' +
+        '<td style="padding:4px 6px;font-size:10px;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.status||'—') + '</td></tr>';
+    }).join('');
+
+    var tiers = r.tierStats?.counts || {};
+    var tierBar = ['S','A','B','C','REJECT'].map(function(t) {
+      var pct = r.tierStats?.percentages?.[t] || 0;
+      var c = {S:'var(--color-text-warning)',A:'var(--color-text-success)',B:'var(--color-text-info)',C:'var(--color-text-secondary)',REJECT:'var(--color-border-secondary)'}[t];
+      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">' +
+        '<span style="width:40px;font-size:10px;font-weight:500;color:'+c+'">'+t+'</span>' +
+        '<div style="flex:1;height:4px;background:var(--color-background-tertiary);border-radius:2px">' +
+          '<div style="width:'+pct+'%;height:100%;background:'+c+';border-radius:2px"></div></div>' +
+        '<span style="font-size:10px;color:var(--color-text-secondary);width:48px;text-align:right">'+(tiers[t]||0)+' ('+pct+'%)</span></div>';
+    }).join('');
+
+    var allAlerts = r.alerts || [];
+    var alertsHtml = allAlerts.length
+      ? allAlerts.map(function(a) { return '<div style="font-size:10px;color:var(--color-text-warning);margin-bottom:5px;line-height:1.4">⚠ '+a+'</div>'; }).join('')
+      : '<div style="font-size:11px;color:var(--color-text-success)">✓ No alerts — system behaving correctly</div>';
+
+    var dirStats = r.directionStats || {};
+    var distRows = Object.entries(r.distributions?.distributions || {}).map(function(e) {
+      var id = e[0], d = e[1];
+      if (!d) return '';
+      return '<tr><td style="padding:3px 6px;font-size:10px;color:var(--color-text-secondary)">' + (id === 'consensus' ? 'Consensus' : id) + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.mean + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.std + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.min + '–' + d.max + '</td></tr>';
+    }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--color-text-primary)"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation Report</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:22px;font-weight:500;color:'+healthColor+'">' + r.health + '</span>' +
+          '<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;color:'+healthColor+';background:var(--color-background-secondary)">' + r.status + '</span>' +
+          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+        '</div></div>' +
+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">stocks</div>' +
+          '<div style="font-size:16px;font-weight:500">' + r.stocksEvaluated + '</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">gate pass</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-success)">' + (dirStats.passRate || 0) + '%</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">tier S+A</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-warning)">' + ((tiers.S||0)+(tiers.A||0)) + '</div></div>' +
+      '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tier distribution</div>' +
+      '<div style="margin-bottom:14px">' + tierBar + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Engine correlation matrix</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine A</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine B</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">r</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">status</th>' +
+          '</tr></thead>' +
+          '<tbody>' + corrRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Score distributions</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">engine</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">mean</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">std</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">range</th>' +
+          '</tr></thead>' +
+          '<tbody>' + distRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Alerts</div>' +
+      '<div style="margin-bottom:12px">' + alertsHtml + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;line-height:1.6">' +
+        (r.forwardReturns?.note || '') + '</div>';
+
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:16px;color:var(--color-text-danger)">Error: ' + e.message + '</div>';
+  }
+}
+
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -924,6 +1040,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="rk-hdr-title"><i class="ti ti-trophy" style="font-size:14px;color:var(--warn)"></i>Consensus Rankings</div>
     <span class="rk-status" id="rk-status">—</span>
     <button class="rk-scan-btn" onclick="triggerRankingScan()"><i class="ti ti-refresh"></i> Scan Now</button>
+    <button class="rk-scan-btn" onclick="openValidationPanel()" id="rk-validate-btn"><i class="ti ti-shield-check"></i> Validate</button>
   </div>
   <div class="rk-filters">
     <div class="rk-cat-tabs" id="rk-cat-tabs">

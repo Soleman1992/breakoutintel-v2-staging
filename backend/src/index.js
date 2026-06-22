@@ -26,6 +26,7 @@ let analytics = null;
 let intelligence = null;
 let newsIntelligence = null;
 let rankingOrch  = null;
+let validationEng = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -898,6 +899,15 @@ async function start() {
     console.warn('[RankingOrch] Failed to start (non-fatal):', e.message);
   }
 
+  // 6. Validation Engine (Phase 8)
+  try {
+    const ValidationEngine = require('./engines/validationEngine');
+    validationEng = new ValidationEngine(db);
+    console.log('[Validation] Anti-overfitting engine ready ✓');
+  } catch (e) {
+    console.warn('[Validation] Failed to start (non-fatal):', e.message);
+  }
+
   // ── News Intelligence Center ───────────────────────────────────────────────
   // All routes return { ok, data } — gracefully degrade when service not ready.
 
@@ -956,6 +966,15 @@ async function start() {
       res.json({ ok: true, message: 'Scan triggered', runningAt: new Date().toISOString() });
       rankingOrch.runScan(categoryFilter ? { categoryFilter } : {})
         .catch(e => console.warn('[RankingOrch] Manual scan error:', e.message));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/validate — Phase 8 anti-overfitting validation report
+  app.get('/rankings/validate', async (req, res) => {
+    try {
+      if (!validationEng) return res.status(503).json({ ok: false, error: 'Validation engine not ready' });
+      const report = await validationEng.runValidation();
+      res.json(report);
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
   });
 
