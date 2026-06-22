@@ -49,21 +49,36 @@ class NSEDataService {
 
   // ── Session management ────────────────────────────────────────────────────
   async _refreshSession() {
+    // 1. Check Redis first — session survives cold restarts on free-tier Render
+    try {
+      const cached = await this._get('nse:session');
+      if (cached) {
+        this.session   = cached;
+        this.sessionAt = Date.now();
+        console.log('[NSEData] Session restored from Redis ✓');
+        setTimeout(() => this._refreshSession(), 18 * 60 * 1000);
+        return;
+      }
+    } catch {}
+
+    // 2. Fetch fresh session from NSE homepage
     try {
       const resp = await axios.get('https://www.nseindia.com/', {
-        headers: BROWSER_HEADERS, timeout: 10000,
+        headers: BROWSER_HEADERS, timeout: 15000,
       });
       const cookies = resp.headers['set-cookie'];
       if (cookies) {
-        this.session = cookies.map(c => c.split(';')[0]).join('; ');
+        this.session   = cookies.map(c => c.split(';')[0]).join('; ');
         this.sessionAt = Date.now();
+        // Cache for 18 min (NSE sessions ~20 min validity)
+        await this._set('nse:session', 18 * 60, this.session);
         console.log('[NSEData] Session refreshed ✓');
       }
     } catch (e) {
       console.warn('[NSEData] Session refresh failed:', e.message);
       this.session = null;
     }
-    // Refresh every 25 minutes
+    // Retry in 25 min regardless of outcome
     setTimeout(() => this._refreshSession(), 25 * 60 * 1000);
   }
 

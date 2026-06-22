@@ -11,7 +11,7 @@ const axios = require('axios');
 const { UNIVERSE, UNIVERSE_MAP, LIQUIDITY_FILTERS, UNIVERSE_STATS } = require('./universe');
 
 const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
@@ -25,6 +25,7 @@ class ScannerService {
     this.nseData     = nseDataService; // NSEDataService instance — may be null
     this.lastResults = [];
     this.scanUniverse = this._applyLiquidityFilter(UNIVERSE);
+    this._scanPromise = null;          // mutex — prevents concurrent full scans
     this.lastMeta    = {
       totalScanned: 0, totalMatches: 0, duration: 0, lastScanAt: null,
       universeSizeBefore: UNIVERSE.length,
@@ -511,7 +512,19 @@ class ScannerService {
       if (cachedMeta) this.lastMeta = JSON.parse(cachedMeta);
       return this.lastResults;
     }
+    // Mutex — concurrent callers share one running scan instead of each
+    // starting their own 344-stock fetch. Second+ callers wait on the same
+    // Promise and get the result when it resolves.
+    if (this._scanPromise) {
+      console.log('[Scanner] Scan already in progress — sharing result');
+      return this._scanPromise;
+    }
+    this._scanPromise = this._doScan();
+    return this._scanPromise;
+  }
 
+  async _doScan() {
+    try {
     const startTime = Date.now();
     console.log(`[Scanner] Starting full scan — ${this.scanUniverse.length} stocks (liquidity-filtered from ${UNIVERSE.length})`);
     const results = [];
@@ -695,6 +708,9 @@ class ScannerService {
 
     console.log(`[Scanner] Done — ${results.length} signals from ${scanned}/${this.scanUniverse.length} stocks in ${(duration/1000).toFixed(1)}s`);
     return results;
+    } finally {
+      this._scanPromise = null;
+    }
   }
 
   async invalidateCache() {

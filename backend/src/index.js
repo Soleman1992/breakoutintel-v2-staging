@@ -781,7 +781,8 @@ async function start() {
     market   = new MarketDataService(safeRedis);
     nseData  = new NSEDataService(safeRedis);
     scanner  = new ScannerService(safeRedis, nseData);
-    wss      = new WebSocketServer(server, safeRedis);
+    // Pass existing instances — WebSocket reuses them instead of creating a second scanner
+    wss      = new WebSocketServer(server, safeRedis, { market, scanner });
 
     console.log('[Market] Data service ready ✓');
     console.log('[NSEData] NSE data service ready ✓');

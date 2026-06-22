@@ -7,7 +7,7 @@
 const axios = require('axios');
 
 const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
@@ -153,7 +153,7 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/marketStatus', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const result = { marketState: resp.data?.marketState || 'UNKNOWN', fetchedAt: Date.now() };
       await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
@@ -170,7 +170,7 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/equity-stockIndices?index=BROAD%20MARKET%20INDICES', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const data = resp.data?.data || [];
       if (!data.length) {
@@ -328,7 +328,7 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/live-analysis-52Week?index=52weekhigh', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const data = resp.data?.data || [];
       await this._safeRedisSet(cacheKey, 60, JSON.stringify(data));
