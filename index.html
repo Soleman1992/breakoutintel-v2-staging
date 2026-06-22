@@ -3789,7 +3789,7 @@ function renderRankingsTable() {
     var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
     var brk = r.breakoutProb != null ? r.breakoutProb : '—';
     var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
-    return '<tr class="rk-row" onclick="openRankDrill('' + r.ticker + '')">' +
+    return '<tr class="rk-row" data-ticker="' + r.ticker + '">' +
       '<td style="color:var(--t3)">' + (i+1) + '</td>' +
       '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
         '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
@@ -3804,7 +3804,13 @@ function renderRankingsTable() {
       '<td style="color:' + brkC + '">' + brk + '</td>' +
       '<td style="color:' + fbC + '">' + fbr + '</td>' +
     '</tr>';
-  }).join('');
+  })  .join('');
+  // Event delegation — no inline onclick quoting needed
+  tbody.querySelectorAll('.rk-row').forEach(function(tr) {
+    tr.addEventListener('click', function() {
+      openRankDrill(this.dataset.ticker);
+    });
+  });
 }
 
 function setRankCat(cat) {
