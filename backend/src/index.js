@@ -331,7 +331,9 @@ app.get('/scanner/institutional', async (req, res) => {
 app.get('/market/corporate-announcements', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
-    await scanner.runScan();
+    // Note: getCorporateAnnouncementsForUniverse() fetches from NSE directly —
+    // no runScan() needed here. The old runScan() call was triggering a full
+    // 344-stock scan on every news page open, causing concurrent scan bursts.
     const result = await scanner.getCorporateAnnouncementsForUniverse();
     if (!result.ok) return res.json(result);
     const { data, pagination } = applyListParams(result.data, req);
