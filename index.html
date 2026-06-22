@@ -752,6 +752,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="rk-hdr-title"><i class="ti ti-trophy" style="font-size:14px;color:var(--warn)"></i>Consensus Rankings</div>
     <span class="rk-status" id="rk-status">—</span>
     <button class="rk-scan-btn" onclick="triggerRankingScan()"><i class="ti ti-refresh"></i> Scan Now</button>
+    <button class="rk-scan-btn" onclick="refreshRankingData()" title="Reload existing rankings data"><i class="ti ti-database-export"></i> Refresh</button>
     <button class="rk-scan-btn" onclick="openValidationPanel()" id="rk-validate-btn"><i class="ti ti-shield-check"></i> Validate</button>
   </div>
   <div class="rk-filters">
@@ -3688,7 +3689,10 @@ async function renderRankingsView() {
   if (!rkState.data.length || Date.now() - rkState.lastFetch > 300000) {
     try { await fetchRankings(); } catch(e) { console.warn('[Rankings]', e.message); }
   }
-  renderRankingsTable();
+  try { renderRankingsTable(); } catch(e) {
+    var tbody = document.getElementById('rk-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty" style="color:var(--warn)">Table error: ' + e.message + ' — please hard refresh (Ctrl+Shift+R)</td></tr>';
+  }
 }
 
 async function fetchRankings() {
@@ -3711,13 +3715,13 @@ function renderRankingsTable() {
   var tbody = document.getElementById('rk-tbody');
   if (!tbody) return;
   var rows = rkState.data;
-  if (!rows.length) {
+  if (!rows || !rows.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-database-off" style="font-size:22px;display:block;margin-bottom:8px"></i>No rankings yet — click <b>Scan Now</b> to trigger a scan, or wait for the scheduled EOD scan (16:30 IST)</td></tr>';
     return;
   }
   var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0', REJECT:'#4B607E' };
   var CAT_C  = { LARGECAP:'#2563EB', MIDCAP:'#22C55E', SMALLCAP:'#F59E0B', MICROCAP:'#EF4444' };
-  tbody.innerHTML = rows.map(function(r, i) {
+  try { tbody.innerHTML = rows.map(function(r, i) {
     var tier = r.tier || '—';
     var tc   = TIER_C[tier] || '#94A3C0';
     var cc   = CAT_C[r.category] || '#94A3C0';
@@ -3745,13 +3749,14 @@ function renderRankingsTable() {
       '<td style="color:' + brkC + '">' + brk + '</td>' +
       '<td style="color:' + fbC + '">' + fbr + '</td>' +
     '</tr>';
-  })  .join('');
-  // Event delegation — no inline onclick quoting needed
+  }).join('');
   tbody.querySelectorAll('.rk-row').forEach(function(tr) {
-    tr.addEventListener('click', function() {
-      openRankDrill(this.dataset.ticker);
-    });
+    tr.addEventListener('click', function() { openRankDrill(this.dataset.ticker); });
   });
+  } catch(e) {
+    console.error('[Rankings render]', e);
+    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty" style="color:var(--warn)"><i class="ti ti-alert-triangle" style="font-size:20px;display:block;margin-bottom:6px"></i>Render error: ' + e.message + '<br><small style="color:var(--t3)">Hard refresh (Ctrl+Shift+R) to reload latest code</small></td></tr>';
+  }
 }
 
 function setRankCat(cat) {
@@ -3771,10 +3776,24 @@ async function triggerRankingScan() {
   if (btn) { btn.disabled = true; btn.textContent = 'Triggering...'; }
   try {
     await fetch(BACKEND + '/rankings/scan', { method:'POST', signal: AbortSignal.timeout(5000) });
-    var s = document.getElementById('rk-status'); if (s) { s.textContent = 'Scan triggered — check back in ~3 min'; s.style.color = 'var(--warn)'; }
+    var s = document.getElementById('rk-status');
+    if (s) { s.textContent = 'Scan triggered — auto-refresh in ~4 min'; s.style.color = 'var(--warn)'; }
+    setTimeout(async function() {
+      if (activeView !== 'rankings') return;
+      rkState.data = []; rkState.lastFetch = 0;
+      try { await fetchRankings(); renderRankingsTable(); } catch(e) {}
+    }, 240000);
   } catch(e) {}
-  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; }}, 2000);
+  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; } }, 3000);
 }
+
+async function refreshRankingData() {
+  rkState.data = []; rkState.lastFetch = 0;
+  var s = document.getElementById('rk-status');
+  if (s) s.textContent = 'Refreshing...';
+  try { await fetchRankings(); renderRankingsTable(); } catch(e) {}
+}
+
 
 async function openRankDrill(ticker) {
   var panel = document.getElementById('rk-panel');
