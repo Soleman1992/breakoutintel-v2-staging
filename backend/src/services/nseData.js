@@ -18,21 +18,12 @@
 const axios = require('axios');
 
 const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': '*/*',
   'Accept-Language': 'en-US,en;q=0.9',
   'Accept-Encoding': 'gzip, deflate, br',
   'Referer': 'https://www.nseindia.com/',
   'Connection': 'keep-alive',
-  'Upgrade-Insecure-Requests': '1',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'same-origin',
-  'Sec-Fetch-User': '?1',
-  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-  'Cache-Control': 'max-age=0',
 };
 
 class NSEDataService {
@@ -49,36 +40,21 @@ class NSEDataService {
 
   // ── Session management ────────────────────────────────────────────────────
   async _refreshSession() {
-    // 1. Check Redis first — session survives cold restarts on free-tier Render
-    try {
-      const cached = await this._get('nse:session');
-      if (cached) {
-        this.session   = cached;
-        this.sessionAt = Date.now();
-        console.log('[NSEData] Session restored from Redis ✓');
-        setTimeout(() => this._refreshSession(), 18 * 60 * 1000);
-        return;
-      }
-    } catch {}
-
-    // 2. Fetch fresh session from NSE homepage
     try {
       const resp = await axios.get('https://www.nseindia.com/', {
-        headers: BROWSER_HEADERS, timeout: 15000,
+        headers: BROWSER_HEADERS, timeout: 10000,
       });
       const cookies = resp.headers['set-cookie'];
       if (cookies) {
-        this.session   = cookies.map(c => c.split(';')[0]).join('; ');
+        this.session = cookies.map(c => c.split(';')[0]).join('; ');
         this.sessionAt = Date.now();
-        // Cache for 18 min (NSE sessions ~20 min validity)
-        await this._set('nse:session', 18 * 60, this.session);
         console.log('[NSEData] Session refreshed ✓');
       }
     } catch (e) {
       console.warn('[NSEData] Session refresh failed:', e.message);
       this.session = null;
     }
-    // Retry in 25 min regardless of outcome
+    // Refresh every 25 minutes
     setTimeout(() => this._refreshSession(), 25 * 60 * 1000);
   }
 
