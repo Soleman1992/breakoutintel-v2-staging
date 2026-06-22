@@ -10,17 +10,18 @@
     "db:migrate": "psql $DATABASE_URL -f src/models/schema.sql"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "ws": "^8.17.1",
-    "redis": "^4.6.14",
-    "pg": "^8.12.0",
+    "@anthropic-ai/sdk": "^0.24.3",
     "axios": "^1.7.2",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0",
     "compression": "^1.7.4",
-    "express-rate-limit": "^7.3.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "@anthropic-ai/sdk": "^0.24.3"
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "fast-xml-parser": "^5.9.3",
+    "helmet": "^7.1.0",
+    "pg": "^8.12.0",
+    "redis": "^4.6.14",
+    "ws": "^8.17.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

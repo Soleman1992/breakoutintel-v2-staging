@@ -1,17 +1,34 @@
 /**
  * WebSocket Server — real-time market data streaming
- * Pushes indices, sectors, scanner results to all connected clients
+ * Pushes indices, sectors, scanner results to all connected clients.
+ * Accepts existing market + scanner instances from index.js so there is
+ * exactly ONE scanner running — not two competing instances.
  */
 const WebSocket = require('ws');
 const MarketDataService = require('./marketData');
 const ScannerService = require('./scanner');
 
+// NSE market hours: Mon-Fri 09:00–16:00 IST (generous window covers pre/post-market)
+function isMarketHours() {
+  const ist = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const day = ist.getDay(); // 0=Sun, 6=Sat
+  if (day === 0 || day === 6) return false;
+  const mins = ist.getHours() * 60 + ist.getMinutes();
+  return mins >= 9 * 60 && mins <= 16 * 60;
+}
+
 class WebSocketServer {
-  constructor(server, redisClient) {
-    this.wss = new WebSocket.Server({ server, path: '/ws' });
-    this.redis = redisClient;
-    this.market = new MarketDataService(redisClient);
-    this.scanner = new ScannerService(redisClient);
+  /**
+   * @param {http.Server} server
+   * @param {RedisClient}  redisClient
+   * @param {object}       services   — { market, scanner } from index.js (optional)
+   */
+  constructor(server, redisClient, services = {}) {
+    this.wss     = new WebSocket.Server({ server, path: '/ws' });
+    this.redis   = redisClient;
+    // Reuse existing instances if provided — avoids a second independent scanner
+    this.market  = services.market  || new MarketDataService(redisClient);
+    this.scanner = services.scanner || new ScannerService(redisClient);
     this.clients = new Map();
     this.intervals = [];
     this._setup();
@@ -80,8 +97,9 @@ class WebSocketServer {
       } catch (e) {}
     }, 30000);
 
-    // Scanner every 45s
+    // Scanner every 45s — only during market hours (free-tier CPU courtesy)
     const scanInt = setInterval(async () => {
+      if (!isMarketHours()) return; // skip outside NSE hours — avoids pointless scans overnight
       try {
         const stocks = await this.scanner.runScan();
         await this._safeRedis('setEx', 'cache:scanner', 60, JSON.stringify(stocks));
