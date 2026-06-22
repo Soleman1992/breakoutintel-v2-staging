@@ -7,295 +7,7 @@
 <meta name="description" content="Institutional-grade NSE/BSE breakout detection and swing trading intelligence">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232563EB'/><text x='50%' y='56%' font-family='monospace' font-weight='700' font-size='14' fill='white' text-anchor='middle' dominant-baseline='middle'>BI</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
-// ─── RANKINGS VIEW ────────────────────────────────────────────────────────────
-var rkState = { category:'ALL', tier:'ALL', data:[], loading:false, lastFetch:0 };
-
-async function renderRankingsView() {
-  updateRankingStatus();
-  if (!rkState.data.length || Date.now() - rkState.lastFetch > 300000) {
-    await fetchRankings();
-  }
-  renderRankingsTable();
-}
-
-async function fetchRankings() {
-  if (rkState.loading) return;
-  rkState.loading = true;
-  var tbody = document.getElementById('rk-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-loader"></i> Fetching rankings...</td></tr>';
-  try {
-    var params = new URLSearchParams({ limit: 100 });
-    if (rkState.category !== 'ALL') params.set('category', rkState.category);
-    if (rkState.tier !== 'ALL') params.set('tier', rkState.tier);
-    var resp = await fetch(BACKEND + '/rankings?' + params.toString(), { signal: AbortSignal.timeout(15000) });
-    var json = await resp.json();
-    if (json.ok && Array.isArray(json.data)) { rkState.data = json.data; rkState.lastFetch = Date.now(); }
-  } catch(e) { console.warn('[Rankings]', e.message); }
-  rkState.loading = false;
-}
-
-function renderRankingsTable() {
-  var tbody = document.getElementById('rk-tbody');
-  if (!tbody) return;
-  var rows = rkState.data;
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-database-off" style="font-size:22px;display:block;margin-bottom:8px"></i>No rankings yet — scan fires 2 min after startup</td></tr>';
-    return;
-  }
-  var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0', REJECT:'#4B607E' };
-  var CAT_C  = { LARGECAP:'#2563EB', MIDCAP:'#22C55E', SMALLCAP:'#F59E0B', MICROCAP:'#EF4444' };
-  tbody.innerHTML = rows.map(function(r, i) {
-    var tier = r.tier || '—';
-    var tc   = TIER_C[tier] || '#94A3C0';
-    var cc   = CAT_C[r.category] || '#94A3C0';
-    var score = r.consensusScore || 0;
-    var barC = score >= 90 ? '#F59E0B' : score >= 80 ? '#22C55E' : '#2563EB';
-    var dirIcon = r.direction === 'long' ? '▲' : r.direction === 'short' ? '▼' : '—';
-    var dirColor = r.direction === 'long' ? 'var(--up)' : r.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
-    var fbr = r.falseBORisk != null ? r.falseBORisk : '—';
-    var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
-    var brk = r.breakoutProb != null ? r.breakoutProb : '—';
-    var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
-    return '<tr class="rk-row" onclick="openRankDrill('' + r.ticker + '')">' +
-      '<td style="color:var(--t3)">' + (i+1) + '</td>' +
-      '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
-        '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
-        '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
-      '<td><span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:2px 8px;border-radius:4px">' + tier + '</span></td>' +
-      '<td><div style="display:flex;align-items:center;gap:6px">' +
-        '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
-        '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
-      '<td style="color:' + dirColor + ';font-weight:600">' + dirIcon + '</td>' +
-      '<td style="color:var(--t2)">' + (r.agreementPct != null ? r.agreementPct + '%' : '—') + '</td>' +
-      '<td style="color:var(--t2)">' + (r.institutionalProb != null ? r.institutionalProb : '—') + '</td>' +
-      '<td style="color:' + brkC + '">' + brk + '</td>' +
-      '<td style="color:' + fbC + '">' + fbr + '</td>' +
-    '</tr>';
-  }).join('');
-}
-
-function setRankCat(cat) {
-  rkState.category = cat; rkState.data = [];
-  document.querySelectorAll('#rk-cat-tabs .rk-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat === cat); });
-  fetchRankings().then(renderRankingsTable);
-}
-
-function setRankTier(tier) {
-  rkState.tier = tier; rkState.data = [];
-  document.querySelectorAll('#rk-tier-tabs .rk-tier-btn').forEach(function(t){ t.classList.toggle('active', t.dataset.tier === tier); });
-  fetchRankings().then(renderRankingsTable);
-}
-
-async function triggerRankingScan() {
-  var btn = document.querySelector('.rk-scan-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Triggering...'; }
-  try {
-    await fetch(BACKEND + '/rankings/scan', { method:'POST', signal: AbortSignal.timeout(5000) });
-    var s = document.getElementById('rk-status'); if (s) { s.textContent = 'Scan triggered — check back in ~3 min'; s.style.color = 'var(--warn)'; }
-  } catch(e) {}
-  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; }}, 2000);
-}
-
-async function openRankDrill(ticker) {
-  var panel = document.getElementById('rk-panel');
-  if (!panel) return;
-  panel.className = 'rk-panel open';
-  panel.innerHTML = '<div style="padding:20px;color:var(--t3);text-align:center"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading ' + ticker + '...</div>';
-  try {
-    var resp = await fetch(BACKEND + '/rankings/stock/' + ticker, { signal: AbortSignal.timeout(10000) });
-    var json = await resp.json();
-    if (!json.ok || !json.data) { panel.innerHTML = '<div style="padding:20px;color:var(--dn)">No data for ' + ticker + '</div>'; return; }
-    var r = json.data;
-    var engines = r.engines || {};
-    var explain = r.explain || {};
-    var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0' };
-    var tc = TIER_C[r.tier] || '#94A3C0';
-    var ENG_NAMES = { emavol:'EMA + Vol', lux:'LuxAlgo', trendspider:'TrendSpider', chartprime:'ChartPrime', algoalpha:'AlgoAlpha' };
-
-    function chip(label, val, positive, inverse) {
-      var c = inverse ? (positive ? 'var(--up)' : 'var(--dn)') : (positive ? 'var(--up)' : 'var(--t2)');
-      return '<div class="rk-metric"><div class="rk-metric-label">' + label + '</div><div class="rk-metric-val" style="color:' + c + '">' + val + '</div></div>';
-    }
-
-    var engBars = Object.entries(engines).map(function(entry) {
-      var id = entry[0], e = entry[1];
-      var s = e.score || 0;
-      var bc = s >= 80 ? '#22C55E' : s >= 60 ? '#2563EB' : '#94A3C0';
-      var dc = e.direction === 'long' ? 'var(--up)' : e.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
-      var di = e.direction === 'long' ? '▲' : e.direction === 'short' ? '▼' : '—';
-      return '<div class="rk-eng-bar"><span class="rk-eng-name">' + (ENG_NAMES[id]||id) + '</span>' +
-        '<div class="rk-bar-track"><div class="rk-bar-fill" style="width:' + s + '%;background:' + bc + '"></div></div>' +
-        '<span style="font-size:11px;font-weight:600;color:var(--t1);width:26px;text-align:right;flex-shrink:0">' + s + '</span>' +
-        '<span style="width:14px;font-size:10px;color:' + dc + ';flex-shrink:0">' + di + '</span></div>';
-    }).join('');
-
-    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">✓ ' + s + '</div>'; }).join('');
-    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">⚠ ' + s + '</div>'; }).join('');
-
-    panel.innerHTML =
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
-        '<div><div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
-        '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' · ' + (r.sector||'') + '</div></div>' +
-        '<div style="display:flex;align-items:center;gap:7px">' +
-          '<span style="font-size:24px;font-weight:700;color:' + tc + '">' + (r.consensusScore||0) + '</span>' +
-          '<span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:3px 10px;border-radius:5px">Tier ' + (r.tier||'—') + '</span>' +
-          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="rk-metric-grid">' +
-        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '—'), r.agreementPct >= 80) +
-        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '—', r.confidenceScore >= 65) +
-        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '—', r.institutionalProb >= 65) +
-        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '—', r.trendContinuationProb >= 65) +
-        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '—', r.breakoutProb >= 65) +
-        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '—', (r.falseBORisk||100) < 25, true) +
-      '</div>' +
-      '<div class="rk-sec-label">Engine Breakdown</div>' +
-      engBars +
-      (posHtml || rskHtml ? (
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' +
-          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">None</div>') + '</div>' +
-          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--up)">None ✓</div>') + '</div>' +
-        '</div>'
-      ) : '') +
-      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:10px;margin-top:12px;line-height:1.6">' + explain.summary + '</div>' : '');
-  } catch(e) {
-    panel.innerHTML = '<div style="padding:20px;color:var(--dn)">Error: ' + e.message + '</div>';
-  }
-}
-
-async function updateRankingStatus() {
-  try {
-    var resp = await fetch(BACKEND + '/rankings/status', { signal: AbortSignal.timeout(5000) });
-    var json = await resp.json();
-    var el = document.getElementById('rk-status'); if (!el) return;
-    if (json.ok && json.data) {
-      var d = json.data;
-      if (d.isRunning) { el.textContent = 'Scanning...'; el.style.color = 'var(--warn)'; }
-      else if (d.lastRunAt) { var ago = Math.round((Date.now()-d.lastRunAt)/60000); el.textContent = 'Last scan: ' + (ago < 1 ? 'just now' : ago + 'm ago'); el.style.color = 'var(--t3)'; }
-      else { el.textContent = 'No scan yet'; el.style.color = 'var(--t3)'; }
-    }
-  } catch(e) {}
-}
-
-
-// ─── PHASE 8: VALIDATION ──────────────────────────────────────────────────────
-
-async function openValidationPanel() {
-  var panel = document.getElementById('rk-panel');
-  if (!panel) return;
-  panel.className = 'rk-panel open';
-  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary)"><i class="ti ti-shield-check" style="font-size:28px;display:block;margin-bottom:8px"></i>Running validation...</div>';
-
-  try {
-    var resp = await fetch(BACKEND + '/rankings/validate', { signal: AbortSignal.timeout(20000) });
-    var r = await resp.json();
-
-    if (!r.ok) {
-      panel.innerHTML = '<div style="padding:16px"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation</div>' +
-        '<div style="font-size:11px;color:var(--color-text-danger);background:var(--color-background-danger);padding:10px;border-radius:6px">' + (r.error || 'No data') + '</div>' +
-        '<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:12px">Trigger a scan first: click Scan Now and wait ~3 minutes.</div>' +
-        '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
-      return;
-    }
-
-    var healthColor = r.health >= 80 ? 'var(--color-text-success)' : r.health >= 60 ? 'var(--color-text-warning)' : 'var(--color-text-danger)';
-    var CORR_C = { correlated: 'var(--color-text-danger)', moderate: 'var(--color-text-warning)', independent: 'var(--color-text-success)' };
-
-    var corrRows = (r.correlations?.pairs || []).map(function(p) {
-      return '<tr><td style="padding:4px 6px;font-size:11px">' + p.labelA + '</td>' +
-        '<td style="padding:4px 6px;font-size:11px">' + p.labelB + '</td>' +
-        '<td style="padding:4px 6px;font-size:11px;font-weight:500;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.r != null ? p.r : '—') + '</td>' +
-        '<td style="padding:4px 6px;font-size:10px;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.status||'—') + '</td></tr>';
-    }).join('');
-
-    var tiers = r.tierStats?.counts || {};
-    var tierBar = ['S','A','B','C','REJECT'].map(function(t) {
-      var pct = r.tierStats?.percentages?.[t] || 0;
-      var c = {S:'var(--color-text-warning)',A:'var(--color-text-success)',B:'var(--color-text-info)',C:'var(--color-text-secondary)',REJECT:'var(--color-border-secondary)'}[t];
-      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">' +
-        '<span style="width:40px;font-size:10px;font-weight:500;color:'+c+'">'+t+'</span>' +
-        '<div style="flex:1;height:4px;background:var(--color-background-tertiary);border-radius:2px">' +
-          '<div style="width:'+pct+'%;height:100%;background:'+c+';border-radius:2px"></div></div>' +
-        '<span style="font-size:10px;color:var(--color-text-secondary);width:48px;text-align:right">'+(tiers[t]||0)+' ('+pct+'%)</span></div>';
-    }).join('');
-
-    var allAlerts = r.alerts || [];
-    var alertsHtml = allAlerts.length
-      ? allAlerts.map(function(a) { return '<div style="font-size:10px;color:var(--color-text-warning);margin-bottom:5px;line-height:1.4">⚠ '+a+'</div>'; }).join('')
-      : '<div style="font-size:11px;color:var(--color-text-success)">✓ No alerts — system behaving correctly</div>';
-
-    var dirStats = r.directionStats || {};
-    var distRows = Object.entries(r.distributions?.distributions || {}).map(function(e) {
-      var id = e[0], d = e[1];
-      if (!d) return '';
-      return '<tr><td style="padding:3px 6px;font-size:10px;color:var(--color-text-secondary)">' + (id === 'consensus' ? 'Consensus' : id) + '</td>' +
-        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.mean + '</td>' +
-        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.std + '</td>' +
-        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.min + '–' + d.max + '</td></tr>';
-    }).join('');
-
-    panel.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
-        '<div style="font-size:13px;font-weight:500;color:var(--color-text-primary)"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation Report</div>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-          '<span style="font-size:22px;font-weight:500;color:'+healthColor+'">' + r.health + '</span>' +
-          '<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;color:'+healthColor+';background:var(--color-background-secondary)">' + r.status + '</span>' +
-          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
-        '</div></div>' +
-
-      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">' +
-        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
-          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">stocks</div>' +
-          '<div style="font-size:16px;font-weight:500">' + r.stocksEvaluated + '</div></div>' +
-        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
-          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">gate pass</div>' +
-          '<div style="font-size:16px;font-weight:500;color:var(--color-text-success)">' + (dirStats.passRate || 0) + '%</div></div>' +
-        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
-          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">tier S+A</div>' +
-          '<div style="font-size:16px;font-weight:500;color:var(--color-text-warning)">' + ((tiers.S||0)+(tiers.A||0)) + '</div></div>' +
-      '</div>' +
-
-      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tier distribution</div>' +
-      '<div style="margin-bottom:14px">' + tierBar + '</div>' +
-
-      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Engine correlation matrix</div>' +
-      '<div style="margin-bottom:14px;overflow-x:auto">' +
-        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
-          '<thead><tr>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine A</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine B</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">r</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">status</th>' +
-          '</tr></thead>' +
-          '<tbody>' + corrRows + '</tbody>' +
-        '</table></div>' +
-
-      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Score distributions</div>' +
-      '<div style="margin-bottom:14px;overflow-x:auto">' +
-        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
-          '<thead><tr>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">engine</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">mean</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">std</th>' +
-            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">range</th>' +
-          '</tr></thead>' +
-          '<tbody>' + distRows + '</tbody>' +
-        '</table></div>' +
-
-      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Alerts</div>' +
-      '<div style="margin-bottom:12px">' + alertsHtml + '</div>' +
-
-      '<div style="font-size:10px;color:var(--color-text-tertiary);border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;line-height:1.6">' +
-        (r.forwardReturns?.note || '') + '</div>';
-
-  } catch(e) {
-    panel.innerHTML = '<div style="padding:16px;color:var(--color-text-danger)">Error: ' + e.message + '</div>';
-  }
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -2301,7 +2013,14 @@ function switchView(view) {
 
   // Show target view
   var target = document.getElementById('view-' + view);
-  if (target) target.style.display = (view === 'dashboard') ? 'contents' : 'block';
+  if (target) {
+    if (view === 'dashboard') target.style.display = 'contents';
+    else if (view === 'rankings') { target.style.display = 'flex'; }
+    else target.style.display = 'block';
+  }
+  // Rankings needs full viewport — remove main padding
+  var mainEl = document.getElementById('main');
+  if (mainEl) mainEl.style.padding = (view === 'rankings') ? '0' : '7px';
 
   // Update sidebar active state
   document.querySelectorAll('.sb-it').forEach(el => el.classList.remove('active'));
@@ -4019,6 +3738,295 @@ async function submitDeletePosition() {
     btn.innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
   }
 }
+
+
+// ─── RANKINGS VIEW ────────────────────────────────────────────────────────────
+var rkState = { category:'ALL', tier:'ALL', data:[], loading:false, lastFetch:0 };
+
+async function renderRankingsView() {
+  updateRankingStatus();
+  if (!rkState.data.length || Date.now() - rkState.lastFetch > 300000) {
+    try { await fetchRankings(); } catch(e) { console.warn('[Rankings]', e.message); }
+  }
+  renderRankingsTable();
+}
+
+async function fetchRankings() {
+  if (rkState.loading) return;
+  rkState.loading = true;
+  var tbody = document.getElementById('rk-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-loader"></i> Fetching rankings...</td></tr>';
+  try {
+    var params = new URLSearchParams({ limit: 100 });
+    if (rkState.category !== 'ALL') params.set('category', rkState.category);
+    if (rkState.tier !== 'ALL') params.set('tier', rkState.tier);
+    var resp = await fetch(BACKEND + '/rankings?' + params.toString(), { signal: AbortSignal.timeout(15000) });
+    var json = await resp.json();
+    if (json.ok && Array.isArray(json.data)) { rkState.data = json.data; rkState.lastFetch = Date.now(); }
+  } catch(e) { console.warn('[Rankings]', e.message); }
+  rkState.loading = false;
+}
+
+function renderRankingsTable() {
+  var tbody = document.getElementById('rk-tbody');
+  if (!tbody) return;
+  var rows = rkState.data;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-database-off" style="font-size:22px;display:block;margin-bottom:8px"></i>No rankings yet — click <b>Scan Now</b> to trigger a scan, or wait for the scheduled EOD scan (16:30 IST)</td></tr>';
+    return;
+  }
+  var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0', REJECT:'#4B607E' };
+  var CAT_C  = { LARGECAP:'#2563EB', MIDCAP:'#22C55E', SMALLCAP:'#F59E0B', MICROCAP:'#EF4444' };
+  tbody.innerHTML = rows.map(function(r, i) {
+    var tier = r.tier || '—';
+    var tc   = TIER_C[tier] || '#94A3C0';
+    var cc   = CAT_C[r.category] || '#94A3C0';
+    var score = r.consensusScore || 0;
+    var barC = score >= 90 ? '#F59E0B' : score >= 80 ? '#22C55E' : '#2563EB';
+    var dirIcon = r.direction === 'long' ? '▲' : r.direction === 'short' ? '▼' : '—';
+    var dirColor = r.direction === 'long' ? 'var(--up)' : r.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+    var fbr = r.falseBORisk != null ? r.falseBORisk : '—';
+    var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
+    var brk = r.breakoutProb != null ? r.breakoutProb : '—';
+    var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
+    return '<tr class="rk-row" onclick="openRankDrill('' + r.ticker + '')">' +
+      '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
+        '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
+        '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
+      '<td><span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:2px 8px;border-radius:4px">' + tier + '</span></td>' +
+      '<td><div style="display:flex;align-items:center;gap:6px">' +
+        '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
+        '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
+      '<td style="color:' + dirColor + ';font-weight:600">' + dirIcon + '</td>' +
+      '<td style="color:var(--t2)">' + (r.agreementPct != null ? r.agreementPct + '%' : '—') + '</td>' +
+      '<td style="color:var(--t2)">' + (r.institutionalProb != null ? r.institutionalProb : '—') + '</td>' +
+      '<td style="color:' + brkC + '">' + brk + '</td>' +
+      '<td style="color:' + fbC + '">' + fbr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function setRankCat(cat) {
+  rkState.category = cat; rkState.data = [];
+  document.querySelectorAll('#rk-cat-tabs .rk-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat === cat); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+function setRankTier(tier) {
+  rkState.tier = tier; rkState.data = [];
+  document.querySelectorAll('#rk-tier-tabs .rk-tier-btn').forEach(function(t){ t.classList.toggle('active', t.dataset.tier === tier); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+async function triggerRankingScan() {
+  var btn = document.querySelector('.rk-scan-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Triggering...'; }
+  try {
+    await fetch(BACKEND + '/rankings/scan', { method:'POST', signal: AbortSignal.timeout(5000) });
+    var s = document.getElementById('rk-status'); if (s) { s.textContent = 'Scan triggered — check back in ~3 min'; s.style.color = 'var(--warn)'; }
+  } catch(e) {}
+  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; }}, 2000);
+}
+
+async function openRankDrill(ticker) {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;color:var(--t3);text-align:center"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading ' + ticker + '...</div>';
+  try {
+    var resp = await fetch(BACKEND + '/rankings/stock/' + ticker, { signal: AbortSignal.timeout(10000) });
+    var json = await resp.json();
+    if (!json.ok || !json.data) { panel.innerHTML = '<div style="padding:20px;color:var(--dn)">No data for ' + ticker + '</div>'; return; }
+    var r = json.data;
+    var engines = r.engines || {};
+    var explain = r.explain || {};
+    var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0' };
+    var tc = TIER_C[r.tier] || '#94A3C0';
+    var ENG_NAMES = { emavol:'EMA + Vol', lux:'LuxAlgo', trendspider:'TrendSpider', chartprime:'ChartPrime', algoalpha:'AlgoAlpha' };
+
+    function chip(label, val, positive, inverse) {
+      var c = inverse ? (positive ? 'var(--up)' : 'var(--dn)') : (positive ? 'var(--up)' : 'var(--t2)');
+      return '<div class="rk-metric"><div class="rk-metric-label">' + label + '</div><div class="rk-metric-val" style="color:' + c + '">' + val + '</div></div>';
+    }
+
+    var engBars = Object.entries(engines).map(function(entry) {
+      var id = entry[0], e = entry[1];
+      var s = e.score || 0;
+      var bc = s >= 80 ? '#22C55E' : s >= 60 ? '#2563EB' : '#94A3C0';
+      var dc = e.direction === 'long' ? 'var(--up)' : e.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+      var di = e.direction === 'long' ? '▲' : e.direction === 'short' ? '▼' : '—';
+      return '<div class="rk-eng-bar"><span class="rk-eng-name">' + (ENG_NAMES[id]||id) + '</span>' +
+        '<div class="rk-bar-track"><div class="rk-bar-fill" style="width:' + s + '%;background:' + bc + '"></div></div>' +
+        '<span style="font-size:11px;font-weight:600;color:var(--t1);width:26px;text-align:right;flex-shrink:0">' + s + '</span>' +
+        '<span style="width:14px;font-size:10px;color:' + dc + ';flex-shrink:0">' + di + '</span></div>';
+    }).join('');
+
+    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">✓ ' + s + '</div>'; }).join('');
+    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">⚠ ' + s + '</div>'; }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
+        '<div><div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
+        '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' · ' + (r.sector||'') + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:7px">' +
+          '<span style="font-size:24px;font-weight:700;color:' + tc + '">' + (r.consensusScore||0) + '</span>' +
+          '<span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:3px 10px;border-radius:5px">Tier ' + (r.tier||'—') + '</span>' +
+          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rk-metric-grid">' +
+        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '—'), r.agreementPct >= 80) +
+        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '—', r.confidenceScore >= 65) +
+        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '—', r.institutionalProb >= 65) +
+        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '—', r.trendContinuationProb >= 65) +
+        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '—', r.breakoutProb >= 65) +
+        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '—', (r.falseBORisk||100) < 25, true) +
+      '</div>' +
+      '<div class="rk-sec-label">Engine Breakdown</div>' +
+      engBars +
+      (posHtml || rskHtml ? (
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">None</div>') + '</div>' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--up)">None ✓</div>') + '</div>' +
+        '</div>'
+      ) : '') +
+      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:10px;margin-top:12px;line-height:1.6">' + explain.summary + '</div>' : '');
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:20px;color:var(--dn)">Error: ' + e.message + '</div>';
+  }
+}
+
+async function updateRankingStatus() {
+  try {
+    var resp = await fetch(BACKEND + '/rankings/status', { signal: AbortSignal.timeout(5000) });
+    var json = await resp.json();
+    var el = document.getElementById('rk-status'); if (!el) return;
+    if (json.ok && json.data) {
+      var d = json.data;
+      if (d.isRunning) { el.textContent = 'Scanning...'; el.style.color = 'var(--warn)'; }
+      else if (d.lastRunAt) { var ago = Math.round((Date.now()-d.lastRunAt)/60000); el.textContent = 'Last scan: ' + (ago < 1 ? 'just now' : ago + 'm ago'); el.style.color = 'var(--t3)'; }
+      else { el.textContent = 'No scan yet'; el.style.color = 'var(--t3)'; }
+    }
+  } catch(e) {}
+}
+
+
+// ─── PHASE 8: VALIDATION ──────────────────────────────────────────────────────
+
+async function openValidationPanel() {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary)"><i class="ti ti-shield-check" style="font-size:28px;display:block;margin-bottom:8px"></i>Running validation...</div>';
+
+  try {
+    var resp = await fetch(BACKEND + '/rankings/validate', { signal: AbortSignal.timeout(20000) });
+    var r = await resp.json();
+
+    if (!r.ok) {
+      panel.innerHTML = '<div style="padding:16px"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation</div>' +
+        '<div style="font-size:11px;color:var(--color-text-danger);background:var(--color-background-danger);padding:10px;border-radius:6px">' + (r.error || 'No data') + '</div>' +
+        '<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:12px">Trigger a scan first: click Scan Now and wait ~3 minutes.</div>' +
+        '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
+      return;
+    }
+
+    var healthColor = r.health >= 80 ? 'var(--color-text-success)' : r.health >= 60 ? 'var(--color-text-warning)' : 'var(--color-text-danger)';
+    var CORR_C = { correlated: 'var(--color-text-danger)', moderate: 'var(--color-text-warning)', independent: 'var(--color-text-success)' };
+
+    var corrRows = (r.correlations?.pairs || []).map(function(p) {
+      return '<tr><td style="padding:4px 6px;font-size:11px">' + p.labelA + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px">' + p.labelB + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px;font-weight:500;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.r != null ? p.r : '—') + '</td>' +
+        '<td style="padding:4px 6px;font-size:10px;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.status||'—') + '</td></tr>';
+    }).join('');
+
+    var tiers = r.tierStats?.counts || {};
+    var tierBar = ['S','A','B','C','REJECT'].map(function(t) {
+      var pct = r.tierStats?.percentages?.[t] || 0;
+      var c = {S:'var(--color-text-warning)',A:'var(--color-text-success)',B:'var(--color-text-info)',C:'var(--color-text-secondary)',REJECT:'var(--color-border-secondary)'}[t];
+      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">' +
+        '<span style="width:40px;font-size:10px;font-weight:500;color:'+c+'">'+t+'</span>' +
+        '<div style="flex:1;height:4px;background:var(--color-background-tertiary);border-radius:2px">' +
+          '<div style="width:'+pct+'%;height:100%;background:'+c+';border-radius:2px"></div></div>' +
+        '<span style="font-size:10px;color:var(--color-text-secondary);width:48px;text-align:right">'+(tiers[t]||0)+' ('+pct+'%)</span></div>';
+    }).join('');
+
+    var allAlerts = r.alerts || [];
+    var alertsHtml = allAlerts.length
+      ? allAlerts.map(function(a) { return '<div style="font-size:10px;color:var(--color-text-warning);margin-bottom:5px;line-height:1.4">⚠ '+a+'</div>'; }).join('')
+      : '<div style="font-size:11px;color:var(--color-text-success)">✓ No alerts — system behaving correctly</div>';
+
+    var dirStats = r.directionStats || {};
+    var distRows = Object.entries(r.distributions?.distributions || {}).map(function(e) {
+      var id = e[0], d = e[1];
+      if (!d) return '';
+      return '<tr><td style="padding:3px 6px;font-size:10px;color:var(--color-text-secondary)">' + (id === 'consensus' ? 'Consensus' : id) + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.mean + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.std + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.min + '–' + d.max + '</td></tr>';
+    }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--color-text-primary)"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation Report</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:22px;font-weight:500;color:'+healthColor+'">' + r.health + '</span>' +
+          '<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;color:'+healthColor+';background:var(--color-background-secondary)">' + r.status + '</span>' +
+          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+        '</div></div>' +
+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">stocks</div>' +
+          '<div style="font-size:16px;font-weight:500">' + r.stocksEvaluated + '</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">gate pass</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-success)">' + (dirStats.passRate || 0) + '%</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">tier S+A</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-warning)">' + ((tiers.S||0)+(tiers.A||0)) + '</div></div>' +
+      '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tier distribution</div>' +
+      '<div style="margin-bottom:14px">' + tierBar + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Engine correlation matrix</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine A</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine B</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">r</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">status</th>' +
+          '</tr></thead>' +
+          '<tbody>' + corrRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Score distributions</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">engine</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">mean</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">std</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">range</th>' +
+          '</tr></thead>' +
+          '<tbody>' + distRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Alerts</div>' +
+      '<div style="margin-bottom:12px">' + alertsHtml + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;line-height:1.6">' +
+        (r.forwardReturns?.note || '') + '</div>';
+
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:16px;color:var(--color-text-danger)">Error: ' + e.message + '</div>';
+  }
+}
+
 
 </script>
 </body>
