@@ -1,6 +1,15 @@
 /**
- * Background Worker — runs scanner + news refresh independently
- * Start with: node src/worker.js
+ * Background Worker — optional; for paid-tier / local development only
+ *
+ * On Render FREE TIER: this file is NOT deployed as a separate service.
+ * News refresh is handled by the main server via:
+ *   1. 90-second delayed startup refresh (index.js)
+ *   2. Request-triggered lazy refresh every 20 min (triggerRefreshIfStale)
+ *
+ * On Render PAID TIER: deploy as a Background Worker pointing to this file.
+ * Set NEWS_INTERVAL_MS env var (default 1200000 = 20 min).
+ *
+ * Start locally with: node src/worker.js
  */
 require('dotenv').config();
 const { createClient } = require('redis');

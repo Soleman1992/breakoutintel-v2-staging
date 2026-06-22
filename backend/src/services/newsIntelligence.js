@@ -80,7 +80,20 @@ class NewsIntelligenceService {
       ignoreAttributes: false,
       attributeNamePrefix: '@_',
     });
-    this._running = false; // prevent concurrent refresh runs
+    this._running       = false; // prevent concurrent refresh runs
+    this._lastRefreshAt = 0;     // epoch ms — 0 = never refreshed
+  }
+
+  // ── Lazy refresh (request-triggered, non-blocking) ─────────────────────────
+  // Called at the top of each public query method.
+  // On Render free tier there is no background worker, so this ensures the
+  // server refreshes news whenever a stale threshold is crossed — without
+  // adding any latency to the current request (fire-and-forget).
+  triggerRefreshIfStale(maxAgeMs = 20 * 60 * 1000) {
+    if (this._running) return;                              // already in progress
+    if (Date.now() - this._lastRefreshAt < maxAgeMs) return; // still fresh
+    this.refresh().catch(e =>                               // non-blocking
+      console.warn('[News] Background refresh error:', e.message));
   }
 
   // ── Redis helpers ──────────────────────────────────────────────────────────
@@ -373,7 +386,8 @@ Return this exact JSON shape (all fields required):
       console.log('[News] Refresh already in progress — skipping');
       return;
     }
-    this._running = true;
+    this._running       = true;
+    this._lastRefreshAt = Date.now(); // gate immediately; prevents double-fire during long runs
     try {
       console.log('[News] Starting refresh cycle...');
 
@@ -389,8 +403,8 @@ Return this exact JSON shape (all fields required):
         console.log(`[News] ${feed.name}: ${rssItems.length} fetched, ${rssNew} new`);
       }
 
-      // 3. Score unscored qualifying items (limit 20 per cycle to control API cost)
-      const scoredCount = await this._scoreUnscored(20);
+      // 3. Score unscored qualifying items — 10 per cycle on free tier to control API cost
+      const scoredCount = await this._scoreUnscored(10);
       console.log(`[News] Scored ${scoredCount} items`);
 
       // 4. Bust cached query results so next request gets fresh data
@@ -408,6 +422,7 @@ Return this exact JSON shape (all fields required):
   // ── Query methods (used by API routes) ────────────────────────────────────
 
   async getNews({ limit = 30, offset = 0, category, sentiment } = {}) {
+    this.triggerRefreshIfStale();
     const cacheKey = `list:${limit}:${offset}:${category||''}:${sentiment||''}`;
     const cached = await this._get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -441,6 +456,7 @@ Return this exact JSON shape (all fields required):
   }
 
   async getBreaking() {
+    this.triggerRefreshIfStale();
     const cached = await this._get('breaking');
     if (cached) return JSON.parse(cached);
     if (!this.db) return { ok: true, data: [] };
@@ -459,6 +475,7 @@ Return this exact JSON shape (all fields required):
   }
 
   async getHighImpact({ limit = 20 } = {}) {
+    this.triggerRefreshIfStale();
     const cached = await this._get('high_impact');
     if (cached) return JSON.parse(cached);
     if (!this.db) return { ok: true, data: [] };
@@ -477,6 +494,7 @@ Return this exact JSON shape (all fields required):
   }
 
   async getByStock(symbol) {
+    this.triggerRefreshIfStale();
     const sym     = (symbol || '').toUpperCase().replace(/\.NS$/, '');
     const cacheKey = `stock:${sym}`;
     const cached   = await this._get(cacheKey);
@@ -497,22 +515,43 @@ Return this exact JSON shape (all fields required):
   }
 
   async getBySector(sector) {
+    this.triggerRefreshIfStale();
     const cacheKey = `sector:${sector}`;
     const cached   = await this._get(cacheKey);
     if (cached) return JSON.parse(cached);
     if (!this.db) return { ok: true, data: [] };
     try {
-      const { rows } = await this.db.query(`
-        SELECT * FROM news_items
-        WHERE  $1 = ANY(affected_sectors)
-        OR     (symbol IN (
-          SELECT REPLACE(sym, '.NS', '') FROM json_to_recordset($2::json) AS t(sym text)
-        ))
-        ORDER  BY COALESCE(published_at, fetched_at) DESC
-        LIMIT  30
-      `, [sector, JSON.stringify(
-          UNIVERSE.filter(s => s.sector === sector).map(s => ({ sym: s.sym }))
-        )]);
+      // Get symbols in this sector from UNIVERSE (JS-side — no SQL complexity needed)
+      const sectorSymbols = UNIVERSE
+        .filter(s => s.sector === sector)
+        .map(s => s.sym.replace(/\.NS$/, ''));
+
+      // Query 1: items where affected_sectors includes this sector
+      // Query 2: items where primary symbol is in this sector
+      // Merge and deduplicate by id in JS
+      const [bySector, bySymbol] = await Promise.all([
+        this.db.query(`
+          SELECT * FROM news_items
+          WHERE  $1 = ANY(affected_sectors)
+          ORDER  BY COALESCE(published_at, fetched_at) DESC
+          LIMIT  30
+        `, [sector]),
+        sectorSymbols.length ? this.db.query(`
+          SELECT * FROM news_items
+          WHERE  symbol = ANY($1::text[])
+          ORDER  BY COALESCE(published_at, fetched_at) DESC
+          LIMIT  30
+        `, [sectorSymbols]) : Promise.resolve({ rows: [] }),
+      ]);
+
+      // Deduplicate by id, sort by date
+      const seen = new Set();
+      const rows = [...bySector.rows, ...bySymbol.rows]
+        .filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; })
+        .sort((a, b) =>
+          new Date(b.published_at || b.fetched_at) - new Date(a.published_at || a.fetched_at))
+        .slice(0, 30);
+
       const result = { ok: true, data: rows, sector };
       await this._set(cacheKey, TTL.SECTOR, JSON.stringify(result));
       return result;
@@ -520,6 +559,7 @@ Return this exact JSON shape (all fields required):
   }
 
   async getWatchlistNews(symbols = []) {
+    this.triggerRefreshIfStale();
     if (!symbols.length) return { ok: true, data: [] };
     const normalised = symbols.map(s => s.toUpperCase().replace(/\.NS$/, ''));
     const cacheKey   = `watchlist:${normalised.sort().join(',')}`;
@@ -542,63 +582,35 @@ Return this exact JSON shape (all fields required):
   }
 
   async getTrending() {
+    this.triggerRefreshIfStale();
     const cached = await this._get('trending');
     if (cached) return JSON.parse(cached);
     if (!this.db) return { ok: true, data: [] };
     try {
-      // Most-mentioned symbols in last 24 hours
+      // Simple aggregation — name enrichment done in JS from UNIVERSE_NAMES (no complex SQL join)
       const { rows } = await this.db.query(`
         SELECT m.symbol,
-               COUNT(*)            AS mention_count,
-               MAX(n.impact_score) AS max_impact,
-               MODE() WITHIN GROUP (ORDER BY n.sentiment) AS dominant_sentiment,
-               u.name
+               COUNT(*)                                        AS mention_count,
+               MAX(n.impact_score)                             AS max_impact,
+               MODE() WITHIN GROUP (ORDER BY n.sentiment)     AS dominant_sentiment
         FROM   news_stock_mapping m
         JOIN   news_items n ON n.id = m.news_id
-        LEFT JOIN LATERAL (
-          SELECT sym, name FROM (
-            VALUES ${Array.from(UNIVERSE_SYMBOLS).slice(0,20).map((_,i)=>`($${i+1},$${i+1})`).join(',')}
-          ) AS t(sym, name)
-          WHERE t.sym = m.symbol
-          LIMIT 1
-        ) u ON true
         WHERE  COALESCE(n.published_at, n.fetched_at) >= NOW() - INTERVAL '24 hours'
-        GROUP  BY m.symbol, u.name
+        GROUP  BY m.symbol
         ORDER  BY mention_count DESC, max_impact DESC NULLS LAST
         LIMIT  10
       `);
-      // Simpler fallback — join in app layer to avoid complex lateral
       const enriched = rows.map(r => ({
-        symbol:            r.symbol,
-        name:              UNIVERSE_NAMES.get(r.symbol) || r.symbol,
-        mention_count:     parseInt(r.mention_count),
-        max_impact:        r.max_impact,
-        dominant_sentiment:r.dominant_sentiment,
+        symbol:             r.symbol,
+        name:               UNIVERSE_NAMES.get(r.symbol) || r.symbol,
+        mention_count:      parseInt(r.mention_count),
+        max_impact:         r.max_impact != null ? parseInt(r.max_impact) : null,
+        dominant_sentiment: r.dominant_sentiment || null,
       }));
       const result = { ok: true, data: enriched };
       await this._set('trending', TTL.TRENDING, JSON.stringify(result));
       return result;
-    } catch (e) {
-      // Simpler fallback query
-      try {
-        const { rows } = await this.db.query(`
-          SELECT m.symbol, COUNT(*) AS mention_count, MAX(n.impact_score) AS max_impact
-          FROM   news_stock_mapping m
-          JOIN   news_items n ON n.id = m.news_id
-          WHERE  COALESCE(n.published_at, n.fetched_at) >= NOW() - INTERVAL '24 hours'
-          GROUP  BY m.symbol
-          ORDER  BY mention_count DESC
-          LIMIT  10
-        `);
-        const enriched = rows.map(r => ({
-          symbol:        r.symbol,
-          name:          UNIVERSE_NAMES.get(r.symbol) || r.symbol,
-          mention_count: parseInt(r.mention_count),
-          max_impact:    r.max_impact,
-        }));
-        return { ok: true, data: enriched };
-      } catch { return { ok: false, error: e.message, data: [] }; }
-    }
+    } catch (e) { return { ok: false, error: e.message, data: [] }; }
   }
 
   async getStats() {

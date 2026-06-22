@@ -711,7 +711,8 @@ async function start() {
       db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        max: 5,
+        max: 3,                      // Supabase free tier: keep 2 slots free for admin/dashboard
+        idleTimeoutMillis: 30000,    // release idle connections faster (free tier courtesy)
         connectionTimeoutMillis: 5000,
       });
       await db.query('SELECT 1');
@@ -802,6 +803,19 @@ async function start() {
     if (newsIntelligence) {
       newsIntelligence.nse = nseData;
       console.log('[NewsIntelligence] NSE data service injected ✓');
+
+      // ── Startup refresh (free-tier compatible) ───────────────────────────────
+      // No separate worker process on Render free tier. Instead, trigger the
+      // first news refresh 90 seconds after startup — lets the health check
+      // pass and the scanner settle before news work begins. Subsequent
+      // refreshes are lazy-triggered by the first stale request (every 20 min).
+      setTimeout(() => {
+        if (!newsIntelligence) return;
+        console.log('[NewsIntelligence] Running startup refresh...');
+        newsIntelligence.refresh()
+          .catch(e => console.warn('[NewsIntelligence] Startup refresh error:', e.message));
+      }, 90_000);
+      console.log('[NewsIntelligence] Startup refresh scheduled (90s) ✓');
     }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
