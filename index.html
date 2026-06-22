@@ -3729,6 +3729,7 @@ function renderRankingsTable() {
     var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
     var brk = r.breakoutProb != null ? r.breakoutProb : '—';
     var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
+    var rec  = getRecommendation(r);
     return '<tr class="rk-row" data-ticker="' + r.ticker + '">' +
       '<td style="color:var(--t3)">' + (i+1) + '</td>' +
       '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
