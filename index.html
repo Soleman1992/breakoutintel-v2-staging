@@ -7,7 +7,179 @@
 <meta name="description" content="Institutional-grade NSE/BSE breakout detection and swing trading intelligence">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%232563EB'/><text x='50%' y='56%' font-family='monospace' font-weight='700' font-size='14' fill='white' text-anchor='middle' dominant-baseline='middle'>BI</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+// ─── RANKINGS VIEW ────────────────────────────────────────────────────────────
+var rkState = { category:'ALL', tier:'ALL', data:[], loading:false, lastFetch:0 };
+
+async function renderRankingsView() {
+  updateRankingStatus();
+  if (!rkState.data.length || Date.now() - rkState.lastFetch > 300000) {
+    await fetchRankings();
+  }
+  renderRankingsTable();
+}
+
+async function fetchRankings() {
+  if (rkState.loading) return;
+  rkState.loading = true;
+  var tbody = document.getElementById('rk-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-loader"></i> Fetching rankings...</td></tr>';
+  try {
+    var params = new URLSearchParams({ limit: 100 });
+    if (rkState.category !== 'ALL') params.set('category', rkState.category);
+    if (rkState.tier !== 'ALL') params.set('tier', rkState.tier);
+    var resp = await fetch(BACKEND + '/rankings?' + params.toString(), { signal: AbortSignal.timeout(15000) });
+    var json = await resp.json();
+    if (json.ok && Array.isArray(json.data)) { rkState.data = json.data; rkState.lastFetch = Date.now(); }
+  } catch(e) { console.warn('[Rankings]', e.message); }
+  rkState.loading = false;
+}
+
+function renderRankingsTable() {
+  var tbody = document.getElementById('rk-tbody');
+  if (!tbody) return;
+  var rows = rkState.data;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-database-off" style="font-size:22px;display:block;margin-bottom:8px"></i>No rankings yet — scan fires 2 min after startup</td></tr>';
+    return;
+  }
+  var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0', REJECT:'#4B607E' };
+  var CAT_C  = { LARGECAP:'#2563EB', MIDCAP:'#22C55E', SMALLCAP:'#F59E0B', MICROCAP:'#EF4444' };
+  tbody.innerHTML = rows.map(function(r, i) {
+    var tier = r.tier || '—';
+    var tc   = TIER_C[tier] || '#94A3C0';
+    var cc   = CAT_C[r.category] || '#94A3C0';
+    var score = r.consensusScore || 0;
+    var barC = score >= 90 ? '#F59E0B' : score >= 80 ? '#22C55E' : '#2563EB';
+    var dirIcon = r.direction === 'long' ? '▲' : r.direction === 'short' ? '▼' : '—';
+    var dirColor = r.direction === 'long' ? 'var(--up)' : r.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+    var fbr = r.falseBORisk != null ? r.falseBORisk : '—';
+    var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
+    var brk = r.breakoutProb != null ? r.breakoutProb : '—';
+    var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
+    return '<tr class="rk-row" onclick="openRankDrill('' + r.ticker + '')">' +
+      '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
+        '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
+        '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
+      '<td><span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:2px 8px;border-radius:4px">' + tier + '</span></td>' +
+      '<td><div style="display:flex;align-items:center;gap:6px">' +
+        '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
+        '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
+      '<td style="color:' + dirColor + ';font-weight:600">' + dirIcon + '</td>' +
+      '<td style="color:var(--t2)">' + (r.agreementPct != null ? r.agreementPct + '%' : '—') + '</td>' +
+      '<td style="color:var(--t2)">' + (r.institutionalProb != null ? r.institutionalProb : '—') + '</td>' +
+      '<td style="color:' + brkC + '">' + brk + '</td>' +
+      '<td style="color:' + fbC + '">' + fbr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function setRankCat(cat) {
+  rkState.category = cat; rkState.data = [];
+  document.querySelectorAll('#rk-cat-tabs .rk-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat === cat); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+function setRankTier(tier) {
+  rkState.tier = tier; rkState.data = [];
+  document.querySelectorAll('#rk-tier-tabs .rk-tier-btn').forEach(function(t){ t.classList.toggle('active', t.dataset.tier === tier); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+async function triggerRankingScan() {
+  var btn = document.querySelector('.rk-scan-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Triggering...'; }
+  try {
+    await fetch(BACKEND + '/rankings/scan', { method:'POST', signal: AbortSignal.timeout(5000) });
+    var s = document.getElementById('rk-status'); if (s) { s.textContent = 'Scan triggered — check back in ~3 min'; s.style.color = 'var(--warn)'; }
+  } catch(e) {}
+  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; }}, 2000);
+}
+
+async function openRankDrill(ticker) {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;color:var(--t3);text-align:center"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading ' + ticker + '...</div>';
+  try {
+    var resp = await fetch(BACKEND + '/rankings/stock/' + ticker, { signal: AbortSignal.timeout(10000) });
+    var json = await resp.json();
+    if (!json.ok || !json.data) { panel.innerHTML = '<div style="padding:20px;color:var(--dn)">No data for ' + ticker + '</div>'; return; }
+    var r = json.data;
+    var engines = r.engines || {};
+    var explain = r.explain || {};
+    var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0' };
+    var tc = TIER_C[r.tier] || '#94A3C0';
+    var ENG_NAMES = { emavol:'EMA + Vol', lux:'LuxAlgo', trendspider:'TrendSpider', chartprime:'ChartPrime', algoalpha:'AlgoAlpha' };
+
+    function chip(label, val, positive, inverse) {
+      var c = inverse ? (positive ? 'var(--up)' : 'var(--dn)') : (positive ? 'var(--up)' : 'var(--t2)');
+      return '<div class="rk-metric"><div class="rk-metric-label">' + label + '</div><div class="rk-metric-val" style="color:' + c + '">' + val + '</div></div>';
+    }
+
+    var engBars = Object.entries(engines).map(function(entry) {
+      var id = entry[0], e = entry[1];
+      var s = e.score || 0;
+      var bc = s >= 80 ? '#22C55E' : s >= 60 ? '#2563EB' : '#94A3C0';
+      var dc = e.direction === 'long' ? 'var(--up)' : e.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+      var di = e.direction === 'long' ? '▲' : e.direction === 'short' ? '▼' : '—';
+      return '<div class="rk-eng-bar"><span class="rk-eng-name">' + (ENG_NAMES[id]||id) + '</span>' +
+        '<div class="rk-bar-track"><div class="rk-bar-fill" style="width:' + s + '%;background:' + bc + '"></div></div>' +
+        '<span style="font-size:11px;font-weight:600;color:var(--t1);width:26px;text-align:right;flex-shrink:0">' + s + '</span>' +
+        '<span style="width:14px;font-size:10px;color:' + dc + ';flex-shrink:0">' + di + '</span></div>';
+    }).join('');
+
+    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">✓ ' + s + '</div>'; }).join('');
+    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">⚠ ' + s + '</div>'; }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
+        '<div><div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
+        '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' · ' + (r.sector||'') + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:7px">' +
+          '<span style="font-size:24px;font-weight:700;color:' + tc + '">' + (r.consensusScore||0) + '</span>' +
+          '<span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:3px 10px;border-radius:5px">Tier ' + (r.tier||'—') + '</span>' +
+          '<button onclick="document.getElementById('rk-panel').className='rk-panel'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rk-metric-grid">' +
+        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '—'), r.agreementPct >= 80) +
+        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '—', r.confidenceScore >= 65) +
+        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '—', r.institutionalProb >= 65) +
+        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '—', r.trendContinuationProb >= 65) +
+        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '—', r.breakoutProb >= 65) +
+        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '—', (r.falseBORisk||100) < 25, true) +
+      '</div>' +
+      '<div class="rk-sec-label">Engine Breakdown</div>' +
+      engBars +
+      (posHtml || rskHtml ? (
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">None</div>') + '</div>' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--up)">None ✓</div>') + '</div>' +
+        '</div>'
+      ) : '') +
+      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:10px;margin-top:12px;line-height:1.6">' + explain.summary + '</div>' : '');
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:20px;color:var(--dn)">Error: ' + e.message + '</div>';
+  }
+}
+
+async function updateRankingStatus() {
+  try {
+    var resp = await fetch(BACKEND + '/rankings/status', { signal: AbortSignal.timeout(5000) });
+    var json = await resp.json();
+    var el = document.getElementById('rk-status'); if (!el) return;
+    if (json.ok && json.data) {
+      var d = json.data;
+      if (d.isRunning) { el.textContent = 'Scanning...'; el.style.color = 'var(--warn)'; }
+      else if (d.lastRunAt) { var ago = Math.round((Date.now()-d.lastRunAt)/60000); el.textContent = 'Last scan: ' + (ago < 1 ? 'just now' : ago + 'm ago'); el.style.color = 'var(--t3)'; }
+      else { el.textContent = 'No scan yet'; el.style.color = 'var(--t3)'; }
+    }
+  } catch(e) {}
+}
+
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -255,6 +427,41 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .skel{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
 @keyframes shimmer{to{background-position:-200% 0}}
 .footer{text-align:center;padding:4px;font-size:9px;color:var(--t3);flex-shrink:0}
+
+/* ─── RANKINGS VIEW ──────────────────────────────────────────────────────── */
+#view-rankings{display:flex;flex-direction:column;height:calc(100vh - 46px);overflow:hidden}
+.rk-hdr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--bg1);flex-shrink:0}
+.rk-hdr-title{font-size:12px;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px;flex:1}
+.rk-status{font-size:10px;color:var(--t3)}
+.rk-scan-btn{font-size:10px;padding:4px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:5px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;transition:.15s}
+.rk-scan-btn:hover{border-color:var(--acc);color:var(--acc2)}
+.rk-filters{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--bd);background:var(--bg1);flex-shrink:0;gap:10px;flex-wrap:wrap}
+.rk-cat-tabs,.rk-tier-tabs{display:flex;gap:3px;flex-wrap:wrap}
+.rk-tab{font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;color:var(--t3);border:1px solid transparent;transition:.15s}
+.rk-tab:hover{color:var(--t2);background:var(--bg2)}
+.rk-tab.active{color:var(--acc2);background:var(--bg2);border-color:var(--bd)}
+.rk-tier-btn{font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid transparent;transition:.15s;color:var(--t3)}
+.rk-tier-btn:hover,.rk-tier-btn.active{background:var(--bg2);border-color:var(--bd);color:var(--t1)}
+.rk-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.rk-table-wrap{flex:1;overflow-y:auto;padding:6px}
+.rk-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.rk-tbl th{text-align:left;padding:7px 8px;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg1);font-weight:500;white-space:nowrap}
+.rk-row{border-bottom:1px solid var(--bg2);cursor:pointer;transition:.1s}
+.rk-row:hover{background:var(--bg2)}
+.rk-row td{padding:7px 8px;vertical-align:middle}
+.rk-empty{text-align:center;padding:40px;color:var(--t3)}
+.rk-panel{width:380px;background:var(--bg1);border-left:1px solid var(--bd);overflow-y:auto;flex-shrink:0;padding:14px;display:none}
+.rk-panel.open{display:block}
+.rk-metric-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:12px}
+.rk-metric{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:8px;text-align:center}
+.rk-metric-label{font-size:9px;color:var(--t3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.rk-metric-val{font-size:13px;font-weight:600}
+.rk-eng-bar{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.rk-eng-name{width:90px;font-size:9px;color:var(--t3);flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}
+.rk-bar-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.rk-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.rk-sec-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;margin-top:12px}
+.rk-signal{font-size:10px;margin-bottom:3px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -298,6 +505,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" id="nav-scanner" onclick="switchView('scanner')"><div class="sb-lb"><i class="ti ti-radar" style="font-size:14px"></i><span>Scanner</span></div></div>
   <div class="sb-it" id="nav-portfolio" onclick="switchView('portfolio')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
   <div class="sb-it" id="nav-news" onclick="switchView('news')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
+  <div class="sb-it" id="nav-rankings" onclick="switchView('rankings')"><div class="sb-lb"><i class="ti ti-trophy" style="font-size:14px"></i><span>Rankings</span></div></div>
   <div class="sb-sec">Watchlist</div>
   <div class="sb-it" onclick="setFilter('pre')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0"></div><span>Pre-Breakout</span></div><div class="sb-bd bg-y" id="sb-pre">—</div></div>
   <div class="sb-it" onclick="setFilter('active')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--up);flex-shrink:0"></div><span>Active Breakout</span></div><div class="sb-bd bg-g" id="sb-act">—</div></div>
@@ -710,6 +918,49 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 
+
+<div id="view-rankings" style="display:none">
+  <div class="rk-hdr">
+    <div class="rk-hdr-title"><i class="ti ti-trophy" style="font-size:14px;color:var(--warn)"></i>Consensus Rankings</div>
+    <span class="rk-status" id="rk-status">—</span>
+    <button class="rk-scan-btn" onclick="triggerRankingScan()"><i class="ti ti-refresh"></i> Scan Now</button>
+  </div>
+  <div class="rk-filters">
+    <div class="rk-cat-tabs" id="rk-cat-tabs">
+      <div class="rk-tab active" data-cat="ALL" onclick="setRankCat('ALL')">All Caps</div>
+      <div class="rk-tab" data-cat="LARGECAP" onclick="setRankCat('LARGECAP')">Large Cap</div>
+      <div class="rk-tab" data-cat="MIDCAP" onclick="setRankCat('MIDCAP')">Mid Cap</div>
+      <div class="rk-tab" data-cat="SMALLCAP" onclick="setRankCat('SMALLCAP')">Small Cap</div>
+      <div class="rk-tab" data-cat="MICROCAP" onclick="setRankCat('MICROCAP')">Micro Cap</div>
+    </div>
+    <div class="rk-tier-tabs" id="rk-tier-tabs">
+      <div class="rk-tier-btn active" data-tier="ALL" onclick="setRankTier('ALL')">All Tiers</div>
+      <div class="rk-tier-btn" data-tier="S" onclick="setRankTier('S')" style="color:#F59E0B">■ S</div>
+      <div class="rk-tier-btn" data-tier="A" onclick="setRankTier('A')" style="color:#22C55E">■ A</div>
+      <div class="rk-tier-btn" data-tier="B" onclick="setRankTier('B')" style="color:#2563EB">■ B</div>
+      <div class="rk-tier-btn" data-tier="C" onclick="setRankTier('C')" style="color:#94A3C0">■ C</div>
+    </div>
+  </div>
+  <div class="rk-body">
+    <div class="rk-table-wrap">
+      <table class="rk-tbl">
+        <thead><tr>
+          <th style="width:32px">#</th>
+          <th>Stock</th>
+          <th style="width:52px">Tier</th>
+          <th style="width:120px">Score</th>
+          <th style="width:38px">Dir</th>
+          <th style="width:52px">Agree</th>
+          <th style="width:46px">Inst</th>
+          <th style="width:52px">Breakout</th>
+          <th style="width:52px">FB Risk</th>
+        </tr></thead>
+        <tbody id="rk-tbody"><tr><td colspan="9" class="rk-empty"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="rk-panel" id="rk-panel"></div>
+  </div>
+</div>
 </div><!-- end main -->
 </div><!-- end body -->
 </div><!-- end term -->
@@ -1918,7 +2169,7 @@ async function init(){
 init();
 
 // ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
-var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii'];
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings'];
 var activeView = 'dashboard';
 
 function switchView(view) {
@@ -1954,6 +2205,7 @@ function switchView(view) {
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
+  if (view === 'rankings') renderRankingsView();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
