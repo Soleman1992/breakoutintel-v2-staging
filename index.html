@@ -576,31 +576,65 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 
-<!-- VIEW: news -->
+<!-- VIEW: news — News Intelligence Center (AI-scored · NSE + RSS) -->
 <div id="view-news" style="display:none">
-  <div style="padding:14px;display:grid;grid-template-columns:1fr 340px;gap:12px;align-items:start">
-    <div class="panel">
-      <div class="ph"><span class="ph-t">Market Intelligence Feed</span><span class="ph-live"><span class="pulse"></span>Live</span></div>
-      <div id="news-feed"></div>
+  <!-- Breaking News Banner — auto-shown when impact_score >= 80 items exist in last 6h -->
+  <div id="news-breaking-wrap" style="display:none;background:#1a0505;border-bottom:1px solid #4b1616;padding:7px 14px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:9px;font-weight:700;color:var(--dn);letter-spacing:.6px;white-space:nowrap;flex-shrink:0">⚡ BREAKING</span>
+      <div id="news-breaking-ticker" style="flex:1;overflow:hidden;font-size:10px;color:var(--t1);white-space:nowrap;text-overflow:ellipsis"></div>
+      <button onclick="document.getElementById('news-breaking-wrap').style.display='none'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0">✕</button>
     </div>
+  </div>
+  <!-- Tab bar -->
+  <div class="mkt-tabs" id="news-tabs" style="margin:7px 7px 0;overflow-x:auto">
+    <div class="mkt-tab active" onclick="newsTab(this,'high-impact')">⚡ High Impact</div>
+    <div class="mkt-tab" onclick="newsTab(this,'latest')">Latest</div>
+    <div class="mkt-tab" onclick="newsTab(this,'watchlist')">My Watchlist</div>
+    <div class="mkt-tab" onclick="newsTab(this,'earnings')">Earnings</div>
+    <div class="mkt-tab" onclick="newsTab(this,'corporate')">Corp. Actions</div>
+    <div class="mkt-tab" onclick="newsTab(this,'deals')">Bulk / Block</div>
+  </div>
+  <!-- 2-col layout -->
+  <div style="padding:0 7px 10px;display:grid;grid-template-columns:1fr 296px;gap:10px;align-items:start">
+    <!-- Left: Feed -->
+    <div class="panel" style="border-top:none;border-radius:0 0 8px 8px">
+      <div class="ph">
+        <span class="ph-t" id="news-feed-title">High Impact News</span>
+        <span class="ph-cnt" id="news-feed-cnt">—</span>
+      </div>
+      <div id="news-main-feed" style="max-height:calc(100vh - 230px);overflow-y:auto">
+        <div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>
+      </div>
+      <div class="data-src"><span id="news-feed-src">AI-scored · NSE Corporate Announcements + RSS</span><span id="news-feed-ts">—</span></div>
+    </div>
+    <!-- Right: Sidebar -->
     <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- Sentiment Gauge -->
       <div class="panel">
-        <div class="ph"><span class="ph-t">Sentiment Gauge</span></div>
-        <div style="padding:14px;text-align:center">
-          <div style="font-size:36px;font-weight:500;color:var(--t3)" id="sent-label">—</div>
-          <div style="font-size:10px;color:var(--t3);margin:4px 0 12px">Overall market sentiment · /market/health</div>
-          <div style="height:8px;background:#0d1829;border-radius:4px;overflow:hidden">
+        <div class="ph"><span class="ph-t">Market Sentiment</span></div>
+        <div style="padding:12px 14px;text-align:center">
+          <div style="font-size:28px;font-weight:500;color:var(--t3)" id="sent-label">—</div>
+          <div style="font-size:9px;color:var(--t3);margin:3px 0 10px">Market health · /market/health</div>
+          <div style="height:7px;background:#0d1829;border-radius:4px;overflow:hidden">
             <div id="sent-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px;transition:width .6s"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span id="sent-score">loading...</span><span>Bullish</span></div>
         </div>
       </div>
+      <!-- Intelligence Stats -->
       <div class="panel">
-        <div class="ph"><span class="ph-t">Corporate Announcements</span><span class="ph-cnt" id="corp-ann-cnt">—</span></div>
-        <div id="corp-ann-feed" style="max-height:400px;overflow-y:auto">
-          <div style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</div>
+        <div class="ph"><span class="ph-t">Intelligence Stats</span></div>
+        <div id="news-stats-panel" style="padding:10px 14px">
+          <div style="padding:6px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span></div>
         </div>
-        <div class="data-src"><span id="corp-ann-src">NSE Corporate Announcements</span><span id="corp-ann-ts">—</span></div>
+      </div>
+      <!-- Trending Stocks (24h mention count) -->
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Trending Stocks</span><span class="ph-live"><span class="pulse"></span>24h</span></div>
+        <div id="news-trending-panel" style="max-height:220px;overflow-y:auto">
+          <div style="padding:6px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -626,13 +660,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 
-<!-- VIEW: alerts-news -->
+<!-- VIEW: alerts-news — real high-impact AI-scored news (impact >= 60) -->
 <div id="view-alerts-news" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-newspaper" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">News Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Market-moving news, earnings surprises, and regulatory announcements affecting your watchlist will surface here. Requires a news intelligence feed to be connected.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — news feed not connected</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">High Impact News Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>AI-scored</span>
+        <span class="ph-cnt" id="news-alerts-cnt">—</span>
+      </div>
+      <div id="news-alerts-feed" style="max-height:calc(100vh - 160px);overflow-y:auto">
+        <div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>
+      </div>
+      <div class="data-src"><span>AI-scored · impact ≥ 60 · NSE + RSS</span><span id="news-alerts-ts">—</span></div>
+    </div>
   </div>
 </div>
 
@@ -1876,7 +1917,8 @@ function switchView(view) {
 
   // Lazy-load view content
   if (view === 'scanner') renderScan2();
-  if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); loadSentimentGauge(); }
+  if (view === 'news') { initNewsView(); }
+  if (view === 'alerts-news') { loadNewsAlerts(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
@@ -1957,41 +1999,308 @@ function scan2Tab(el, key) {
 
 function filterScan2() { renderScan2(); }
 
-// ─── NEWS FEED — real NSE corporate announcements (no fabricated headlines) ──
-// Replaces the previous hardcoded NEWS_ITEMS array. Reuses the same real
-// /market/corporate-announcements endpoint already powering the Corporate
-// Announcements panel, rather than maintaining a second fake data source.
-var newsFeedLoaded = false;
-async function renderNewsFeed() {
-  var feed = document.getElementById('news-feed');
-  if (!feed || newsFeedLoaded) return;
+// ─── NEWS INTELLIGENCE CENTER ─────────────────────────────────────────────────
+// All data sourced from real API calls — /news/*, /news/high-impact, etc.
+// AI scoring is done on the backend by Claude (never fabricated client-side).
+// Affected stock symbols are pre-validated against the UNIVERSE before storage.
+
+var newsState     = {};          // per-tab session cache
+var newsActiveTab = 'high-impact';
+var newsViewLoaded  = false;     // sidebar panels loaded once per page load
+var newsAlertsLoaded = false;    // alerts-news view loaded once per session
+
+var NEWS_TAB_TITLES = {
+  'high-impact': 'High Impact News',
+  'latest':      'Latest News',
+  'watchlist':   'My Watchlist News',
+  'earnings':    'Earnings & Results',
+  'corporate':   'Corporate Actions',
+  'deals':       'Bulk / Block Deals',
+};
+
+// Called from switchView('news')
+async function initNewsView() {
+  if (!newsViewLoaded) {
+    // Fire sidebar loaders in parallel — they fill in independently
+    loadBreakingBanner();
+    loadNewsStats();
+    loadNewsTrending();
+    loadSentimentGauge();
+    newsViewLoaded = true;
+  }
+  await loadNewsTab(newsActiveTab);
+}
+
+// Tab switcher — called by onclick on each tab
+async function newsTab(el, key) {
+  newsActiveTab = key;
+  document.querySelectorAll('#news-tabs .mkt-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  var titleEl = document.getElementById('news-feed-title');
+  if (titleEl) titleEl.textContent = NEWS_TAB_TITLES[key] || key;
+  await loadNewsTab(key);
+}
+
+// Fetch and render data for the active tab
+async function loadNewsTab(key) {
+  var feed  = document.getElementById('news-main-feed');
+  var cntEl = document.getElementById('news-feed-cnt');
+  var srcEl = document.getElementById('news-feed-src');
+  var tsEl  = document.getElementById('news-feed-ts');
+  if (!feed) return;
+
+  // Session cache — tab data stays fresh until page reload
+  if (newsState[key]) { renderNewsItems(newsState[key], feed, cntEl, srcEl, tsEl, key); return; }
+
   feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>';
+  if (cntEl) cntEl.textContent = '—';
+
   try {
-    var res = await fetch(BACKEND + '/market/corporate-announcements?limit=20', { signal: AbortSignal.timeout(25000) });
-    var d = await res.json();
-    newsFeedLoaded = true;
-    if (!d.ok || !d.data || !d.data.length) {
-      feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No market announcements available currently</div>';
+    var data;
+    if (key === 'high-impact') {
+      var r = await fetch(BACKEND + '/news/high-impact?limit=40', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'latest') {
+      var r = await fetch(BACKEND + '/news?limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'watchlist') {
+      // Get open positions then cross-reference news
+      var posR   = await fetch(BACKEND + '/portfolio/positions', {
+        headers: { 'x-user-id': PORTFOLIO_USER_ID }, signal: AbortSignal.timeout(10000),
+      });
+      var posD   = await posR.json();
+      var syms   = [];
+      if (posD.ok && posD.data) {
+        syms = posD.data
+          .filter(p => p.status === 'open' || p.status === 'partial')
+          .map(p => (p.nse_symbol || p.sym || '').replace(/\.NS$/, ''))
+          .filter(Boolean);
+      }
+      if (!syms.length) {
+        data = { ok: true, data: [], message: 'No open positions — add positions in Portfolio to see watchlist news' };
+      } else {
+        var wR = await fetch(BACKEND + '/news/watchlist?symbols=' + encodeURIComponent(syms.join(',')), { signal: AbortSignal.timeout(15000) });
+        data = await wR.json();
+      }
+
+    } else if (key === 'earnings') {
+      var r = await fetch(BACKEND + '/news?category=Earnings&limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'corporate') {
+      var r = await fetch(BACKEND + '/news?category=Corporate+Action&limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'deals') {
+      // Merge Bulk Deal + Block Deal results
+      var [bkR, blR] = await Promise.all([
+        fetch(BACKEND + '/news?category=Bulk+Deal&limit=30',  { signal: AbortSignal.timeout(15000) }),
+        fetch(BACKEND + '/news?category=Block+Deal&limit=30', { signal: AbortSignal.timeout(15000) }),
+      ]);
+      var bk = await bkR.json();
+      var bl = await blR.json();
+      var merged = [...(bk.data || []), ...(bl.data || [])];
+      merged.sort((a, b) => new Date(b.published_at || b.fetched_at) - new Date(a.published_at || a.fetched_at));
+      data = { ok: true, data: merged };
+
+    } else {
+      data = { ok: true, data: [] };
+    }
+
+    newsState[key] = data;
+    renderNewsItems(data, feed, cntEl, srcEl, tsEl, key);
+  } catch (e) {
+    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
+// Render a list of news items into a container
+function renderNewsItems(d, container, cntEl, srcEl, tsEl, tabKey) {
+  if (tsEl) tsEl.textContent = nowIST();
+  if (srcEl) srcEl.textContent = 'AI-scored · NSE Corporate Announcements + RSS';
+
+  if (!d || !d.ok) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable${d && d.error ? ' — '+d.error : ''}</div>`;
+    if (cntEl) cntEl.textContent = '—';
+    return;
+  }
+
+  var items = d.data || [];
+  if (cntEl) cntEl.textContent = items.length || '0';
+
+  if (!items.length) {
+    var msg = d.message || 'No items yet — the AI scoring engine is building up. Announcements are scored every 20 minutes.';
+    container.innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--t3);font-size:10px;line-height:1.8">${msg}</div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(newsItemHtml).join('');
+}
+
+// Build HTML for a single news item card
+function newsItemHtml(item) {
+  var impact    = item.impact_score;
+  var impactBg  = impact >= 80 ? '#2e0d0d' : impact >= 60 ? '#2a1e06' : impact >= 40 ? '#0d1b35' : '#111520';
+  var impactCl  = impact >= 80 ? 'var(--dn)' : impact >= 60 ? 'var(--warn)' : impact >= 40 ? 'var(--acc2)' : 'var(--t3)';
+  var leftBorder= impact >= 80 ? 'border-left:2px solid var(--dn);' : impact >= 60 ? 'border-left:2px solid var(--warn);' : '';
+
+  var sentCl    = item.sentiment==='Bullish' ? 'var(--up)' : item.sentiment==='Bearish' ? 'var(--dn)' : 'var(--t3)';
+  var sentBg    = item.sentiment==='Bullish' ? '#0d2e1a' : item.sentiment==='Bearish' ? '#2e0d0d' : '#111520';
+
+  var cat       = item.category || 'General';
+  var catCol    = CORP_ANN_COLORS[cat] || {c:'var(--t3)', bg:'#111520'};
+
+  var affected  = Array.isArray(item.affected_stocks)  ? item.affected_stocks  : [];
+  var sectors   = Array.isArray(item.affected_sectors) ? item.affected_sectors.slice(0,2) : [];
+  var timeStr   = newsTimeAgo(item.published_at || item.fetched_at);
+
+  return `<div style="padding:10px 12px;border-bottom:1px solid var(--bd);${leftBorder}${leftBorder ? 'padding-left:10px;' : ''}">
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
+      ${item.symbol ? `<span class="sym" style="font-size:9px">${item.symbol}</span>` : ''}
+      ${impact != null ? `<span style="font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;background:${impactBg};color:${impactCl}">⚡${impact}</span>` : ''}
+      ${item.sentiment ? `<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${sentBg};color:${sentCl}">${item.sentiment}</span>` : ''}
+      ${item.urgency && item.urgency !== 'Background' ? `<span style="font-size:8px;color:var(--t3)">${item.urgency}</span>` : ''}
+      <span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${catCol.bg};color:${catCol.c}">${cat}</span>
+    </div>
+    <div style="font-size:10px;font-weight:500;color:var(--t1);line-height:1.4;margin-bottom:${item.why_it_matters ? '6px' : '4px'}">${item.title || ''}</div>
+    ${item.why_it_matters ? `<div style="font-size:9px;color:var(--t2);line-height:1.5;margin-bottom:4px;padding:5px 8px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--acc2)"><span style="color:var(--acc2);font-weight:600">Why it matters · </span>${item.why_it_matters}</div>` : ''}
+    ${item.trading_implication ? `<div style="font-size:9px;color:var(--t2);line-height:1.5;margin-bottom:5px;padding:5px 8px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--warn)"><span style="color:var(--warn);font-weight:600">Trade · </span>${item.trading_implication}</div>` : ''}
+    ${affected.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${affected.map(s=>`<span class="sym" style="font-size:8px">${s}</span>`).join('')}</div>` : ''}
+    <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+      <span style="font-size:8px;color:var(--t3)">${item.source || 'NSE'}</span>
+      ${timeStr ? `<span style="font-size:8px;color:var(--t3)">${timeStr}</span>` : ''}
+      ${sectors.length ? `<span style="font-size:8px;color:var(--t3)">${sectors.join(' · ')}</span>` : ''}
+      ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" style="font-size:8px;color:var(--acc2);text-decoration:none">↗ Source</a>` : ''}
+    </div>
+  </div>`;
+}
+
+// Relative timestamp formatter
+function newsTimeAgo(iso) {
+  if (!iso) return '';
+  try {
+    var mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  } catch { return ''; }
+}
+
+// Breaking news banner — auto-shows when impact_score >= 80 items exist in last 6h
+async function loadBreakingBanner() {
+  var wrap   = document.getElementById('news-breaking-wrap');
+  var ticker = document.getElementById('news-breaking-ticker');
+  if (!wrap || !ticker) return;
+  try {
+    var r = await fetch(BACKEND + '/news/breaking', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data || !d.data.length) { wrap.style.display = 'none'; return; }
+    ticker.textContent = d.data.slice(0, 5)
+      .map(i => (i.symbol ? i.symbol + ' — ' : '') + i.title)
+      .join('  ·  ');
+    wrap.style.display = 'block';
+  } catch { wrap.style.display = 'none'; }
+}
+
+// Intelligence Stats sidebar panel
+async function loadNewsStats() {
+  var panel = document.getElementById('news-stats-panel');
+  if (!panel) return;
+  try {
+    var r = await fetch(BACKEND + '/news/stats', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data) {
+      panel.innerHTML = '<div style="font-size:9px;color:var(--t3);padding:4px;text-align:center">No stats yet</div>';
       return;
     }
-    feed.innerHTML = d.data.map(a => {
-      var col = (typeof CORP_ANN_COLORS !== 'undefined' && CORP_ANN_COLORS[a.category]) || { c: 'var(--t2)', bg: '#1a1f2e' };
-      return `
-    <div class="al-it" style="padding:10px 14px">
-      <div class="al-ic" style="background:${col.bg};color:${col.c};width:36px;height:36px;font-size:9px;flex-shrink:0">${(a.category||'NEWS').slice(0,3).toUpperCase()}</div>
-      <div class="al-b" style="flex:1">
-        <div style="font-size:11px;font-weight:500;color:var(--t1);margin-bottom:3px">${a.sym} — ${a.subject||''}</div>
-        <div style="font-size:9px;color:var(--t3);line-height:1.5">${a.sector||''}</div>
-        <div style="margin-top:5px;display:flex;gap:8px;align-items:center">
-          <span style="font-size:9px;color:var(--t3)">${a.timestamp||''}</span>
-          <span style="font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;background:${col.bg};color:${col.c}">${a.category||'General'}</span>
+    var s = d.data;
+    // Update sidebar News Alerts badge with real high-impact count
+    var sbNws = document.getElementById('sb-nws');
+    if (sbNws && s.highImpact != null) sbNws.textContent = s.highImpact || '—';
+    panel.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--t1)">${s.total||0}</div>
+          <div style="font-size:8px;color:var(--t3)">Total Items</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--acc2)">${s.scored||0}</div>
+          <div style="font-size:8px;color:var(--t3)">AI Scored</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--dn)">${s.highImpact||0}</div>
+          <div style="font-size:8px;color:var(--t3)">High Impact</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--t2)">${s.last24h||0}</div>
+          <div style="font-size:8px;color:var(--t3)">Last 24h</div>
         </div>
       </div>
-    </div>`;
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:9px;padding:0 2px">
+        <span class="up">▲ ${(s.sentiment&&s.sentiment.bullish)||0} Bull</span>
+        <span style="color:var(--t3)">${s.avgImpact != null ? '~'+s.avgImpact+' avg' : '—'}</span>
+        <span class="dn">▼ ${(s.sentiment&&s.sentiment.bearish)||0} Bear</span>
+      </div>`;
+  } catch {
+    panel.innerHTML = '<div style="font-size:9px;color:var(--t3);padding:4px;text-align:center">Unavailable</div>';
+  }
+}
+
+// Trending Stocks sidebar panel — most-mentioned symbols in last 24h
+async function loadNewsTrending() {
+  var panel = document.getElementById('news-trending-panel');
+  if (!panel) return;
+  try {
+    var r = await fetch(BACKEND + '/news/trending', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data || !d.data.length) {
+      panel.innerHTML = '<div style="padding:10px;text-align:center;font-size:9px;color:var(--t3)">No trending data yet</div>';
+      return;
+    }
+    panel.innerHTML = d.data.map((r, i) => {
+      var sentCl = r.dominant_sentiment==='Bullish' ? 'var(--up)' : r.dominant_sentiment==='Bearish' ? 'var(--dn)' : 'var(--t3)';
+      var sentMk = r.dominant_sentiment==='Bullish' ? '▲' : r.dominant_sentiment==='Bearish' ? '▼' : '—';
+      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-bottom:1px solid var(--bd)">
+        <span style="font-size:9px;color:var(--t3);width:12px;flex-shrink:0">${i+1}</span>
+        <span class="sym" style="font-size:9px;flex-shrink:0">${r.symbol}</span>
+        <span style="font-size:9px;color:var(--t2);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${r.name||''}</span>
+        <span style="font-size:8px;color:var(--t3);flex-shrink:0">${r.mention_count}×</span>
+        <span style="font-size:9px;color:${sentCl};flex-shrink:0">${sentMk}</span>
+      </div>`;
     }).join('');
+  } catch {
+    panel.innerHTML = '<div style="padding:10px;text-align:center;font-size:9px;color:var(--t3)">Unavailable</div>';
+  }
+}
+
+// News Alerts view (alerts-news sidebar entry) — high-impact AI-scored news
+async function loadNewsAlerts() {
+  if (newsAlertsLoaded) return;
+  var feed  = document.getElementById('news-alerts-feed');
+  var cntEl = document.getElementById('news-alerts-cnt');
+  var tsEl  = document.getElementById('news-alerts-ts');
+  if (!feed) return;
+  try {
+    var r = await fetch(BACKEND + '/news/high-impact?limit=40', { signal: AbortSignal.timeout(15000) });
+    var d = await r.json();
+    newsAlertsLoaded = true;
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      feed.innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--t3);font-size:10px;line-height:1.8">No high-impact news scored yet.<br>The AI scoring engine builds up as new announcements arrive every 20 minutes.</div>';
+      if (cntEl) cntEl.textContent = '0';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    feed.innerHTML = d.data.map(newsItemHtml).join('');
   } catch (e) {
-    newsFeedLoaded = true;
-    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    newsAlertsLoaded = true;
+    if (feed) feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (cntEl) cntEl.textContent = '—';
   }
 }
 
