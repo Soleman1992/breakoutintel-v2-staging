@@ -24,6 +24,7 @@ let portfolio = null;
 let transactions = null;
 let analytics = null;
 let intelligence = null;
+let newsIntelligence = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -744,6 +745,12 @@ async function start() {
       const intelligenceRouter = require('./routes/intelligence');
       app.use('/portfolio/intelligence', intelligenceRouter(intelligence));
       console.log('[Intelligence] Routes registered ✓');
+
+      const NewsIntelligenceService = require('./services/newsIntelligence');
+      newsIntelligence = new NewsIntelligenceService(db, redisClient || {
+        get: async () => null, setEx: async () => null, del: async () => null,
+      }, null); // nseData injected after market services init
+      console.log('[NewsIntelligence] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
@@ -792,9 +799,108 @@ async function start() {
       intelligence.scanner = scanner;
       console.log('[Intelligence] Market + Scanner injected ✓');
     }
+    if (newsIntelligence) {
+      newsIntelligence.nse = nseData;
+      console.log('[NewsIntelligence] NSE data service injected ✓');
+    }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
   }
+
+  // ── News Intelligence Center ───────────────────────────────────────────────
+  // All routes return { ok, data } — gracefully degrade when service not ready.
+
+  // GET /news — paginated list with optional ?category=&sentiment= filters
+  app.get('/news', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [], message: 'News service initializing' });
+      const limit    = Math.min(parseInt(req.query.limit  || '30'), 100);
+      const offset   = Math.max(parseInt(req.query.offset || '0'),  0);
+      const category = req.query.category  || null;
+      const sentiment= req.query.sentiment || null;
+      const result   = await newsIntelligence.getNews({ limit, offset, category, sentiment });
+      res.json(result);
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/breaking — items with impact_score >= 80 in last 6 hours
+  app.get('/news/breaking', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getBreaking());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/high-impact — items with impact_score >= 60 in last 24 hours
+  app.get('/news/high-impact', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const limit = Math.min(parseInt(req.query.limit || '20'), 50);
+      res.json(await newsIntelligence.getHighImpact({ limit }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/watchlist?symbols=RELIANCE,TCS,INFY — cross-references portfolio symbols
+  app.get('/news/watchlist', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const symbols = (req.query.symbols || '').split(',').map(s => s.trim()).filter(Boolean);
+      res.json(await newsIntelligence.getWatchlistNews(symbols));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/stock/:symbol — all news for a specific NSE symbol
+  app.get('/news/stock/:symbol', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getByStock(req.params.symbol));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/sector/:sector — news affecting a sector
+  app.get('/news/sector/:sector', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getBySector(req.params.sector));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/trending — most-mentioned stocks in last 24 hours
+  app.get('/news/trending', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getTrending());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/stats — aggregate stats (total, scored, sentiment distribution)
+  app.get('/news/stats', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: null });
+      res.json(await newsIntelligence.getStats());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/search?q=<term> — title / symbol / company search
+  app.get('/news/search', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const q     = (req.query.q || '').trim();
+      if (!q) return res.status(400).json({ ok: false, error: 'q parameter required' });
+      const limit = Math.min(parseInt(req.query.limit || '20'), 50);
+      res.json(await newsIntelligence.search({ q, limit }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/timeline?symbol=RELIANCE&days=30 — day-by-day aggregation
+  app.get('/news/timeline', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const symbol = req.query.symbol || null;
+      const days   = Math.min(parseInt(req.query.days || '30'), 90);
+      res.json(await newsIntelligence.getTimeline({ symbol, days }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
 
   // ── Catch-all + error handler — registered last so API routes take priority ─
   app.get('*', (req, res) => {
