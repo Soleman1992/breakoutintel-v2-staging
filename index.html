@@ -3729,7 +3729,7 @@ function renderRankingsTable() {
       '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
         '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
         '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
-      '<td><span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:2px 8px;border-radius:4px">' + tier + '</span></td>' +
+      '<td><span class="rec-badge " + rec.cls + "">' + rec.label + '</span></td>' +
       '<td><div style="display:flex;align-items:center;gap:6px">' +
         '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
         '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
@@ -3781,9 +3781,19 @@ async function openRankDrill(ticker) {
     if (!json.ok || !json.data) { panel.innerHTML = '<div style="padding:20px;color:var(--dn)">No data for ' + ticker + '</div>'; return; }
     var r = json.data;
     var engines = r.engines || {};
-    var explain = r.explain || {};
-    var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0' };
-    var tc = TIER_C[r.tier] || '#94A3C0';
+    var explain = r.explainData || r.explain || {};
+
+    // Recommendation (presentation layer — no engine calculations changed)
+    var rec = getRecommendation(r);
+    var reasons = getRecReasons(r);
+
+    var bullTags = reasons.bull.slice(0, 4).map(function(b) {
+      return '<span style="font-size:9px;background:#052e16;color:#22C55E;padding:2px 7px;border-radius:4px;white-space:nowrap">\u2713 ' + b + '</span>';
+    }).join('');
+    var riskTags = reasons.risk.slice(0, 4).map(function(b) {
+      return '<span style="font-size:9px;background:#2d0d0d;color:#EF4444;padding:2px 7px;border-radius:4px;white-space:nowrap">\u2717 ' + b + '</span>';
+    }).join('');
+
     var ENG_NAMES = { emavol:'EMA + Vol', lux:'LuxAlgo', trendspider:'TrendSpider', chartprime:'ChartPrime', algoalpha:'AlgoAlpha' };
 
     function chip(label, val, positive, inverse) {
@@ -3796,43 +3806,52 @@ async function openRankDrill(ticker) {
       var s = e.score || 0;
       var bc = s >= 80 ? '#22C55E' : s >= 60 ? '#2563EB' : '#94A3C0';
       var dc = e.direction === 'long' ? 'var(--up)' : e.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
-      var di = e.direction === 'long' ? '▲' : e.direction === 'short' ? '▼' : '—';
+      var di = e.direction === 'long' ? '\u25b2' : e.direction === 'short' ? '\u25bc' : '\u2014';
       return '<div class="rk-eng-bar"><span class="rk-eng-name">' + (ENG_NAMES[id]||id) + '</span>' +
         '<div class="rk-bar-track"><div class="rk-bar-fill" style="width:' + s + '%;background:' + bc + '"></div></div>' +
         '<span style="font-size:11px;font-weight:600;color:var(--t1);width:26px;text-align:right;flex-shrink:0">' + s + '</span>' +
         '<span style="width:14px;font-size:10px;color:' + dc + ';flex-shrink:0">' + di + '</span></div>';
     }).join('');
 
-    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">✓ ' + s + '</div>'; }).join('');
-    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">⚠ ' + s + '</div>'; }).join('');
+    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">\u2713 ' + s + '</div>'; }).join('');
+    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">\u26a0 ' + s + '</div>'; }).join('');
 
     panel.innerHTML =
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">' +
-        '<div><div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
-        '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' · ' + (r.sector||'') + '</div></div>' +
-        '<div style="display:flex;align-items:center;gap:7px">' +
-          '<span style="font-size:24px;font-weight:700;color:' + tc + '">' + (r.consensusScore||0) + '</span>' +
-          '<span style="font-weight:700;color:' + tc + ';background:' + tc + '22;padding:3px 10px;border-radius:5px">Tier ' + (r.tier||'—') + '</span>' +
-          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
+          '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' \u00b7 ' + (r.sector||'Unknown') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:22px;font-weight:700;color:' + rec.color + '">' + (r.consensusScore||0) + '</span>' +
+          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:2px 4px">\u00d7</button>' +
         '</div>' +
       '</div>' +
+      '<div style="background:var(--bg2);border:1px solid ' + rec.color + '44;border-radius:8px;padding:12px;margin-bottom:10px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">' +
+          '<span style="font-size:14px;font-weight:700;letter-spacing:.04em;color:' + rec.color + '">' + rec.label + '</span>' +
+          '<span style="font-size:9px;padding:2px 8px;border-radius:10px;border:1px solid var(--bd);color:var(--t2)">' + rec.confLabel + '</span>' +
+        '</div>' +
+        '<div style="font-size:10px;color:var(--t2);font-style:italic;margin-bottom:8px">' + rec.action + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:4px">' + bullTags + riskTags + '</div>' +
+      '</div>' +
       '<div class="rk-metric-grid">' +
-        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '—'), r.agreementPct >= 80) +
-        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '—', r.confidenceScore >= 65) +
-        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '—', r.institutionalProb >= 65) +
-        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '—', r.trendContinuationProb >= 65) +
-        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '—', r.breakoutProb >= 65) +
-        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '—', (r.falseBORisk||100) < 25, true) +
+        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '\u2014'), r.agreementPct >= 80) +
+        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '\u2014', r.confidenceScore >= 65) +
+        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '\u2014', r.institutionalProb >= 60) +
+        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '\u2014', r.trendContinuationProb >= 60) +
+        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '\u2014', r.breakoutProb >= 65) +
+        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '\u2014', (r.falseBORisk||100) < 25, true) +
       '</div>' +
       '<div class="rk-sec-label">Engine Breakdown</div>' +
       engBars +
       (posHtml || rskHtml ? (
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' +
-          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">None</div>') + '</div>' +
-          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--up)">None ✓</div>') + '</div>' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">\u2014</div>') + '</div>' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--t3)">\u2014</div>') + '</div>' +
         '</div>'
       ) : '') +
-      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:10px;margin-top:12px;line-height:1.6">' + explain.summary + '</div>' : '');
+      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:8px;margin-top:8px;line-height:1.5">' + explain.summary + '</div>' : '');
   } catch(e) {
     panel.innerHTML = '<div style="padding:20px;color:var(--dn)">Error: ' + e.message + '</div>';
   }
