@@ -257,7 +257,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .footer{text-align:center;padding:4px;font-size:9px;color:var(--t3);flex-shrink:0}
 
 /* ─── RANKINGS VIEW ──────────────────────────────────────────────────────── */
-#view-rankings{display:flex;flex-direction:column;height:calc(100vh - 46px);overflow:hidden}
+#view-rankings{display:flex;flex-direction:column;position:fixed;top:46px;left:0;right:0;bottom:0;z-index:50;background:var(--bg0)}
 .rk-hdr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--bg1);flex-shrink:0}
 .rk-hdr-title{font-size:12px;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px;flex:1}
 .rk-status{font-size:10px;color:var(--t3)}
@@ -776,7 +776,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
         <thead><tr>
           <th style="width:32px">#</th>
           <th>Stock</th>
-          <th style="width:52px">Tier</th>
+          <th style="width:96px">Signal</th>
           <th style="width:120px">Score</th>
           <th style="width:38px">Dir</th>
           <th style="width:52px">Agree</th>
@@ -2018,9 +2018,14 @@ function switchView(view) {
     else if (view === 'rankings') { target.style.display = 'flex'; }
     else target.style.display = 'block';
   }
-  // Rankings needs full viewport — remove main padding
+  // Rankings: fixed overlay from sidebar right edge
   var mainEl = document.getElementById('main');
   if (mainEl) mainEl.style.padding = (view === 'rankings') ? '0' : '7px';
+  var rkView = document.getElementById('view-rankings');
+  if (rkView && view === 'rankings') {
+    var sb = document.querySelector('.sidebar');
+    rkView.style.left = (sb ? sb.offsetWidth : 178) + 'px';
+  }
 
   // Update sidebar active state
   document.querySelectorAll('.sb-it').forEach(el => el.classList.remove('active'));
@@ -3729,7 +3734,7 @@ function renderRankingsTable() {
       '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
         '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
         '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
-      '<td><span class="rec-badge " + rec.cls + "">' + rec.label + '</span></td>' +
+      '<td><span class="rec-badge ' + rec.cls + '">' + rec.label + '</span></td>' +
       '<td><div style="display:flex;align-items:center;gap:6px">' +
         '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
         '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
