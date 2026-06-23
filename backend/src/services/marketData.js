@@ -167,26 +167,58 @@ class MarketDataService {
     const cacheKey = 'nse:advdec';
     const cached = await this._safeRedisGet(cacheKey);
     if (cached) return JSON.parse(cached);
-    try {
-      const resp = await axios.get('https://www.nseindia.com/api/equity-stockIndices?index=BROAD%20MARKET%20INDICES', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 15000,
-      });
-      const data = resp.data?.data || [];
-      if (!data.length) {
-        // NSE returned an empty payload — treat as unavailable, not as 0/0
-        return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE returned empty dataset' };
+
+    // ── Index candidates in priority order ─────────────────────────────────
+    // 'BROAD MARKET INDICES' was retired by NSE (returns 404 since ~2025).
+    // 'NIFTY 500' is confirmed live — used by nseData.js getMarketBreadth().
+    // 'NIFTY 100' and 'NIFTY 50' are kept as fallbacks in case NSE renames again.
+    const NSE_ADV_DEC_INDICES = [
+      'NIFTY 500',   // 500-stock universe — best breadth signal; confirmed working
+      'NIFTY 100',   // fallback
+      'NIFTY 50',    // last resort — smaller but always present
+    ];
+
+    for (const indexName of NSE_ADV_DEC_INDICES) {
+      try {
+        const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
+        const resp = await axios.get(url, {
+          headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+          timeout: 10000,
+        });
+        const data = resp.data?.data || [];
+        if (!data.length) continue; // try next index
+
+        let adv = 0, dec = 0, unch = 0;
+        data.forEach(s => {
+          if      (s.pChange > 0) adv++;
+          else if (s.pChange < 0) dec++;
+          else                    unch++;
+        });
+
+        const result = {
+          ok:        true,
+          advances:  adv,
+          declines:  dec,
+          unchanged: unch,
+          total:     data.length,
+          source:    indexName,
+          fetchedAt: Date.now(),
+        };
+        await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
+        return result;
+      } catch (e) {
+        const status = e.response?.status;
+        // 404 = retired endpoint name, 403 = session blocked — both expected;
+        // try next candidate silently. Log only on unexpected errors.
+        if (status !== 404 && status !== 403) {
+          console.warn(`[NSE] getAdvanceDecline (${indexName}): ${e.message}`);
+        }
+        // continue to next candidate
       }
-      let adv = 0, dec = 0, unch = 0;
-      data.forEach(s => { if (s.pChange > 0) adv++; else if (s.pChange < 0) dec++; else unch++; });
-      const result = { ok: true, advances: adv, declines: dec, unchanged: unch, fetchedAt: Date.now() };
-      await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
-      return result;
-    } catch (e) {
-      // Propagate ok:false — never silently return 0/0 which looks like real data
-      console.warn('[NSE] getAdvanceDecline failed:', e.message);
-      return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: e.message };
     }
+
+    // All candidates failed — return ok:false without logging (callers handle gracefully)
+    return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE A/D unavailable' };
   }
 
   // ── MARKET HEALTH SCORE ───────────────────────────────────────────────────
