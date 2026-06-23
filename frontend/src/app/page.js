@@ -5,9 +5,22 @@ import TopBar from "../components/TopBar";
 import MarketStatusCard from "../components/MarketStatusCard";
 import SectorHeatmap from "../components/SectorHeatmap";
 import ScannerTable from "../components/ScannerTable";
+import BreakoutAlertsPanel from "../components/BreakoutAlertsPanel";
+import VolumeAlertsPanel from "../components/VolumeAlertsPanel";
+import NewsIntelligencePanel from "../components/NewsIntelligencePanel";
 
 export default function Home() {
-  const { connected, indices, sectors, scanner, lastUpdate, error } = useMarketData();
+  const {
+    connected,
+    indices,
+    sectors,
+    scanner,
+    lastUpdate,
+    error,
+    breakoutAlerts,
+    volumeAlerts,
+    newsAlerts,
+  } = useMarketData();
 
   return (
     <main className="bg-slate-950 text-slate-100 min-h-screen">
@@ -51,6 +64,19 @@ export default function Home() {
 
         {/* Scanner Signals Table */}
         <ScannerTable scanner={scanner} />
+
+        {/* Intelligence Alert Panels */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="min-h-[480px] flex flex-col">
+            <BreakoutAlertsPanel alerts={breakoutAlerts} />
+          </div>
+          <div className="min-h-[480px] flex flex-col">
+            <VolumeAlertsPanel alerts={volumeAlerts} />
+          </div>
+          <div className="min-h-[480px] flex flex-col">
+            <NewsIntelligencePanel alerts={newsAlerts} />
+          </div>
+        </div>
       </div>
     </main>
   );

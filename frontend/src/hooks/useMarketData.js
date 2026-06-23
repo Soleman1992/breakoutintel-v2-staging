@@ -19,6 +19,9 @@ export function useMarketData() {
   const [marketStatus, setMarketStatus] = useState('UNKNOWN');
   const [lastUpdate, setLastUpdate] = useState(null);
   const [error, setError] = useState(null);
+  const [breakoutAlerts, setBreakoutAlerts] = useState([]);
+  const [volumeAlerts, setVolumeAlerts] = useState([]);
+  const [newsAlerts, setNewsAlerts] = useState([]);
 
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
@@ -61,8 +64,16 @@ export function useMarketData() {
               if (msg.data.indices) setIndices(msg.data.indices);
               if (msg.data.sectors) setSectors(msg.data.sectors);
               break;
+            case 'breakout_alerts':
+              setBreakoutAlerts(msg.data.alerts || []);
+              break;
+            case 'volume_alerts':
+              setVolumeAlerts(msg.data.alerts || []);
+              break;
+            case 'news_alerts':
+              setNewsAlerts(msg.data.alerts || []);
+              break;
             case 'heartbeat':
-              // Connection alive — no action needed
               break;
           }
         } catch (e) {
@@ -94,9 +105,12 @@ export function useMarketData() {
   const fetchViaRest = useCallback(async () => {
     try {
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const [snapshotRes, scannerRes] = await Promise.allSettled([
+      const [snapshotRes, scannerRes, boRes, volRes, newsRes] = await Promise.allSettled([
         fetch(`${API}/market/snapshot`).then(r => r.json()),
         fetch(`${API}/scanner/results`).then(r => r.json()),
+        fetch(`${API}/alerts/breakout`).then(r => r.json()),
+        fetch(`${API}/alerts/volume`).then(r => r.json()),
+        fetch(`${API}/alerts/news`).then(r => r.json()),
       ]);
 
       if (snapshotRes.status === 'fulfilled' && snapshotRes.value.ok) {
@@ -106,9 +120,17 @@ export function useMarketData() {
         if (snap.advDec) setAdvDec(snap.advDec);
         setLastUpdate(new Date());
       }
-
       if (scannerRes.status === 'fulfilled' && scannerRes.value.ok) {
         setScanner(scannerRes.value.data || []);
+      }
+      if (boRes.status === 'fulfilled' && boRes.value.ok) {
+        setBreakoutAlerts(boRes.value.data || []);
+      }
+      if (volRes.status === 'fulfilled' && volRes.value.ok) {
+        setVolumeAlerts(volRes.value.data || []);
+      }
+      if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
+        setNewsAlerts(newsRes.value.data || []);
       }
     } catch (e) {
       console.error('[REST fallback] Error:', e);
@@ -139,6 +161,9 @@ export function useMarketData() {
     marketStatus,
     lastUpdate,
     error,
+    breakoutAlerts,
+    volumeAlerts,
+    newsAlerts,
   };
 }
 
