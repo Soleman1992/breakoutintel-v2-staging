@@ -1,0 +1,40 @@
+[33mcommit c7996a2de31a680e1ce26a0be9c2ccdcba623f9a[m
+Author: Claude (BreakoutIntel Assistant) <claude-assistant@noreply.local>
+Date:   Mon Jun 22 03:12:23 2026 +0000
+
+    feat(news): Prompt 1 — News Intelligence Center foundation
+    
+    - Migration 006: news_items + news_stock_mapping tables with full
+      AI scoring columns (impact_score, confidence, trading_relevance,
+      sentiment, urgency, why_it_matters, trading_implication,
+      affected_sectors, affected_stocks); content_hash UNIQUE dedup key
+    
+    - newsIntelligence.js service:
+      Tier 1: NSE corporate announcements (reuses existing nseData service)
+      Tier 2: RSS ingestion — Moneycontrol, ET Markets, LiveMint
+      Claude AI scoring via @anthropic-ai/sdk; validates all suggested
+      stock symbols against UNIVERSE before storage; skips 'General'
+      category (~60-80% API cost reduction)
+      Redis caching under news:* namespace (isolated from scanner)
+      10 query methods: getNews, getBreaking, getHighImpact, getByStock,
+      getBySector, getWatchlistNews, getTrending, getStats, search, getTimeline
+    
+    - index.js: 10 new routes (/news, /news/breaking, /news/high-impact,
+      /news/watchlist, /news/stock/:symbol, /news/sector/:sector,
+      /news/trending, /news/stats, /news/search, /news/timeline)
+      All routes gracefully degrade when service not ready
+    
+    - worker.js: news refresh job on 20-min interval (NEWS_INTERVAL_MS),
+      isolated from scanner's 45s cycle; 30s startup delay so scanner
+      settles first
+    
+    - package.json: +fast-xml-parser for RSS parsing
+
+ backend/package-lock.json                          | 121 [32m++++[m
+ backend/package.json                               |  17 [32m+[m[31m-[m
+ backend/src/index.js                               | 106 [32m++++[m
+ backend/src/models/migrate.js                      |   1 [32m+[m
+ .../models/migrations/006_news_intelligence.sql    |  59 [32m++[m
+ backend/src/services/newsIntelligence.js           | 687 [32m+++++++++++++++++++++[m
+ backend/src/worker.js                              |  31 [32m+[m[31m-[m
+ 7 files changed, 1010 insertions(+), 12 deletions(-)
