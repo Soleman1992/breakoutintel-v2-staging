@@ -2673,12 +2673,18 @@ async function submitAddPosition(){
   var btn   = document.getElementById('ap-submit-btn');
   errEl.style.display = 'none';
 
-  var symbol   = document.getElementById('ap-symbol').value.trim().toUpperCase();
-  var exchange = document.getElementById('ap-exchange').value;
-  var quantity = parseFloat(document.getElementById('ap-quantity').value);
-  var price    = parseFloat(document.getElementById('ap-price').value);
-  var buyDate  = document.getElementById('ap-date').value;
-  var stopLoss = document.getElementById('ap-stoploss').value;
+  // symbol + exchange come from the selected stock object, not form fields
+  if (!apSelectedStock) {
+    errEl.textContent = 'No stock selected. Please go back to Step 1 and search for a stock.';
+    errEl.style.display = 'block';
+    return;
+  }
+  var symbol   = (apSelectedStock.nseSymbol || apSelectedStock.sym || '').toUpperCase();
+  var exchange = apSelectedStock.exchange || 'NSE';
+  var quantity = parseFloat(document.getElementById('ap-qty').value);
+  var price    = parseFloat(document.getElementById('ap-buy-price').value);
+  var buyDate  = document.getElementById('ap-buy-date').value;
+  var stopLoss = document.getElementById('ap-sl').value;
   var target   = document.getElementById('ap-target').value;
   var notes    = document.getElementById('ap-notes').value.trim();
 
