@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BreakoutIntel AI — NSE/BSE Swing Trading Platform</title>
@@ -3678,6 +3681,88 @@ async function submitDeletePosition() {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
   }
+}
+
+
+// ─── RECOMMENDATION ENGINE (presentation layer — zero engine logic changed) ───
+
+function getRecommendation(r) {
+  var score = r.consensusScore  || 0;
+  var conf  = r.confidenceScore || 50;
+  var agree = r.agreementPct    || 0;
+  var brk   = r.breakoutProb    || 0;
+  var inst  = r.institutionalProb || 0;
+  var fb    = r.falseBORisk != null ? r.falseBORisk : 100;
+  var dir   = r.direction || 'neutral';
+  var label, cls, color;
+
+  if (dir === 'long') {
+    if (score >= 90 && agree >= 80 && fb <= 20 && brk >= 65 && inst >= 60)
+      { label = 'STRONG BUY';  cls = 'rec-sb'; color = '#22C55E'; }
+    else if (score >= 82 && agree >= 80 && fb <= 30 && brk >= 55)
+      { label = 'BUY';         cls = 'rec-b';  color = '#4ADE80'; }
+    else if (score >= 70 && agree >= 60 && fb <= 50)
+      { label = 'WATCHLIST';   cls = 'rec-wl'; color = '#60A5FA'; }
+    else
+      { label = 'NEUTRAL';     cls = 'rec-n';  color = '#EAB308'; }
+  } else if (dir === 'short') {
+    if (score <= 35 && fb > 50)
+      { label = 'STRONG AVOID'; cls = 'rec-sa'; color = '#EF4444'; }
+    else
+      { label = 'AVOID';        cls = 'rec-av'; color = '#F97316'; }
+  } else {
+    if (fb > 60)
+      { label = 'AVOID';   cls = 'rec-av'; color = '#F97316'; }
+    else
+      { label = 'NEUTRAL'; cls = 'rec-n';  color = '#EAB308'; }
+  }
+
+  var ACTIONS = {
+    'STRONG BUY':   'Suitable for immediate consideration',
+    'BUY':          'Favorable setup, monitor entry',
+    'WATCHLIST':    'Monitor for confirmation',
+    'NEUTRAL':      'No edge currently',
+    'AVOID':        'Risk outweighs opportunity',
+    'STRONG AVOID': 'Do not consider unless conditions change'
+  };
+  var confLabel = conf >= 80 ? 'Very High Confidence'
+               : conf >= 65 ? 'High Confidence'
+               : conf >= 50 ? 'Medium Confidence' : 'Low Confidence';
+
+  return { label: label, cls: cls, color: color,
+           action: ACTIONS[label] || '', confLabel: confLabel };
+}
+
+function getRecReasons(r) {
+  var agree = r.agreementPct    || 0;
+  var brk   = r.breakoutProb    || 0;
+  var inst  = r.institutionalProb || 0;
+  var fb    = r.falseBORisk != null ? r.falseBORisk : 100;
+  var dir   = r.direction || 'neutral';
+  var score = r.consensusScore  || 0;
+  var bull = [], risk = [];
+
+  if (dir === 'long') {
+    if (agree >= 80)       bull.push('High engine agreement (' + agree + '%)');
+    else if (agree >= 60)  bull.push('Moderate engine agreement (' + agree + '%)');
+    if (inst >= 65)        bull.push('Strong institutional participation (' + inst + ')');
+    if (brk  >= 65)        bull.push('Breakout probability above threshold (' + brk + ')');
+    if (fb   <= 20)        bull.push('Very low false-breakout risk (' + fb + ')');
+    else if (fb <= 30)     bull.push('Acceptable false-breakout risk (' + fb + ')');
+    if (score >= 85)       bull.push('High consensus score (' + score + ')');
+  }
+  if (dir === 'short')     risk.push('Majority engines bearish — market structure unfavorable');
+  if (dir === 'neutral')   risk.push('No clear directional consensus');
+  if (fb  > 50)            risk.push('High false-breakout risk (' + fb + ')');
+  else if (fb > 30)        risk.push('Elevated false-breakout risk (' + fb + ')');
+  if (brk  < 40)           risk.push('Weak breakout probability (' + brk + ')');
+  if (inst < 40)           risk.push('Institutional participation weak (' + inst + ')');
+  if (agree < 60)          risk.push('Low engine agreement (' + agree + '%)');
+
+  var explain = r.explainData || r.explain || {};
+  (explain.positiveSignals || []).forEach(function(s){ if (bull.length < 5) bull.push(s); });
+  (explain.riskSignals     || []).forEach(function(s){ if (risk.length < 5) risk.push(s); });
+  return { bull: bull, risk: risk };
 }
 
 
