@@ -1073,6 +1073,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       </div>
 
     </div>
+    <div id="ap-error" style="display:none;color:var(--dn);font-size:11px;margin:0 16px 8px;padding:8px 10px;background:#2e0d0d;border-radius:6px;line-height:1.4"></div>
     <div class="ap-footer">
       <button class="ap-btn ap-btn-cancel" onclick="closeAddPosition()">Cancel</button>
       <button class="ap-btn ap-btn-submit" id="ap-submit-btn" onclick="submitAddPosition()" disabled>
@@ -2658,10 +2659,7 @@ const PORTFOLIO_USER_ID = '11111111-1111-1111-1111-111111111111';
 
 // ─── ADD POSITION MODAL ───────────────────────────────────────────────────
 function openAddPositionModal(){
-  document.getElementById('add-position-form').reset();
-  document.getElementById('ap-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('ap-error').style.display = 'none';
-  document.getElementById('add-position-modal').style.display = 'flex';
+  openAddPosition(); // redirect to actual modal
 }
 
 function closeAddPositionModal(){
@@ -2671,7 +2669,7 @@ function closeAddPositionModal(){
 async function submitAddPosition(){
   var errEl = document.getElementById('ap-error');
   var btn   = document.getElementById('ap-submit-btn');
-  errEl.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
 
   // symbol + exchange come from the selected stock object, not form fields
   if (!apSelectedStock) {
@@ -2815,6 +2813,8 @@ function closeAddPosition() {
 }
 
 function resetAddPositionForm() {
+  var errEl = document.getElementById('ap-error');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
   apSelectedStock = null;
   apLivePrice     = null;
   symDDFocusIdx   = -1;
