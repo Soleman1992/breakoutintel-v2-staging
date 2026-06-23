@@ -26,6 +26,7 @@ export function useMarketData() {
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
   const reconnectAttempts = useRef(0);
+  const connectedRef = useRef(false);
 
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
@@ -36,6 +37,7 @@ export function useMarketData() {
 
       socket.onopen = () => {
         setConnected(true);
+        connectedRef.current = true;
         setError(null);
         reconnectAttempts.current = 0;
         console.log('[WS] Connected to BreakoutIntel data feed');
@@ -83,6 +85,7 @@ export function useMarketData() {
 
       socket.onclose = (event) => {
         setConnected(false);
+        connectedRef.current = false;
         console.log(`[WS] Disconnected (code: ${event.code})`);
 
         // Exponential backoff reconnect (max 30s)
@@ -142,7 +145,7 @@ export function useMarketData() {
 
     // REST API fallback — polls every 30s if WebSocket disconnects
     const restFallback = setInterval(() => {
-      if (!connected) fetchViaRest();
+      if (!connectedRef.current) fetchViaRest();
     }, 30000);
 
     return () => {

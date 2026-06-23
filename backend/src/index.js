@@ -332,7 +332,7 @@ app.get('/scanner/institutional', async (req, res) => {
 
 // ── Market — Internals (A/D, 52W H/L, Volume from Yahoo Finance scanner data) ──
 // NSE API is blocked from cloud server IPs, so we derive these from the
-// scanner's last results which are fetched from Yahoo Finance (344 stocks).
+// scanner's last results which are fetched from Yahoo Finance (~1000 stocks).
 // No new API calls — reads scanner.lastResults which is Redis-cached.
 // FII/DII is genuinely unavailable without a licensed data feed.
 app.get('/market/internals', async (req, res) => {
@@ -378,7 +378,7 @@ app.get('/market/internals', async (req, res) => {
         stocksScanned: results.length,
         lastScanAt:   meta.lastScanAt || null,
       },
-      source: 'Yahoo Finance · scanner universe (344 stocks)',
+      source: 'Yahoo Finance · scanner universe (~1000 stocks)',
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

@@ -59,14 +59,6 @@ class AlertsEngine {
   // Returns true if this is a NEW alert (not seen before in this time window).
   // Two-layer: Redis SET (fast) + DB UNIQUE constraint (durable).
 
-  async _isNew(dedupKey, ttlSeconds) {
-    const redisKey = `alerts:dedup`;
-    const isMember = await _redisIsMember.call(this, redisKey, dedupKey);
-    if (isMember) return false;
-    await _redisSadd.call(this, redisKey, ttlSeconds, dedupKey);
-    return true;
-  }
-
   async _isNewAlert(dedupKey, ttlSeconds) {
     const redisKey = `alerts:dedup`;
     try {
