@@ -679,23 +679,61 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 
-<!-- VIEW: alerts-breakout -->
+<!-- VIEW: alerts-breakout — live data from /scanner/breakout-alerts -->
 <div id="view-alerts-breakout" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-bell-ringing" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">Breakout Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Real-time breakout alerts will appear here when a stock crosses its pivot point with volume confirmation. Requires alert rules to be configured.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — no alert rules configured</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">Breakout Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>Live Scanner</span>
+        <span class="ph-cnt" id="ba-cnt">—</span>
+      </div>
+      <div class="sc-wrap" style="max-height:calc(100vh - 170px)">
+        <table class="sc-tbl">
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+            <th>CMP (₹)</th><th>Chg%</th><th>Alert Type</th>
+            <th>Entry</th><th>Stop Loss</th><th>Vol Ratio</th><th>Conf</th>
+          </tr></thead>
+          <tbody id="ba-body">
+            <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading breakout alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-src">
+        <span id="ba-src">Active breakouts from live scanner universe</span>
+        <span id="ba-ts">—</span>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- VIEW: alerts-volume -->
+<!-- VIEW: alerts-volume — live data from /scanner/volume-alerts -->
 <div id="view-alerts-volume" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-chart-bar-popular" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">Volume Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Stocks with unusual volume spikes (3× or more above 20-day average) will be listed here in real time. Powered by the breakout scanner feed.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — scanner feed required</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">Volume Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>Live Scanner</span>
+        <span class="ph-cnt" id="va-cnt">—</span>
+      </div>
+      <div class="sc-wrap" style="max-height:calc(100vh - 170px)">
+        <table class="sc-tbl">
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+            <th>CMP (₹)</th><th>Chg%</th><th>Alert Type</th>
+            <th>Vol Ratio</th><th>Avg Volume</th><th>Cur Volume</th><th>Breakout?</th>
+          </tr></thead>
+          <tbody id="va-body">
+            <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading volume alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-src">
+        <span id="va-src">Stocks with volume ≥ 2.5× 20-day average</span>
+        <span id="va-ts">—</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1523,6 +1561,15 @@ async function loadAlerts(){
   items.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
   items = items.slice(0,8);
   if(cntEl) cntEl.textContent = items.length;
+
+  // Update sidebar badges — Breakout Alerts and Volume Alerts counts
+  var boCount  = (boRes.status==='fulfilled' && boRes.value.ok) ? (boRes.value.data||[]).length : 0;
+  var volCount = (volRes.status==='fulfilled' && volRes.value.ok) ? (volRes.value.data||[]).length : 0;
+  var sbBal = document.getElementById('sb-bal');
+  var sbVol = document.getElementById('sb-vol');
+  if (sbBal) sbBal.textContent = boCount  || '—';
+  if (sbVol) sbVol.textContent = volCount || '—';
+
   if(!feed) return;
   feed.innerHTML = items.length ? items.map(a=>`
     <div class="al-it">
@@ -2048,6 +2095,8 @@ function switchView(view) {
   if (view === 'scanner') renderScan2();
   if (view === 'news') { initNewsView(); }
   if (view === 'alerts-news') { loadNewsAlerts(); }
+  if (view === 'alerts-breakout') { loadBreakoutAlerts(); }
+  if (view === 'alerts-volume') { loadVolumeAlerts(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
@@ -2409,6 +2458,109 @@ async function loadNewsTrending() {
 }
 
 // News Alerts view (alerts-news sidebar entry) — high-impact AI-scored news
+// ─── BREAKOUT ALERTS VIEW ────────────────────────────────────────────────────
+var breakoutAlertsLoaded = false;
+async function loadBreakoutAlerts() {
+  var body  = document.getElementById('ba-body');
+  var cntEl = document.getElementById('ba-cnt');
+  var srcEl = document.getElementById('ba-src');
+  var tsEl  = document.getElementById('ba-ts');
+  if (!body) return;
+  // Always refresh (not cached — scanner results update every 45s)
+  body.innerHTML = '<tr><td colspan="12" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Fetching breakout alerts...</td></tr>';
+  try {
+    var r = await fetch(BACKEND + '/scanner/breakout-alerts?limit=200', { signal: AbortSignal.timeout(20000) });
+    var d = await r.json();
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      body.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--t3)">No active breakout alerts right now — scanner refreshes every 45 seconds.</td></tr>';
+      if (cntEl) cntEl.textContent = '0';
+      if (srcEl) srcEl.textContent = 'Active breakouts · scanner universe';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    if (srcEl) srcEl.textContent = d.data.length + ' active breakouts · scanner universe · ' + nowIST();
+    body.innerHTML = d.data.map(function(a, i) {
+      var chgCls = (a.chg||0) >= 0 ? 'up' : 'dn';
+      var alertBg = a.alertType && a.alertType.toLowerCase().includes('extreme') ? '#2e0d0d'
+                  : a.alertType && a.alertType.toLowerCase().includes('high') ? '#2a1e06' : '#0d2e1a';
+      var alertCol = a.alertType && a.alertType.toLowerCase().includes('extreme') ? 'var(--dn)'
+                   : a.alertType && a.alertType.toLowerCase().includes('high') ? 'var(--warn)' : 'var(--up)';
+      return '<tr onclick="openModal(' + i + ')">' +
+        '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+        '<td><span class="sym">' + (a.sym||'—') + '</span></td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.name||'') + '</td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.sector||'—') + '</td>' +
+        '<td style="font-size:9px;color:var(--t3)">' + (a.cap||'—') + '</td>' +
+        '<td style="color:var(--t1);font-weight:500">₹' + f(a.cmp) + '</td>' +
+        '<td class="' + chgCls + '">' + ((a.chg||0)>=0?'+':'') + f(a.chg,2) + '%</td>' +
+        '<td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:' + alertBg + ';color:' + alertCol + '">' + (a.alertType||'Breakout') + '</span></td>' +
+        '<td style="color:var(--acc2)">₹' + f(a.entry) + '</td>' +
+        '<td class="dn">₹' + f(a.stop) + '</td>' +
+        '<td><span style="color:' + ((a.volRatio||0)>=3?'var(--up)':(a.volRatio||0)>=2?'var(--warn)':'var(--t2)') + '">' + f(a.volRatio,1) + '×</span></td>' +
+        '<td><span class="cn ' + (a.conf>=8?'c-hi':a.conf>=6?'c-md':'c-lo') + '">' + (a.conf||'—') + '</span></td>' +
+        '</tr>';
+    }).join('');
+    // Update sidebar badge too
+    var sbBal = document.getElementById('sb-bal');
+    if (sbBal) sbBal.textContent = d.data.length;
+  } catch (e) {
+    if (body) body.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ' + e.message + '</td></tr>';
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
+// ─── VOLUME ALERTS VIEW ───────────────────────────────────────────────────────
+var volumeAlertsLoaded = false;
+async function loadVolumeAlerts() {
+  var body  = document.getElementById('va-body');
+  var cntEl = document.getElementById('va-cnt');
+  var srcEl = document.getElementById('va-src');
+  var tsEl  = document.getElementById('va-ts');
+  if (!body) return;
+  body.innerHTML = '<tr><td colspan="12" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Fetching volume alerts...</td></tr>';
+  try {
+    var r = await fetch(BACKEND + '/scanner/volume-alerts?limit=200', { signal: AbortSignal.timeout(20000) });
+    var d = await r.json();
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      body.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--t3)">No volume alerts right now — scanner refreshes every 45 seconds.</td></tr>';
+      if (cntEl) cntEl.textContent = '0';
+      if (srcEl) srcEl.textContent = 'Stocks with vol ≥ 2.5× 20-day average';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    if (srcEl) srcEl.textContent = d.data.length + ' volume spikes · vol ≥ 2.5× avg · ' + nowIST();
+    body.innerHTML = d.data.map(function(a, i) {
+      var chgCls = (a.chg||0) >= 0 ? 'up' : 'dn';
+      var vol = a.volRatio || 0;
+      var volCol = vol >= 5 ? 'var(--dn)' : vol >= 3 ? 'var(--warn)' : 'var(--up)';
+      var alertLabel = vol >= 5 ? 'Extreme (5×+)' : vol >= 3 ? 'High (3×+)' : 'Elevated (2.5×+)';
+      var alertBg   = vol >= 5 ? '#2e0d0d' : vol >= 3 ? '#2a1e06' : '#0d2e1a';
+      return '<tr>' +
+        '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+        '<td><span class="sym">' + (a.sym||'—') + '</span></td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.name||'') + '</td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.sector||'—') + '</td>' +
+        '<td style="font-size:9px;color:var(--t3)">' + (a.cap||'—') + '</td>' +
+        '<td style="color:var(--t1);font-weight:500">₹' + f(a.cmp) + '</td>' +
+        '<td class="' + chgCls + '">' + ((a.chg||0)>=0?'+':'') + f(a.chg,2) + '%</td>' +
+        '<td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:' + alertBg + ';color:' + volCol + '">' + alertLabel + '</span></td>' +
+        '<td><span style="color:' + volCol + ';font-weight:500">' + f(vol,1) + '×</span></td>' +
+        '<td style="color:var(--t3)">' + (a.avgVolume ? a.avgVolume.toLocaleString('en-IN') : '—') + '</td>' +
+        '<td style="color:var(--t2)">' + (a.curVolume ? a.curVolume.toLocaleString('en-IN') : '—') + '</td>' +
+        '<td>' + (a.breakoutConfirmed ? '<span style="color:var(--up);font-size:9px">✓ BO</span>' : '<span style="color:var(--t3);font-size:9px">—</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+    // Update sidebar badge too
+    var sbVol = document.getElementById('sb-vol');
+    if (sbVol) sbVol.textContent = d.data.length;
+  } catch (e) {
+    if (body) body.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ' + e.message + '</td></tr>';
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
 async function loadNewsAlerts() {
   if (newsAlertsLoaded) return;
   var feed  = document.getElementById('news-alerts-feed');
