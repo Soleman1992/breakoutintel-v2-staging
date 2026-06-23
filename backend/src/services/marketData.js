@@ -5,24 +5,14 @@
  */
 
 const axios = require('axios');
+const nseSession = require('./nseSession');
 
 const YAHOO_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
-const NSE_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Referer': 'https://www.nseindia.com/',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'same-origin',
-  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-};
+// NSE headers/session now via shared nseSession module (UA rotation + exponential backoff)
 
 const INDEX_SYMBOLS = {
   NIFTY50:    '^NSEI',
@@ -44,8 +34,7 @@ class MarketDataService {
   constructor(redisClient) {
     this.redis = redisClient;
     this.cacheTTL = parseInt(process.env.YAHOO_FINANCE_CACHE_TTL || '15');
-    this.nseSession = null;
-    this._initNSESession();
+    // NSE session now managed by shared nseSession singleton (nseSession.js)
   }
 
   async _safeRedisGet(key) {
@@ -62,20 +51,7 @@ class MarketDataService {
     } catch (e) {}
   }
 
-  async _initNSESession() {
-    try {
-      const resp = await axios.get('https://www.nseindia.com/', {
-        headers: NSE_HEADERS, timeout: 10000,
-      });
-      const cookies = resp.headers['set-cookie'];
-      if (cookies) {
-        this.nseSession = cookies.map(c => c.split(';')[0]).join('; ');
-      }
-    } catch (e) {
-      console.warn('[NSE] Session init failed:', e.message);
-    }
-    setTimeout(() => this._initNSESession(), 30 * 60 * 1000);
-  }
+  // _initNSESession removed — session managed by nseSession.js singleton
 
   async fetchYahooQuote(symbol) {
     const cacheKey = `quote:${symbol}`;
@@ -152,7 +128,7 @@ class MarketDataService {
     if (cached) return JSON.parse(cached);
     try {
       const resp = await axios.get('https://www.nseindia.com/api/marketStatus', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+        headers: nseSession.headers(),
         timeout: 15000,
       });
       const result = { marketState: resp.data?.marketState || 'UNKNOWN', fetchedAt: Date.now() };
@@ -182,7 +158,7 @@ class MarketDataService {
       try {
         const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
         const resp = await axios.get(url, {
-          headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+          headers: nseSession.headers(),
           timeout: 10000,
         });
         const data = resp.data?.data || [];
@@ -359,7 +335,7 @@ class MarketDataService {
     if (cached) return JSON.parse(cached);
     try {
       const resp = await axios.get('https://www.nseindia.com/api/live-analysis-52Week?index=52weekhigh', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+        headers: nseSession.headers(),
         timeout: 15000,
       });
       const data = resp.data?.data || [];
