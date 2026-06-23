@@ -2668,8 +2668,7 @@ function closeAddPositionModal(){
   document.getElementById('add-position-modal').style.display = 'none';
 }
 
-async function submitAddPosition(e){
-  e.preventDefault();
+async function submitAddPosition(){
   var errEl = document.getElementById('ap-error');
   var btn   = document.getElementById('ap-submit-btn');
   errEl.style.display = 'none';
@@ -2711,14 +2710,15 @@ async function submitAddPosition(e){
     var data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
 
-    closeAddPositionModal();
+    closeAddPosition();
     toast('Position added — '+symbol+' ✓');
     renderPortfolioView();
   }catch(err){
     errEl.textContent = err.message;
     errEl.style.display = 'block';
   }finally{
-    btn.disabled = false; btn.textContent = 'Add Position';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus" style="font-size:11px"></i> Add Position';
   }
 }
 
