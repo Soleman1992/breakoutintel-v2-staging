@@ -24,6 +24,9 @@ let portfolio = null;
 let transactions = null;
 let analytics = null;
 let intelligence = null;
+let newsIntelligence = null;
+let rankingOrch  = null;
+let validationEng = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -326,11 +329,68 @@ app.get('/scanner/institutional', async (req, res) => {
   }
 });
 
+// ── Market — Internals (A/D, 52W H/L, Volume from Yahoo Finance scanner data) ──
+// NSE API is blocked from cloud server IPs, so we derive these from the
+// scanner's last results which are fetched from Yahoo Finance (344 stocks).
+// No new API calls — reads scanner.lastResults which is Redis-cached.
+// FII/DII is genuinely unavailable without a licensed data feed.
+app.get('/market/internals', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: false, message: 'Scanner not ready', data: null });
+
+    const results = scanner.lastResults || [];
+    const meta    = scanner.lastMeta   || {};
+
+    if (!results.length) {
+      return res.json({ ok: false, message: 'Scanner warming up — check back in ~2 minutes', data: null });
+    }
+
+    let advances = 0, declines = 0, unchanged = 0;
+    let newHigh  = 0, newLow   = 0;
+    let totalVolume = 0;
+
+    results.forEach(r => {
+      // Advance / Decline (>0.05% threshold avoids noise from perfectly flat ticks)
+      if (r.chg >  0.05) advances++;
+      else if (r.chg < -0.05) declines++;
+      else unchanged++;
+
+      // Near 52W High — within 1% of year high
+      if (r.hi52w && r.cmp && r.cmp >= r.hi52w * 0.99) newHigh++;
+      // Near 52W Low — within 1% of year low
+      if (r.lo52w && r.cmp && r.cmp <= r.lo52w * 1.01) newLow++;
+
+      totalVolume += (r.curVolume || 0);
+    });
+
+    res.json({
+      ok:   true,
+      data: {
+        advances,
+        declines,
+        unchanged,
+        newHigh,
+        newLow,
+        totalVolume,
+        fiiNet:       null,  // requires licensed data — not available on free tier
+        diiNet:       null,
+        stocksScanned: results.length,
+        lastScanAt:   meta.lastScanAt || null,
+      },
+      source: 'Yahoo Finance · scanner universe (344 stocks)',
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Market — Corporate Announcements (real NSE data, filtered to universe) ───
 app.get('/market/corporate-announcements', async (req, res) => {
   try {
     if (!scanner) return res.json({ ok: true, data: [] });
-    await scanner.runScan();
+    // Note: getCorporateAnnouncementsForUniverse() fetches from NSE directly —
+    // no runScan() needed here. The old runScan() call was triggering a full
+    // 344-stock scan on every news page open, causing concurrent scan bursts.
     const result = await scanner.getCorporateAnnouncementsForUniverse();
     if (!result.ok) return res.json(result);
     const { data, pagination } = applyListParams(result.data, req);
@@ -346,6 +406,19 @@ app.get('/market/breadth', async (req, res) => {
     if (!scanner) return res.json({ ok: false, data: null, message: 'Scanner initializing' });
     const result = await scanner.getMarketBreadthData();
     res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── Market — Health Score (deterministic rule-based, no randomness) ───────────
+// Weights: Nifty50 30pts + BankNifty 15pts + Midcap 15pts + VIX 20pts + A/D 20pts
+// Labels: >=75 STRONGLY BULLISH | >=60 BULLISH | >=45 NEUTRAL | >=30 BEARISH | <30 STRONGLY BEARISH
+app.get('/market/health', async (req, res) => {
+  try {
+    if (!market) return res.json({ ok: false, score: null, label: 'Unavailable', dataComplete: false, message: 'Market service initializing' });
+    const data = await market.getMarketHealth();
+    res.json(data);
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -697,7 +770,8 @@ async function start() {
       db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        max: 5,
+        max: 3,                      // Supabase free tier: keep 2 slots free for admin/dashboard
+        idleTimeoutMillis: 30000,    // release idle connections faster (free tier courtesy)
         connectionTimeoutMillis: 5000,
       });
       await db.query('SELECT 1');
@@ -731,6 +805,12 @@ async function start() {
       const intelligenceRouter = require('./routes/intelligence');
       app.use('/portfolio/intelligence', intelligenceRouter(intelligence));
       console.log('[Intelligence] Routes registered ✓');
+
+      const NewsIntelligenceService = require('./services/newsIntelligence');
+      newsIntelligence = new NewsIntelligenceService(db, redisClient || {
+        get: async () => null, setEx: async () => null, del: async () => null,
+      }, null); // nseData injected after market services init
+      console.log('[NewsIntelligence] Service ready ✓');
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
@@ -758,7 +838,8 @@ async function start() {
     market   = new MarketDataService(safeRedis);
     nseData  = new NSEDataService(safeRedis);
     scanner  = new ScannerService(safeRedis, nseData);
-    wss      = new WebSocketServer(server, safeRedis);
+    // Pass existing instances — WebSocket reuses them instead of creating a second scanner
+    wss      = new WebSocketServer(server, safeRedis, { market, scanner });
 
     console.log('[Market] Data service ready ✓');
     console.log('[NSEData] NSE data service ready ✓');
@@ -779,9 +860,202 @@ async function start() {
       intelligence.scanner = scanner;
       console.log('[Intelligence] Market + Scanner injected ✓');
     }
+    if (newsIntelligence) {
+      newsIntelligence.nse = nseData;
+      console.log('[NewsIntelligence] NSE data service injected ✓');
+
+      // ── Startup refresh (free-tier compatible) ───────────────────────────────
+      // No separate worker process on Render free tier. Instead, trigger the
+      // first news refresh 90 seconds after startup — lets the health check
+      // pass and the scanner settle before news work begins. Subsequent
+      // refreshes are lazy-triggered by the first stale request (every 20 min).
+      setTimeout(() => {
+        if (!newsIntelligence) return;
+        console.log('[NewsIntelligence] Running startup refresh...');
+        newsIntelligence.refresh()
+          .catch(e => console.warn('[NewsIntelligence] Startup refresh error:', e.message));
+      }, 90_000);
+      console.log('[NewsIntelligence] Startup refresh scheduled (90s) ✓');
+    }
   } catch (e) {
     console.error('[Services] Load error (non-fatal):', e.message);
   }
+
+  // 5. Ranking Orchestrator (consensus engine pipeline)
+  try {
+    const RankingOrchestrator = require('./services/rankingOrchestrator');
+    rankingOrch = new RankingOrchestrator(market, db, redisClient, wss);
+    rankingOrch.startScheduler();
+    console.log('[RankingOrch] Consensus engine pipeline ready ✓');
+    // Initial scan deferred 120s to let server fully stabilise
+    setTimeout(() => {
+      if (!rankingOrch) return;
+      console.log('[RankingOrch] Running initial scan...');
+      rankingOrch.runScan({ categoryFilter: ['LARGECAP'] })
+        .catch(e => console.warn('[RankingOrch] Initial scan error:', e.message));
+    }, 120_000);
+    console.log('[RankingOrch] Initial scan scheduled (120s) ✓');
+  } catch (e) {
+    console.warn('[RankingOrch] Failed to start (non-fatal):', e.message);
+  }
+
+  // 6. Validation Engine (Phase 8)
+  try {
+    const ValidationEngine = require('./engines/validationEngine');
+    validationEng = new ValidationEngine(db);
+    console.log('[Validation] Anti-overfitting engine ready ✓');
+  } catch (e) {
+    console.warn('[Validation] Failed to start (non-fatal):', e.message);
+  }
+
+  // ── News Intelligence Center ───────────────────────────────────────────────
+  // All routes return { ok, data } — gracefully degrade when service not ready.
+
+  // GET /news — paginated list with optional ?category=&sentiment= filters
+  app.get('/news', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [], message: 'News service initializing' });
+      const limit    = Math.min(parseInt(req.query.limit  || '30'), 100);
+      const offset   = Math.max(parseInt(req.query.offset || '0'),  0);
+      const category = req.query.category  || null;
+      const sentiment= req.query.sentiment || null;
+      const result   = await newsIntelligence.getNews({ limit, offset, category, sentiment });
+      res.json(result);
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // ── Rankings API (consensus engine — Phase 7) ───────────────────────────────
+
+  // GET /rankings — top ranked stocks, filterable by category/tier/minScore
+  app.get('/rankings', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.json({ ok: true, data: [], message: 'Ranking engine initializing' });
+      const category = req.query.category?.toUpperCase() || null;
+      const tier     = req.query.tier?.toUpperCase()     || null;
+      const minScore = parseInt(req.query.minScore || '0');
+      const limit    = Math.min(parseInt(req.query.limit || '50'), 200);
+      const data = await rankingOrch.getTopRankings({ category, tier, minScore, limit });
+      res.json({ ok: true, data, count: data.length, source: 'redis' });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/status — scan state + last run metadata
+  app.get('/rankings/status', async (req, res) => {
+    try {
+      const status = rankingOrch?.getStatus() ?? { isRunning: false, lastRunId: null };
+      res.json({ ok: true, data: status });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/stock/:ticker — full consensus record for one stock
+  app.get('/rankings/stock/:ticker', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.status(503).json({ ok: false, error: 'Ranking engine initializing' });
+      const data = await rankingOrch.getStockConsensus(req.params.ticker.toUpperCase());
+      if (!data) return res.status(404).json({ ok: false, error: 'Stock not in latest ranking snapshot' });
+      res.json({ ok: true, data });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // POST /rankings/scan — manually trigger a full scan (admin use)
+  app.post('/rankings/scan', async (req, res) => {
+    try {
+      if (!rankingOrch) return res.status(503).json({ ok: false, error: 'Ranking engine not ready' });
+      if (rankingOrch.isRunning) return res.json({ ok: true, message: 'Scan already running' });
+      const categoryFilter = req.body?.categoryFilter || null;
+      res.json({ ok: true, message: 'Scan triggered', runningAt: new Date().toISOString() });
+      rankingOrch.runScan(categoryFilter ? { categoryFilter } : {})
+        .catch(e => console.warn('[RankingOrch] Manual scan error:', e.message));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /rankings/validate — Phase 8 anti-overfitting validation report
+  app.get('/rankings/validate', async (req, res) => {
+    try {
+      if (!validationEng) return res.status(503).json({ ok: false, error: 'Validation engine not ready' });
+      const report = await validationEng.runValidation();
+      res.json(report);
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/breaking — items with impact_score >= 80 in last 6 hours
+  app.get('/news/breaking', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getBreaking());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/high-impact — items with impact_score >= 60 in last 24 hours
+  app.get('/news/high-impact', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const limit = Math.min(parseInt(req.query.limit || '20'), 50);
+      res.json(await newsIntelligence.getHighImpact({ limit }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/watchlist?symbols=RELIANCE,TCS,INFY — cross-references portfolio symbols
+  app.get('/news/watchlist', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const symbols = (req.query.symbols || '').split(',').map(s => s.trim()).filter(Boolean);
+      res.json(await newsIntelligence.getWatchlistNews(symbols));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/stock/:symbol — all news for a specific NSE symbol
+  app.get('/news/stock/:symbol', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getByStock(req.params.symbol));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/sector/:sector — news affecting a sector
+  app.get('/news/sector/:sector', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getBySector(req.params.sector));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/trending — most-mentioned stocks in last 24 hours
+  app.get('/news/trending', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      res.json(await newsIntelligence.getTrending());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/stats — aggregate stats (total, scored, sentiment distribution)
+  app.get('/news/stats', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: null });
+      res.json(await newsIntelligence.getStats());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/search?q=<term> — title / symbol / company search
+  app.get('/news/search', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const q     = (req.query.q || '').trim();
+      if (!q) return res.status(400).json({ ok: false, error: 'q parameter required' });
+      const limit = Math.min(parseInt(req.query.limit || '20'), 50);
+      res.json(await newsIntelligence.search({ q, limit }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /news/timeline?symbol=RELIANCE&days=30 — day-by-day aggregation
+  app.get('/news/timeline', async (req, res) => {
+    try {
+      if (!newsIntelligence) return res.json({ ok: true, data: [] });
+      const symbol = req.query.symbol || null;
+      const days   = Math.min(parseInt(req.query.days || '30'), 90);
+      res.json(await newsIntelligence.getTimeline({ symbol, days }));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
 
   // ── Catch-all + error handler — registered last so API routes take priority ─
   app.get('*', (req, res) => {

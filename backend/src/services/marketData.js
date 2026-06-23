@@ -7,15 +7,21 @@
 const axios = require('axios');
 
 const YAHOO_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
 const NSE_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  'Accept': '*/*',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
   'Referer': 'https://www.nseindia.com/',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'same-origin',
+  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"Windows"',
 };
 
 const INDEX_SYMBOLS = {
@@ -147,7 +153,7 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/marketStatus', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const result = { marketState: resp.data?.marketState || 'UNKNOWN', fetchedAt: Date.now() };
       await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
@@ -164,17 +170,155 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/equity-stockIndices?index=BROAD%20MARKET%20INDICES', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const data = resp.data?.data || [];
+      if (!data.length) {
+        // NSE returned an empty payload — treat as unavailable, not as 0/0
+        return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE returned empty dataset' };
+      }
       let adv = 0, dec = 0, unch = 0;
       data.forEach(s => { if (s.pChange > 0) adv++; else if (s.pChange < 0) dec++; else unch++; });
-      const result = { advances: adv, declines: dec, unchanged: unch, fetchedAt: Date.now() };
+      const result = { ok: true, advances: adv, declines: dec, unchanged: unch, fetchedAt: Date.now() };
       await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
       return result;
     } catch (e) {
-      return { advances: 0, declines: 0, unchanged: 0, fetchedAt: Date.now() };
+      // Propagate ok:false — never silently return 0/0 which looks like real data
+      console.warn('[NSE] getAdvanceDecline failed:', e.message);
+      return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: e.message };
     }
+  }
+
+  // ── MARKET HEALTH SCORE ───────────────────────────────────────────────────
+  // Deterministic, rule-based scoring. No randomness. No AI.
+  //
+  // Component weights (total = 100 pts):
+  //   Nifty50 changePct      — 30 pts  (primary trend signal)
+  //   BankNifty changePct    — 15 pts  (financial sector breadth)
+  //   Midcap150 changePct    — 15 pts  (risk appetite / breadth)
+  //   India VIX direction    — 20 pts  (fear gauge — inverse)
+  //   Advance/Decline ratio  — 20 pts  (market breadth)
+  //
+  // Scoring per component:
+  //   Index changePct:
+  //     >= +1.5%  → full pts
+  //     >= +0.5%  → 75%
+  //     >= 0%     → 50%
+  //     >= -0.5%  → 25%
+  //     <  -0.5%  → 0
+  //   VIX (inverse — lower VIX = healthier):
+  //     changePct <= -1%  → full pts (VIX falling = bullish)
+  //     changePct <= 0%   → 75%
+  //     changePct <= +1%  → 50%
+  //     changePct <= +3%  → 25%
+  //     >  +3%            → 0
+  //   A/D ratio (advances / (advances + declines)):
+  //     >= 0.70  → full pts
+  //     >= 0.55  → 75%
+  //     >= 0.45  → 50%
+  //     >= 0.30  → 25%
+  //     <  0.30  → 0
+  //
+  // Label thresholds:
+  //   >= 75  → STRONGLY BULLISH
+  //   >= 60  → BULLISH
+  //   >= 45  → NEUTRAL
+  //   >= 30  → BEARISH
+  //   <  30  → STRONGLY BEARISH
+  async getMarketHealth() {
+    const cacheKey = 'market:health';
+    const cached = await this._safeRedisGet(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    // Fetch all inputs in parallel
+    const [indicesResult, advDecResult] = await Promise.allSettled([
+      this.fetchMultiple(['NIFTY50', 'BANKNIFTY', 'MIDCAP150', 'INDIAVIX']),
+      this.getAdvanceDecline(),
+    ]);
+
+    const indices = indicesResult.status === 'fulfilled' ? indicesResult.value : {};
+    const advDec  = advDecResult.status  === 'fulfilled' ? advDecResult.value  : { ok: false };
+
+    // ── Helper: score a single component ──────────────────────────────────
+    function scoreIndex(changePct, maxPts) {
+      if (changePct == null) return { pts: maxPts * 0.5, available: false }; // neutral if data missing
+      if (changePct >= 1.5)  return { pts: maxPts * 1.00, available: true };
+      if (changePct >= 0.5)  return { pts: maxPts * 0.75, available: true };
+      if (changePct >= 0.0)  return { pts: maxPts * 0.50, available: true };
+      if (changePct >= -0.5) return { pts: maxPts * 0.25, available: true };
+      return                        { pts: 0,              available: true };
+    }
+
+    function scoreVIX(changePct, maxPts) {
+      if (changePct == null) return { pts: maxPts * 0.5, available: false };
+      if (changePct <= -1.0) return { pts: maxPts * 1.00, available: true };
+      if (changePct <=  0.0) return { pts: maxPts * 0.75, available: true };
+      if (changePct <=  1.0) return { pts: maxPts * 0.50, available: true };
+      if (changePct <=  3.0) return { pts: maxPts * 0.25, available: true };
+      return                        { pts: 0,              available: true };
+    }
+
+    function scoreAdvDec(advances, declines, maxPts) {
+      if (advances == null || declines == null) return { pts: maxPts * 0.5, available: false };
+      const total = advances + declines;
+      if (total === 0) return { pts: maxPts * 0.5, available: false };
+      const ratio = advances / total;
+      if (ratio >= 0.70) return { pts: maxPts * 1.00, available: true };
+      if (ratio >= 0.55) return { pts: maxPts * 0.75, available: true };
+      if (ratio >= 0.45) return { pts: maxPts * 0.50, available: true };
+      if (ratio >= 0.30) return { pts: maxPts * 0.25, available: true };
+      return                    { pts: 0,              available: true };
+    }
+
+    // ── Score each component ───────────────────────────────────────────────
+    const n50   = indices['NIFTY50'];
+    const bnk   = indices['BANKNIFTY'];
+    const mid   = indices['MIDCAP150'];
+    const vix   = indices['INDIAVIX'];
+
+    const c_n50  = scoreIndex(n50?.ok  ? n50.changePct  : null, 30);
+    const c_bnk  = scoreIndex(bnk?.ok  ? bnk.changePct  : null, 15);
+    const c_mid  = scoreIndex(mid?.ok  ? mid.changePct  : null, 15);
+    const c_vix  = scoreVIX  (vix?.ok  ? vix.changePct  : null, 20);
+    const c_ad   = scoreAdvDec(
+      advDec.ok ? advDec.advances : null,
+      advDec.ok ? advDec.declines : null,
+      20
+    );
+
+    const rawScore = c_n50.pts + c_bnk.pts + c_mid.pts + c_vix.pts + c_ad.pts;
+    const score    = Math.round(rawScore);
+
+    // ── Label ──────────────────────────────────────────────────────────────
+    let label;
+    if      (score >= 75) label = 'STRONGLY BULLISH';
+    else if (score >= 60) label = 'BULLISH';
+    else if (score >= 45) label = 'NEUTRAL';
+    else if (score >= 30) label = 'BEARISH';
+    else                  label = 'STRONGLY BEARISH';
+
+    // ── dataComplete: true only when all 5 components have live data ───────
+    const dataComplete = c_n50.available && c_bnk.available && c_mid.available &&
+                         c_vix.available && c_ad.available;
+
+    const result = {
+      ok: true,
+      score,
+      label,
+      dataComplete,
+      breakdown: {
+        nifty50:    { changePct: n50?.ok ? Math.round(n50.changePct * 100) / 100 : null, pts: Math.round(c_n50.pts), maxPts: 30, available: c_n50.available },
+        bankNifty:  { changePct: bnk?.ok ? Math.round(bnk.changePct * 100) / 100 : null, pts: Math.round(c_bnk.pts), maxPts: 15, available: c_bnk.available },
+        midcap:     { changePct: mid?.ok ? Math.round(mid.changePct * 100) / 100 : null, pts: Math.round(c_mid.pts), maxPts: 15, available: c_mid.available },
+        vix:        { changePct: vix?.ok ? Math.round(vix.changePct * 100) / 100 : null, pts: Math.round(c_vix.pts), maxPts: 20, available: c_vix.available },
+        advDec:     { advances: advDec.ok ? advDec.advances : null, declines: advDec.ok ? advDec.declines : null, pts: Math.round(c_ad.pts), maxPts: 20, available: c_ad.available },
+      },
+      fetchedAt: Date.now(),
+    };
+
+    // Cache for 15s (matches dashboard refresh cadence)
+    await this._safeRedisSet(cacheKey, 15, JSON.stringify(result));
+    return result;
   }
 
   async get52WeekHighs() {
@@ -184,7 +328,7 @@ class MarketDataService {
     try {
       const resp = await axios.get('https://www.nseindia.com/api/live-analysis-52Week?index=52weekhigh', {
         headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 8000,
+        timeout: 15000,
       });
       const data = resp.data?.data || [];
       await this._safeRedisSet(cacheKey, 60, JSON.stringify(data));
@@ -207,6 +351,127 @@ class MarketDataService {
       snapshotAt:   Date.now(),
     };
   }
+  // ── MTF OHLCV ─────────────────────────────────────────────────────────────
+  // Multi-timeframe OHLCV fetchers for the consensus engine.
+  // Bar format: { t (unix ms), o, h, l, c, v }
+  //
+  // Cache TTLs (tiered by bar duration):
+  //   Weekly  → 7 days   (recompute on weekly close only)
+  //   Daily   → 24 hours (recompute EOD)
+  //   4H      → 4 hours  (recompute every 4H bar close)
+  //
+  // 4H bars are synthesised from 60m Yahoo data, aggregated day-aware
+  // using IST boundaries (UTC+5:30) so bars never span overnight gaps.
+
+  _toNSESymbol(ticker) {
+    if (ticker.includes('.') || ticker.startsWith('^')) return ticker;
+    return `${ticker}.NS`;
+  }
+
+  async _fetchYahooOHLCV(symbol, interval, range) {
+    const cacheKey = `ohlcv:${symbol}:${interval}`;
+    const cached   = await this._safeRedisGet(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    try {
+      const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+      const resp = await axios.get(url, { headers: YAHOO_HEADERS, timeout: 12000 });
+      const result = resp.data?.chart?.result?.[0];
+      if (!result) throw new Error('No chart data');
+
+      const timestamps = result.timestamp || [];
+      const q    = result.indicators?.quote?.[0] || {};
+      const bars = [];
+
+      for (let i = 0; i < timestamps.length; i++) {
+        if (q.close?.[i] == null) continue;
+        bars.push({
+          t: timestamps[i] * 1000,
+          o: q.open?.[i]   ?? q.close[i],
+          h: q.high?.[i]   ?? q.close[i],
+          l: q.low?.[i]    ?? q.close[i],
+          c: q.close[i],
+          v: q.volume?.[i] || 0,
+        });
+      }
+
+      const ttl = interval === '1wk' ? 7 * 24 * 3600
+                : interval === '1d'  ?      24 * 3600
+                :                           4  * 3600;
+
+      await this._safeRedisSet(cacheKey, ttl, JSON.stringify(bars));
+      return bars;
+    } catch (e) {
+      console.warn(`[OHLCV] ${symbol} ${interval}:`, e.message);
+      return [];
+    }
+  }
+
+  _aggregate4H(hourlyBars) {
+    if (!hourlyBars.length) return [];
+
+    const byDate = {};
+    for (const bar of hourlyBars) {
+      const istDate = new Date(bar.t + 19800000).toISOString().slice(0, 10);
+      if (!byDate[istDate]) byDate[istDate] = [];
+      byDate[istDate].push(bar);
+    }
+
+    const result = [];
+    for (const dateKey of Object.keys(byDate).sort()) {
+      const dayBars = byDate[dateKey];
+      for (let i = 0; i < dayBars.length; i += 4) {
+        const chunk = dayBars.slice(i, i + 4);
+        result.push({
+          t: chunk[0].t,
+          o: chunk[0].o,
+          h: Math.max(...chunk.map(b => b.h)),
+          l: Math.min(...chunk.map(b => b.l)),
+          c: chunk[chunk.length - 1].c,
+          v: chunk.reduce((sum, b) => sum + b.v, 0),
+        });
+      }
+    }
+    return result;
+  }
+
+  async fetchDailyOHLCV(ticker) {
+    return this._fetchYahooOHLCV(this._toNSESymbol(ticker), '1d', '1y');
+  }
+
+  async fetchWeeklyOHLCV(ticker) {
+    return this._fetchYahooOHLCV(this._toNSESymbol(ticker), '1wk', '2y');
+  }
+
+  async fetchFourHourOHLCV(ticker) {
+    const symbol   = this._toNSESymbol(ticker);
+    const cacheKey = `ohlcv:${symbol}:4h`;
+    const cached   = await this._safeRedisGet(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const hourly = await this._fetchYahooOHLCV(symbol, '60m', '60d');
+    const bars   = this._aggregate4H(hourly);
+
+    await this._safeRedisSet(cacheKey, 4 * 3600, JSON.stringify(bars));
+    return bars;
+  }
+
+  async fetchMTFOHLCV(ticker) {
+    const [W, D, H4] = await Promise.allSettled([
+      this.fetchWeeklyOHLCV(ticker),
+      this.fetchDailyOHLCV(ticker),
+      this.fetchFourHourOHLCV(ticker),
+    ]);
+    return {
+      ticker,
+      W:  W.status  === 'fulfilled' ? W.value  : [],
+      D:  D.status  === 'fulfilled' ? D.value  : [],
+      H4: H4.status === 'fulfilled' ? H4.value : [],
+      fetchedAt: Date.now(),
+      ok: true,
+    };
+  }
+
 }
 
 module.exports = MarketDataService;

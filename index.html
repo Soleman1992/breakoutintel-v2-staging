@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BreakoutIntel AI — NSE/BSE Swing Trading Platform</title>
@@ -164,6 +167,38 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .modal-ll{font-size:9px;color:var(--t3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em}
 .modal-vl{font-size:13px;font-weight:500;color:var(--t1)}
 
+/* POSITION DETAIL MODAL */
+.pd-modal-bg{position:fixed;inset:0;background:rgba(5,11,22,.92);z-index:115;display:flex;align-items:center;justify-content:center}
+.pd-modal-box{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;width:560px;max-width:96vw;max-height:92vh;overflow-y:auto}
+.pd-ph{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.pd-tabs{display:flex;border-bottom:1px solid var(--bd)}
+.pd-tab{padding:7px 14px;font-size:10px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:.1s}
+.pd-tab.active{color:var(--acc2);border-bottom-color:var(--acc2)}
+.pd-tab:hover{color:var(--t2)}
+.pd-body{padding:16px}
+.pd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border-radius:6px;overflow:hidden;margin-bottom:14px}
+.pd-info-cell{background:var(--bg2);padding:8px 12px}
+.pd-info-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.pd-info-v{font-size:12px;font-weight:500;color:var(--t1)}
+.pd-field{margin-bottom:10px}
+.pd-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.pd-in{width:100%;background:var(--bg0);border:1px solid var(--bd);border-radius:6px;color:var(--t1);font-size:11px;padding:7px 10px;font-family:inherit;transition:.15s}
+.pd-in:focus{outline:none;border-color:var(--acc);background:var(--bg2)}
+.pd-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pd-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pd-footer{padding:10px 16px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pd-btn{font-size:10px;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-weight:500;transition:.15s}
+.pd-btn-cancel{background:var(--bg2);color:var(--t2);border:1px solid var(--bd)}
+.pd-btn-cancel:hover{background:var(--bg3)}
+.pd-btn-update{background:var(--acc);color:#fff}
+.pd-btn-update:hover{background:var(--acc2)}
+.pd-btn-sell{background:#0d2e1a;color:var(--up);border:1px solid #1a4a2a}
+.pd-btn-sell:hover{background:#0f3820}
+.pd-btn-delete{background:#2e0d0d;color:var(--dn);border:1px solid #4a1a1a}
+.pd-btn-delete:hover{background:#3a1010}
+.pd-btn:disabled{opacity:.5;cursor:not-allowed}
+.pd-sell-preview{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;margin-top:8px;display:none}
+
 /* ADD POSITION MODAL */
 .ap-modal-bg{position:fixed;inset:0;background:rgba(5,11,22,.92);z-index:110;display:flex;align-items:center;justify-content:center}
 .ap-modal-box{background:var(--bg1);border:1px solid var(--bd);border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto}
@@ -223,6 +258,41 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .skel{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
 @keyframes shimmer{to{background-position:-200% 0}}
 .footer{text-align:center;padding:4px;font-size:9px;color:var(--t3);flex-shrink:0}
+
+/* ─── RANKINGS VIEW ──────────────────────────────────────────────────────── */
+#view-rankings{display:flex;flex-direction:column;position:fixed;top:46px;left:0;right:0;bottom:0;z-index:50;background:var(--bg0)}
+.rk-hdr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--bg1);flex-shrink:0}
+.rk-hdr-title{font-size:12px;font-weight:600;color:var(--t1);display:flex;align-items:center;gap:6px;flex:1}
+.rk-status{font-size:10px;color:var(--t3)}
+.rk-scan-btn{font-size:10px;padding:4px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:5px;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;transition:.15s}
+.rk-scan-btn:hover{border-color:var(--acc);color:var(--acc2)}
+.rk-filters{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--bd);background:var(--bg1);flex-shrink:0;gap:10px;flex-wrap:wrap}
+.rk-cat-tabs,.rk-tier-tabs{display:flex;gap:3px;flex-wrap:wrap}
+.rk-tab{font-size:10px;padding:3px 9px;border-radius:5px;cursor:pointer;color:var(--t3);border:1px solid transparent;transition:.15s}
+.rk-tab:hover{color:var(--t2);background:var(--bg2)}
+.rk-tab.active{color:var(--acc2);background:var(--bg2);border-color:var(--bd)}
+.rk-tier-btn{font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;cursor:pointer;border:1px solid transparent;transition:.15s;color:var(--t3)}
+.rk-tier-btn:hover,.rk-tier-btn.active{background:var(--bg2);border-color:var(--bd);color:var(--t1)}
+.rk-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.rk-table-wrap{flex:1;overflow-y:auto;padding:6px}
+.rk-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.rk-tbl th{text-align:left;padding:7px 8px;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg1);font-weight:500;white-space:nowrap}
+.rk-row{border-bottom:1px solid var(--bg2);cursor:pointer;transition:.1s}
+.rk-row:hover{background:var(--bg2)}
+.rk-row td{padding:7px 8px;vertical-align:middle}
+.rk-empty{text-align:center;padding:40px;color:var(--t3)}
+.rk-panel{width:380px;background:var(--bg1);border-left:1px solid var(--bd);overflow-y:auto;flex-shrink:0;padding:14px;display:none}
+.rk-panel.open{display:block}
+.rk-metric-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:12px}
+.rk-metric{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:8px;text-align:center}
+.rk-metric-label{font-size:9px;color:var(--t3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.rk-metric-val{font-size:13px;font-weight:600}
+.rk-eng-bar{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.rk-eng-name{width:90px;font-size:9px;color:var(--t3);flex-shrink:0;text-transform:uppercase;letter-spacing:.04em}
+.rk-bar-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.rk-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.rk-sec-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;margin-top:12px}
+.rk-signal{font-size:10px;margin-bottom:3px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -266,6 +336,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" id="nav-scanner" onclick="switchView('scanner')"><div class="sb-lb"><i class="ti ti-radar" style="font-size:14px"></i><span>Scanner</span></div></div>
   <div class="sb-it" id="nav-portfolio" onclick="switchView('portfolio')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
   <div class="sb-it" id="nav-news" onclick="switchView('news')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
+  <div class="sb-it" id="nav-rankings" onclick="switchView('rankings')"><div class="sb-lb"><i class="ti ti-trophy" style="font-size:14px"></i><span>Rankings</span></div></div>
   <div class="sb-sec">Watchlist</div>
   <div class="sb-it" onclick="setFilter('pre')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0"></div><span>Pre-Breakout</span></div><div class="sb-bd bg-y" id="sb-pre">—</div></div>
   <div class="sb-it" onclick="setFilter('active')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--up);flex-shrink:0"></div><span>Active Breakout</span></div><div class="sb-bd bg-g" id="sb-act">—</div></div>
@@ -295,10 +366,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <!-- KPI -->
   <div class="kpi-row">
     <div class="kpi-card"><div class="kpi-l">Breakout Candidates <i class="ti ti-trending-up" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-cand">—</div><div class="kpi-s" id="k-cand-s">loading...</div><div class="kpi-spark"><canvas id="sp1"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Active Positions <i class="ti ti-briefcase" style="font-size:11px;color:var(--acc2)"></i></div><div class="kpi-v" id="k-pos">8</div><div class="kpi-s">Open trades</div><div class="kpi-spark"><canvas id="sp2"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Portfolio Return MTD <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v up" id="k-ret">+18.4%</div><div class="kpi-s">Unrealized</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Portfolio Risk <i class="ti ti-shield" style="font-size:11px;color:var(--warn)"></i></div><div class="kpi-v wc" id="k-risk">6.2%</div><div class="kpi-s">Max drawdown: 4.1%</div><div class="kpi-spark"><canvas id="sp4"></canvas></div></div>
-    <div class="kpi-card"><div class="kpi-l">Win Rate (Last 30) <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v up" id="k-wr">68%</div><div class="kpi-s">22W / 10L</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Active Positions <i class="ti ti-briefcase" style="font-size:11px;color:var(--acc2)"></i></div><div class="kpi-v" id="k-pos">—</div><div class="kpi-s" id="k-pos-s">loading...</div><div class="kpi-spark"><canvas id="sp2"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Total Return <i class="ti ti-chart-area" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-ret">—</div><div class="kpi-s" id="k-ret-s">loading...</div><div class="kpi-spark"><canvas id="sp3"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Portfolio Risk <i class="ti ti-shield" style="font-size:11px;color:var(--warn)"></i></div><div class="kpi-v" id="k-risk">—</div><div class="kpi-s" id="k-risk-s">loading...</div><div class="kpi-spark"><canvas id="sp4"></canvas></div></div>
+    <div class="kpi-card"><div class="kpi-l">Win Rate <i class="ti ti-trophy" style="font-size:11px;color:var(--up)"></i></div><div class="kpi-v" id="k-wr">—</div><div class="kpi-s" id="k-wr-s">loading...</div><div class="kpi-spark"><canvas id="sp5"></canvas></div></div>
     <div class="kpi-card"><div class="kpi-l">Market Health <i class="ti ti-pulse" style="font-size:11px;color:var(--up)"></i></div><div class="health-bull" id="k-health">BULLISH</div><div class="kpi-s" id="k-score">Score: 72/100</div><div class="kpi-spark"><canvas id="sp6"></canvas></div></div>
   </div>
 
@@ -322,7 +393,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       <div class="data-src"><span id="sec-src">Yahoo Finance sector indices · NSE India</span><span id="sec-ts2">—</span></div>
     </div>
     <div class="panel">
-      <div class="ph"><span class="ph-t">Alerts Center</span><span class="ph-live"><span class="pulse"></span><span id="al-cnt">4</span> LIVE</span></div>
+      <div class="ph"><span class="ph-t">Alerts Center</span><span class="ph-live"><span class="pulse"></span><span id="al-cnt">—</span> LIVE</span></div>
       <div id="alerts-feed"></div>
     </div>
   </div>
@@ -405,7 +476,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
         <div class="int-cell"><div class="int-l">FII Net</div><div class="int-v up" id="int-fii">—</div></div>
         <div class="int-cell"><div class="int-l">DII Net</div><div class="int-v up" id="int-dii">—</div></div>
       </div>
-      <div class="data-src"><span>NSE equity data · SEBI FII/DII</span><span id="int-ts">—</span></div>
+      <div class="data-src"><span>Yahoo Finance · 344 stocks · FII/DII N/A</span><span id="int-ts">—</span></div>
     </div>
   </div>
 
@@ -504,8 +575,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
       <div class="kpi-card"><div class="kpi-l">Total Value</div><div class="kpi-v" id="pf-total">—</div><div class="kpi-s" id="pf-total-s">Deployed capital</div></div>
       <div class="kpi-card"><div class="kpi-l">Open P&L</div><div class="kpi-v" id="pf-pnl">—</div><div class="kpi-s" id="pf-pnl-s">Unrealized</div></div>
-      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v" id="pf-winrate">—</div><div class="kpi-s">Not available yet</div></div>
-      <div class="kpi-card"><div class="kpi-l">Max Drawdown</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s">Not available yet</div></div>
+      <div class="kpi-card"><div class="kpi-l">Win Rate</div><div class="kpi-v" id="pf-winrate">—</div><div class="kpi-s" id="pf-winrate-s">Closed trades</div></div>
+      <div class="kpi-card"><div class="kpi-l">Profit Factor</div><div class="kpi-v" id="pf-drawdown">—</div><div class="kpi-s" id="pf-drawdown-s">Gross profit / loss</div></div>
     </div>
     <div class="panel">
       <div class="ph">
@@ -515,74 +586,171 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
           <button onclick="openAddPosition()" style="background:var(--acc);border:none;color:#fff;font-size:9px;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;font-weight:500"><i class="ti ti-plus" style="font-size:11px"></i> Add Position</button>
         </span>
       </div>
-      <div class="sc-wrap" style="max-height:calc(100vh - 280px)">
+      <div class="sc-wrap" style="max-height:calc(100vh - 340px)">
         <table class="sc-tbl">
-          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&amp;L</th><th>P&amp;L %</th><th>Stop Loss</th><th>Target</th><th>Days</th></tr></thead>
-          <tbody id="pf-body"><tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
+          <thead><tr><th>#</th><th>Symbol</th><th>Qty</th><th>Buy Price</th><th>CMP</th><th>P&amp;L</th><th>P&amp;L %</th><th>Stop Loss</th><th>Target</th><th>Days</th><th style="color:var(--t3)">Actions</th></tr></thead>
+          <tbody id="pf-body"><tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr></tbody>
         </table>
       </div>
       <div class="data-src"><span id="pf-src">—</span><span id="pf-ts">—</span></div>
     </div>
+
+    <!-- TRADE HISTORY PANEL -->
+    <div class="panel" style="margin-top:10px">
+      <div class="ph">
+        <span class="ph-t">Trade History</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="ph-cnt" id="th-cnt">—</span>
+          <span class="ph-s" id="th-realized" style="color:var(--t2)"></span>
+        </span>
+      </div>
+      <div class="sc-wrap" style="max-height:220px">
+        <table class="sc-tbl">
+          <thead><tr><th>#</th><th>Symbol</th><th>Action</th><th>Qty</th><th>Price</th><th>Total</th><th>P&amp;L</th><th>P&amp;L %</th><th>Days Held</th><th>Date</th></tr></thead>
+          <tbody id="th-body"><tr><td colspan="10" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading history...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="data-src"><span id="th-src">—</span><span id="th-ts">—</span></div>
+    </div>
   </div>
 </div>
 
-<!-- VIEW: news -->
+<!-- VIEW: news — News Intelligence Center (AI-scored · NSE + RSS) -->
 <div id="view-news" style="display:none">
-  <div style="padding:14px;display:grid;grid-template-columns:1fr 340px;gap:12px;align-items:start">
-    <div class="panel">
-      <div class="ph"><span class="ph-t">Market Intelligence Feed</span><span class="ph-live"><span class="pulse"></span>Live</span></div>
-      <div id="news-feed"></div>
+  <!-- Breaking News Banner — auto-shown when impact_score >= 80 items exist in last 6h -->
+  <div id="news-breaking-wrap" style="display:none;background:#1a0505;border-bottom:1px solid #4b1616;padding:7px 14px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:9px;font-weight:700;color:var(--dn);letter-spacing:.6px;white-space:nowrap;flex-shrink:0">⚡ BREAKING</span>
+      <div id="news-breaking-ticker" style="flex:1;overflow:hidden;font-size:10px;color:var(--t1);white-space:nowrap;text-overflow:ellipsis"></div>
+      <button onclick="document.getElementById('news-breaking-wrap').style.display='none'" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0">✕</button>
     </div>
+  </div>
+  <!-- Tab bar -->
+  <div class="mkt-tabs" id="news-tabs" style="margin:7px 7px 0;overflow-x:auto">
+    <div class="mkt-tab active" onclick="newsTab(this,'high-impact')">⚡ High Impact</div>
+    <div class="mkt-tab" onclick="newsTab(this,'latest')">Latest</div>
+    <div class="mkt-tab" onclick="newsTab(this,'watchlist')">My Watchlist</div>
+    <div class="mkt-tab" onclick="newsTab(this,'earnings')">Earnings</div>
+    <div class="mkt-tab" onclick="newsTab(this,'corporate')">Corp. Actions</div>
+    <div class="mkt-tab" onclick="newsTab(this,'deals')">Bulk / Block</div>
+  </div>
+  <!-- 2-col layout -->
+  <div style="padding:0 7px 10px;display:grid;grid-template-columns:1fr 296px;gap:10px;align-items:start">
+    <!-- Left: Feed -->
+    <div class="panel" style="border-top:none;border-radius:0 0 8px 8px">
+      <div class="ph">
+        <span class="ph-t" id="news-feed-title">High Impact News</span>
+        <span class="ph-cnt" id="news-feed-cnt">—</span>
+      </div>
+      <div id="news-main-feed" style="max-height:calc(100vh - 230px);overflow-y:auto">
+        <div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>
+      </div>
+      <div class="data-src"><span id="news-feed-src">AI-scored · NSE Corporate Announcements + RSS</span><span id="news-feed-ts">—</span></div>
+    </div>
+    <!-- Right: Sidebar -->
     <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- Sentiment Gauge -->
       <div class="panel">
-        <div class="ph"><span class="ph-t">Sentiment Gauge</span></div>
-        <div style="padding:14px;text-align:center">
-          <div style="font-size:36px;font-weight:500;color:var(--up)">BULLISH</div>
-          <div style="font-size:10px;color:var(--t3);margin:4px 0 12px">Overall market sentiment</div>
-          <div style="height:8px;background:#0d1829;border-radius:4px;overflow:hidden">
-            <div style="width:72%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px"></div>
+        <div class="ph"><span class="ph-t">Market Sentiment</span></div>
+        <div style="padding:12px 14px;text-align:center">
+          <div style="font-size:28px;font-weight:500;color:var(--t3)" id="sent-label">—</div>
+          <div style="font-size:9px;color:var(--t3);margin:3px 0 10px">Market health · /market/health</div>
+          <div style="height:7px;background:#0d1829;border-radius:4px;overflow:hidden">
+            <div id="sent-bar" style="width:0%;height:100%;background:linear-gradient(90deg,var(--up),#16a34a);border-radius:4px;transition:width .6s"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span>72% Bullish</span><span>Bullish</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:4px"><span>Bearish</span><span id="sent-score">loading...</span><span>Bullish</span></div>
         </div>
       </div>
+      <!-- Intelligence Stats -->
       <div class="panel">
-        <div class="ph"><span class="ph-t">Corporate Announcements</span><span class="ph-cnt" id="corp-ann-cnt">—</span></div>
-        <div id="corp-ann-feed" style="max-height:400px;overflow-y:auto">
-          <div style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</div>
+        <div class="ph"><span class="ph-t">Intelligence Stats</span></div>
+        <div id="news-stats-panel" style="padding:10px 14px">
+          <div style="padding:6px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span></div>
         </div>
-        <div class="data-src"><span id="corp-ann-src">NSE Corporate Announcements</span><span id="corp-ann-ts">—</span></div>
+      </div>
+      <!-- Trending Stocks (24h mention count) -->
+      <div class="panel">
+        <div class="ph"><span class="ph-t">Trending Stocks</span><span class="ph-live"><span class="pulse"></span>24h</span></div>
+        <div id="news-trending-panel" style="max-height:220px;overflow-y:auto">
+          <div style="padding:6px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span></div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- VIEW: alerts-breakout -->
+<!-- VIEW: alerts-breakout — live data from /scanner/breakout-alerts -->
 <div id="view-alerts-breakout" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-bell-ringing" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">Breakout Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Real-time breakout alerts will appear here when a stock crosses its pivot point with volume confirmation. Requires alert rules to be configured.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — no alert rules configured</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">Breakout Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>Live Scanner</span>
+        <span class="ph-cnt" id="ba-cnt">—</span>
+      </div>
+      <div class="sc-wrap" style="max-height:calc(100vh - 170px)">
+        <table class="sc-tbl">
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+            <th>CMP (₹)</th><th>Chg%</th><th>Alert Type</th>
+            <th>Entry</th><th>Stop Loss</th><th>Vol Ratio</th><th>Conf</th>
+          </tr></thead>
+          <tbody id="ba-body">
+            <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading breakout alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-src">
+        <span id="ba-src">Active breakouts from live scanner universe</span>
+        <span id="ba-ts">—</span>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- VIEW: alerts-volume -->
+<!-- VIEW: alerts-volume — live data from /scanner/volume-alerts -->
 <div id="view-alerts-volume" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-chart-bar-popular" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">Volume Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Stocks with unusual volume spikes (3× or more above 20-day average) will be listed here in real time. Powered by the breakout scanner feed.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — scanner feed required</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">Volume Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>Live Scanner</span>
+        <span class="ph-cnt" id="va-cnt">—</span>
+      </div>
+      <div class="sc-wrap" style="max-height:calc(100vh - 170px)">
+        <table class="sc-tbl">
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Company</th><th>Sector</th><th>Cap</th>
+            <th>CMP (₹)</th><th>Chg%</th><th>Alert Type</th>
+            <th>Vol Ratio</th><th>Avg Volume</th><th>Cur Volume</th><th>Breakout?</th>
+          </tr></thead>
+          <tbody id="va-body">
+            <tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading volume alerts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="data-src">
+        <span id="va-src">Stocks with volume ≥ 2.5× 20-day average</span>
+        <span id="va-ts">—</span>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- VIEW: alerts-news -->
+<!-- VIEW: alerts-news — real high-impact AI-scored news (impact >= 60) -->
 <div id="view-alerts-news" style="display:none">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);gap:12px;color:var(--t3);text-align:center">
-    <i class="ti ti-newspaper" style="font-size:40px;opacity:.3"></i>
-    <div style="font-size:13px;font-weight:500;color:var(--t2)">News Alerts</div>
-    <div style="font-size:10px;color:var(--t3);max-width:280px;line-height:1.6">Market-moving news, earnings surprises, and regulatory announcements affecting your watchlist will surface here. Requires a news intelligence feed to be connected.</div>
-    <span style="font-size:9px;padding:3px 10px;border-radius:4px;background:var(--bg2);border:1px solid var(--bd);color:var(--t3)">Data unavailable — news feed not connected</span>
+  <div style="padding:10px 14px">
+    <div class="panel">
+      <div class="ph">
+        <span class="ph-t">High Impact News Alerts</span>
+        <span class="ph-live"><span class="pulse"></span>AI-scored</span>
+        <span class="ph-cnt" id="news-alerts-cnt">—</span>
+      </div>
+      <div id="news-alerts-feed" style="max-height:calc(100vh - 160px);overflow-y:auto">
+        <div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>
+      </div>
+      <div class="data-src"><span>AI-scored · impact ≥ 60 · NSE + RSS</span><span id="news-alerts-ts">—</span></div>
+    </div>
   </div>
 </div>
 
@@ -619,9 +787,170 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 
+
+<div id="view-rankings" style="display:none">
+  <div class="rk-hdr">
+    <div class="rk-hdr-title"><i class="ti ti-trophy" style="font-size:14px;color:var(--warn)"></i>Consensus Rankings</div>
+    <span class="rk-status" id="rk-status">—</span>
+    <button class="rk-scan-btn" onclick="triggerRankingScan()"><i class="ti ti-refresh"></i> Scan Now</button>
+    <button class="rk-scan-btn" onclick="refreshRankingData()" title="Reload existing rankings data"><i class="ti ti-database-export"></i> Refresh</button>
+    <button class="rk-scan-btn" onclick="openValidationPanel()" id="rk-validate-btn"><i class="ti ti-shield-check"></i> Validate</button>
+  </div>
+  <div class="rk-filters">
+    <div class="rk-cat-tabs" id="rk-cat-tabs">
+      <div class="rk-tab active" data-cat="ALL" onclick="setRankCat('ALL')">All Caps</div>
+      <div class="rk-tab" data-cat="LARGECAP" onclick="setRankCat('LARGECAP')">Large Cap</div>
+      <div class="rk-tab" data-cat="MIDCAP" onclick="setRankCat('MIDCAP')">Mid Cap</div>
+      <div class="rk-tab" data-cat="SMALLCAP" onclick="setRankCat('SMALLCAP')">Small Cap</div>
+      <div class="rk-tab" data-cat="MICROCAP" onclick="setRankCat('MICROCAP')">Micro Cap</div>
+    </div>
+    <div class="rk-tier-tabs" id="rk-tier-tabs">
+      <div class="rk-tier-btn active" data-tier="ALL" onclick="setRankTier('ALL')">All Tiers</div>
+      <div class="rk-tier-btn" data-tier="S" onclick="setRankTier('S')" style="color:#F59E0B">■ S</div>
+      <div class="rk-tier-btn" data-tier="A" onclick="setRankTier('A')" style="color:#22C55E">■ A</div>
+      <div class="rk-tier-btn" data-tier="B" onclick="setRankTier('B')" style="color:#2563EB">■ B</div>
+      <div class="rk-tier-btn" data-tier="C" onclick="setRankTier('C')" style="color:#94A3C0">■ C</div>
+    </div>
+  </div>
+  <div class="rk-body">
+    <div class="rk-table-wrap">
+      <table class="rk-tbl">
+        <thead><tr>
+          <th style="width:32px">#</th>
+          <th>Stock</th>
+          <th style="width:96px">Signal</th>
+          <th style="width:120px">Score</th>
+          <th style="width:38px">Dir</th>
+          <th style="width:52px">Agree</th>
+          <th style="width:46px">Inst</th>
+          <th style="width:52px">Breakout</th>
+          <th style="width:52px">FB Risk</th>
+        </tr></thead>
+        <tbody id="rk-tbody"><tr><td colspan="9" class="rk-empty"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="rk-panel" id="rk-panel"></div>
+  </div>
+</div>
 </div><!-- end main -->
 </div><!-- end body -->
 </div><!-- end term -->
+
+<!-- POSITION DETAIL MODAL -->
+<div class="pd-modal-bg" id="pd-modal" style="display:none" onclick="if(event.target===this)closePdModal()">
+  <div class="pd-modal-box">
+    <div class="pd-ph">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--t1)" id="pd-title">—</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px" id="pd-sub">—</div>
+      </div>
+      <button onclick="closePdModal()" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:16px;padding:2px"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="pd-tabs">
+      <div class="pd-tab active" id="pd-tab-view"   onclick="pdSwitchTab('view')">Overview</div>
+      <div class="pd-tab"        id="pd-tab-edit"   onclick="pdSwitchTab('edit')"><i class="ti ti-pencil" style="font-size:10px"></i> Edit</div>
+      <div class="pd-tab"        id="pd-tab-sell"   onclick="pdSwitchTab('sell')"><i class="ti ti-trending-down" style="font-size:10px"></i> Sell</div>
+      <div class="pd-tab"        id="pd-tab-delete" onclick="pdSwitchTab('delete')" style="color:var(--dn)"><i class="ti ti-trash" style="font-size:10px"></i> Delete</div>
+    </div>
+
+    <!-- TAB: Overview -->
+    <div id="pd-pane-view" class="pd-body">
+      <div class="pd-info-grid" id="pd-info-grid"></div>
+      <div style="font-size:9px;color:var(--t3);text-align:center;margin-top:4px">Click <b style="color:var(--acc2)">Edit</b> to update, <b style="color:var(--up)">Sell</b> to exit, or <b style="color:var(--dn)">Delete</b> to remove this position.</div>
+    </div>
+
+    <!-- TAB: Edit -->
+    <div id="pd-pane-edit" class="pd-body" style="display:none">
+      <div class="pd-row2">
+        <div class="pd-field">
+          <div class="pd-label">Quantity <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-edit-qty" type="number" min="1" placeholder="e.g. 100">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Avg Buy Price (₹) <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-edit-price" type="number" min="0.01" step="0.01" placeholder="e.g. 1450.00">
+        </div>
+      </div>
+      <div class="pd-row3">
+        <div class="pd-field">
+          <div class="pd-label">Stop Loss (₹)</div>
+          <input class="pd-in" id="pd-edit-sl" type="number" min="0.01" step="0.01" placeholder="e.g. 1380.00">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Target (₹)</div>
+          <input class="pd-in" id="pd-edit-target" type="number" min="0.01" step="0.01" placeholder="e.g. 1600.00">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Buy Date</div>
+          <input class="pd-in" id="pd-edit-date" type="date">
+        </div>
+      </div>
+      <div class="pd-field">
+        <div class="pd-label">Notes</div>
+        <input class="pd-in" id="pd-edit-notes" type="text" placeholder="Optional trade notes">
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-update" id="pd-update-btn" onclick="submitUpdatePosition()">
+          <i class="ti ti-check" style="font-size:11px"></i> Save Changes
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Sell -->
+    <div id="pd-pane-sell" class="pd-body" style="display:none">
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:10px;color:var(--t2)">
+        <span id="pd-sell-holding">—</span> shares held · Avg cost <span id="pd-sell-avgcost">—</span>
+      </div>
+      <div class="pd-row2">
+        <div class="pd-field">
+          <div class="pd-label">Qty to Sell <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-sell-qty" type="number" min="1" placeholder="e.g. 50" oninput="pdCalcSellPreview()">
+        </div>
+        <div class="pd-field">
+          <div class="pd-label">Sell Price (₹) <span style="color:var(--dn)">*</span></div>
+          <input class="pd-in" id="pd-sell-price" type="number" min="0.01" step="0.01" placeholder="e.g. 1550.00" oninput="pdCalcSellPreview()">
+        </div>
+      </div>
+      <div class="pd-field">
+        <div class="pd-label">Notes</div>
+        <input class="pd-in" id="pd-sell-notes" type="text" placeholder="Optional exit notes">
+      </div>
+      <div class="pd-sell-preview" id="pd-sell-preview">
+        <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Exit Preview</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Proceeds</div><div style="font-size:10px;font-weight:500;color:var(--t1)" id="pd-sp-proceeds">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Realized P&L</div><div style="font-size:10px;font-weight:500" id="pd-sp-pnl">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">P&L %</div><div style="font-size:10px;font-weight:500" id="pd-sp-pnlpct">—</div></div>
+          <div><div style="font-size:8px;color:var(--t3);margin-bottom:2px">Remaining</div><div style="font-size:10px;font-weight:500;color:var(--t2)" id="pd-sp-remaining">—</div></div>
+        </div>
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-sell" id="pd-sell-btn" onclick="submitSellPosition()">
+          <i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB: Delete -->
+    <div id="pd-pane-delete" class="pd-body" style="display:none">
+      <div style="text-align:center;padding:16px 0">
+        <i class="ti ti-alert-triangle" style="font-size:32px;color:var(--dn);opacity:.7"></i>
+        <div style="font-size:12px;font-weight:500;color:var(--t1);margin:10px 0 6px" id="pd-del-title">Delete this position?</div>
+        <div style="font-size:10px;color:var(--t3);line-height:1.6;max-width:340px;margin:0 auto">
+          This permanently removes the position record from the database. Trade history entries are preserved. This action cannot be undone.
+        </div>
+      </div>
+      <div class="pd-footer">
+        <button class="pd-btn pd-btn-cancel" onclick="closePdModal()">Cancel</button>
+        <button class="pd-btn pd-btn-delete" id="pd-delete-btn" onclick="submitDeletePosition()">
+          <i class="ti ti-trash" style="font-size:11px"></i> Delete Position
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL -->
 <div class="modal-bg" id="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
@@ -782,6 +1111,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       </div>
 
     </div>
+    <div id="ap-error" style="display:none;color:var(--dn);font-size:11px;margin:0 16px 8px;padding:8px 10px;background:#2e0d0d;border-radius:6px;line-height:1.4"></div>
     <div class="ap-footer">
       <button class="ap-btn ap-btn-cancel" onclick="closeAddPosition()">Cancel</button>
       <button class="ap-btn ap-btn-submit" id="ap-submit-btn" onclick="submitAddPosition()" disabled>
@@ -832,14 +1162,7 @@ var AI_TIPS={
   tight:'Tight Base — 3–5% range for 10+ days, drying volume. Supply exhaustion. Very tight stop available.',
 };
 
-var FALLBACK_SECTORS=[
-  {n:'IT / Technology',c:2.34},{n:'Banking & Finance',c:1.82},{n:'FMCG',c:1.12},
-  {n:'Auto',c:.89},{n:'Metals',c:.22},{n:'Pharma',c:-.56},{n:'Realty',c:-1.24},
-];
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-function r(a,b){return a+(Math.random()*(b-a))}
-function j(v,p){return Math.round(v*(1+r(-(p||.002),(p||.002)))*100)/100}
 function f(n,d){if(n==null||n===undefined||isNaN(n))return '—';return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d})}
 function pc(n){if(n==null||isNaN(n))return '—';return (n>0?'+':'')+Number(n).toFixed(2)+'%'}
 function nowIST(){return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'Asia/Kolkata'})}
@@ -963,20 +1286,52 @@ async function fetchScannerStats(){
   }
 }
 
-// Market Breadth — real NSE Nifty 500 advance/decline + new highs/lows
-// Fills in the 'New 52W High' / 'New 52W Low' cells in the Market Internals
-// panel (int-adv/int-dec are already wired to a separate real advDec source).
-async function fetchMarketBreadth(){
+// Market Internals — computed from scanner's Yahoo Finance data (344 stocks)
+// Populates: Advance/Decline, New 52W High/Low, Total Volume
+// FII/DII genuinely requires licensed data — shown as N/A
+async function fetchMarketInternals(){
   try{
-    var res=await fetch(BACKEND+'/market/breadth',{signal:AbortSignal.timeout(15000)});
+    var res=await fetch(BACKEND+'/market/internals',{signal:AbortSignal.timeout(10000)});
     var d=await res.json();
-    if(d.ok&&d.data){
-      document.getElementById('int-nh').textContent=f(d.data.newHigh,0);
-      document.getElementById('int-nl').textContent=f(d.data.newLow,0);
+    if(!d.ok||!d.data){
+      // Scanner still warming up — leave existing values, update timestamp
+      document.getElementById('int-ts').textContent=(d.message||'Scanner warming up')+'  ·  '+nowIST();
+      return;
     }
-    // if !d.ok, leave cells as '—' (no fake data)
+    var data=d.data;
+
+    // Advance / Decline
+    var tot=(data.advances+data.declines)||1;
+    document.getElementById('int-adv').textContent=data.advances!=null?f(data.advances,0):'—';
+    document.getElementById('int-dec').textContent=data.declines!=null?f(data.declines,0):'—';
+    if(document.getElementById('int-ab'))
+      document.getElementById('int-ab').style.width=Math.round(data.advances/tot*100)+'%';
+    if(document.getElementById('int-db'))
+      document.getElementById('int-db').style.width=Math.round(data.declines/tot*100)+'%';
+    // Also update the top-bar A/D ticker if NSE hasn't already populated it
+    var topAd=document.getElementById('r-ad');
+    if(topAd&&topAd.textContent==='— / —'){
+      topAd.textContent=f(data.advances,0)+' / '+f(data.declines,0);
+    }
+
+    // 52W High / Low counts
+    document.getElementById('int-nh').textContent=data.newHigh!=null?f(data.newHigh,0):'—';
+    document.getElementById('int-nl').textContent=data.newLow!=null?f(data.newLow,0):'—';
+
+    // Total Volume (in crores: 1 cr = 10M shares)
+    var vol=data.totalVolume||0;
+    var volStr=vol>0?(vol>=1e7?f(vol/1e7,1)+' Cr':f(vol/1e5,1)+' L'):'—';
+    document.getElementById('int-vol').textContent=volStr;
+
+    // FII / DII — not available on free tier
+    document.getElementById('int-fii').textContent='N/A';
+    document.getElementById('int-dii').textContent='N/A';
+
+    var src=document.querySelector('#int-date')?.closest('.panel')?.querySelector('.data-src span');
+    document.getElementById('int-ts').textContent=nowIST();
+    document.getElementById('int-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   }catch(e){
-    console.warn('[REST] market breadth failed:',e.message);
+    console.warn('[REST] market internals failed:',e.message);
   }
 }
 
@@ -1009,13 +1364,30 @@ function updateIndicesFromData(indices){
     vc.className='idx-ch '+(vix.change<0?'up':'dn');
   }
   liveData.indices=indices;
+  // Rebuild the intraday chart with real chartData now that it's available —
+  // previously this never happened post-init, leaving fabricated points on
+  // screen indefinitely even after real data loaded.
+  buildMktChart(activeTab);
   // Update active market tab
   updateMktTabDisplay();
   document.getElementById('mkt-ts').textContent=nowIST();
 }
 
 function updateAdvDecFromData(d){
-  if(!d||!d.advances)return;
+  // ok:false means NSE was unreachable — show explicit "unavailable", never 0/0
+  if(!d||d.ok===false){
+    document.getElementById('r-ad').textContent='— / —';
+    document.getElementById('int-adv').textContent='—';
+    document.getElementById('int-dec').textContent='—';
+    document.getElementById('int-ab').style.width='0%';
+    document.getElementById('int-db').style.width='0%';
+    document.getElementById('r-adb').style.width='4px';
+    document.getElementById('r-dcb').style.width='4px';
+    document.getElementById('int-ts').textContent='NSE unavailable · '+nowIST();
+    return;
+  }
+  // Guard against null values (ok:true but advances/declines not yet populated)
+  if(d.advances==null||d.declines==null)return;
   var tot=(d.advances+d.declines)||1;
   document.getElementById('r-ad').textContent=f(d.advances,0)+' / '+f(d.declines,0);
   document.getElementById('int-adv').textContent=f(d.advances,0);
@@ -1032,13 +1404,14 @@ function updateAdvDecFromData(d){
 function updateSectorsFromData(sectors){
   if(!sectors||!sectors.length)return;
   // sectors from backend: [{name:'IT',changePct:2.1,ok:true},...]
+  // Real data only: keep sectors whose fetch actually succeeded. Never pad
+  // with fabricated values when fewer than expected sectors report ok:true.
   var mapped=sectors.map(s=>({
     n:({'IT':'IT / Technology','PHARMA':'Pharma','FMCG':'FMCG','AUTO':'Auto','METAL':'Metals','REALTY':'Realty','BANK':'Banking & Finance'}[s.name]||s.name),
     c:s.changePct||0,
     ok:s.ok
-  }));
-  // Add any missing with fallback
-  if(mapped.length<4) mapped=FALLBACK_SECTORS.map(s=>({...s,c:j(s.c,.03)}));
+  })).filter(s=>s.ok!==false);
+  if(!mapped.length) return; // leave existing/loading state — never fabricate
   renderSectors(mapped);
 }
 
@@ -1100,14 +1473,10 @@ function buildSpark(id,data,col,fill){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:400}}
   });
 }
-function buildSparks(){
-  buildSpark('sp1',[38,42,39,45,47,44,49,49],'#22C55E');
-  buildSpark('sp2',[5,6,7,7,8,8,8,8],'#3B82F6','rgba(59,130,246,.07)');
-  buildSpark('sp3',[8,10,12,14,15,17,18,18.4],'#22C55E');
-  buildSpark('sp4',[4.8,5.1,5.5,5.8,6.0,6.1,6.2,6.2],'#F59E0B','rgba(245,158,11,.07)');
-  buildSpark('sp5',[62,64,65,67,66,68,68,68],'#22C55E');
-  buildSpark('sp6',[60,63,65,68,70,71,72,72],'#3B82F6','rgba(59,130,246,.07)');
-}
+// NOTE: KPI sparklines (sp1-sp6) intentionally render nothing until a real
+// historical time-series source is wired up. The previous buildSparks()
+// function populated them with hardcoded fake arrays — removed per the
+// project's no-fabricated-data rule rather than replaced with another guess.
 
 // ─── SECTORS ─────────────────────────────────────────────────────────────────
 function renderSectors(secs){
@@ -1137,21 +1506,80 @@ function buildDonut(secs){
   });
 }
 
-// ─── ALERTS ───────────────────────────────────────────────────────────────────
-var ALERTS=[
-  {ic:'BO',ib:'#0d2e1a',ic2:'#22C55E',t:'DIXON TECH — Breakout Confirmed',s:'Volume 3.8× avg · Price ₹14,280 · Above resistance ₹14,100',tm:'09:42',sev:'#22C55E'},
-  {ic:'V',ib:'#2a1e06',ic2:'#F59E0B',t:'TATAELXSI — Volume Surge',s:'Vol 5.2× avg · Pre-breakout zone · VCP stage 4',tm:'10:15',sev:'#F59E0B'},
-  {ic:'GAP',ib:'#0d1b35',ic2:'#3B82F6',t:'POLYCAB — Gap-Up Open',s:'Gapped +2.4% · Strong earnings catalyst · Cup breakout',tm:'09:15',sev:'#3B82F6'},
-  {ic:'FII',ib:'#0d2e1a',ic2:'#22C55E',t:'HCLTECH — FII Buying Detected',s:'Bulk deal ₹182 Cr · Block deal pattern confirmed',tm:'11:30',sev:'#22C55E'},
-];
-function renderAlerts(){
-  document.getElementById('alerts-feed').innerHTML=ALERTS.map(a=>`
+// ─── ALERTS — real data: scanner breakout/volume alerts + portfolio intelligence ──
+// Replaces the previous hardcoded ALERTS array. Deferred call (see init()) so
+// PORTFOLIO_USER_ID, declared later in this script, is initialized first.
+async function loadAlerts(){
+  var feed  = document.getElementById('alerts-feed');
+  var cntEl = document.getElementById('al-cnt');
+  var items = [];
+
+  var results = await Promise.allSettled([
+    fetch(BACKEND+'/scanner/breakout-alerts?limit=5',{signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+    fetch(BACKEND+'/scanner/volume-alerts?limit=5',{signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+    fetch(BACKEND+'/portfolio/intelligence/alerts?live=true',{headers:{'x-user-id':PORTFOLIO_USER_ID},signal:AbortSignal.timeout(15000)}).then(r=>r.json()),
+  ]);
+  var boRes=results[0], volRes=results[1], intRes=results[2];
+
+  if(boRes.status==='fulfilled' && boRes.value.ok){
+    boRes.value.data.forEach(function(a){
+      items.push({
+        ic:'BO', ib:'#0d2e1a', ic2:'#22C55E',
+        t:a.sym+' — '+(a.alertType||'Breakout'),
+        s:'Conf '+(a.conf!=null?a.conf+'/10':'—')+' · RS '+(a.rs!=null?a.rs:'—')+' · CMP ₹'+f(a.cmp),
+        tm:a.scannedAt?new Date(a.scannedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:'#22C55E', ts:a.scannedAt||0,
+      });
+    });
+  }
+  if(volRes.status==='fulfilled' && volRes.value.ok){
+    volRes.value.data.forEach(function(a){
+      items.push({
+        ic:'VOL', ib:'#2a1e06', ic2:'#F59E0B',
+        t:a.sym+' — '+(a.alertType||'Volume Surge'),
+        s:(a.volRatio!=null?f(a.volRatio,1)+'x avg volume':'')+' · CMP ₹'+f(a.cmp),
+        tm:a.scannedAt?new Date(a.scannedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:'#F59E0B', ts:a.scannedAt||0,
+      });
+    });
+  }
+  if(intRes.status==='fulfilled' && intRes.value.ok && intRes.value.data && intRes.value.data.alerts){
+    var sevColor={CRITICAL:'#EF4444',WARNING:'#F59E0B',INFO:'#3B82F6'};
+    var sevBg={CRITICAL:'#2e0d0d',WARNING:'#2a1e06',INFO:'#0d1b35'};
+    intRes.value.data.alerts.forEach(function(a){
+      items.push({
+        ic:a.severity==='CRITICAL'?'!':a.severity==='WARNING'?'W':'i',
+        ib:sevBg[a.severity]||'#0d1b35', ic2:sevColor[a.severity]||'#3B82F6',
+        t:(a.symbol||'Portfolio')+' — '+a.type,
+        s:a.message,
+        tm:a.generatedAt?new Date(a.generatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}):'—',
+        sev:sevColor[a.severity]||'#3B82F6', ts:a.generatedAt?new Date(a.generatedAt).getTime():0,
+      });
+    });
+  }
+
+  items.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  items = items.slice(0,8);
+  if(cntEl) cntEl.textContent = items.length;
+
+  // Update sidebar badges — Breakout Alerts and Volume Alerts counts
+  var boCount  = (boRes.status==='fulfilled' && boRes.value.ok) ? (boRes.value.data||[]).length : 0;
+  var volCount = (volRes.status==='fulfilled' && volRes.value.ok) ? (volRes.value.data||[]).length : 0;
+  var sbBal = document.getElementById('sb-bal');
+  var sbVol = document.getElementById('sb-vol');
+  if (sbBal) sbBal.textContent = boCount  || '—';
+  if (sbVol) sbVol.textContent = volCount || '—';
+
+  if(!feed) return;
+  feed.innerHTML = items.length ? items.map(a=>`
     <div class="al-it">
       <div class="al-ic" style="background:${a.ib};color:${a.ic2}">${a.ic}</div>
       <div class="al-b"><div class="al-t">${a.t}</div><div class="al-s">${a.s}</div></div>
       <div class="al-m"><div class="al-tm">${a.tm}</div><div class="sev" style="background:${a.sev}"></div></div>
-    </div>`).join('');
+    </div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No alerts currently — scanner and portfolio signals will appear here</div>';
 }
+
 
 // ─── SCANNER TABLE ────────────────────────────────────────────────────────────
 function renderScan(){
@@ -1243,17 +1671,17 @@ function buildMktChart(tab){
   var d=liveData.indices[TAB_MAP[tab]?.srcKey];
   var c=document.getElementById('mktC');if(!c)return;
   if(mktChartInst)mktChartInst.destroy();
-  var base=(d&&d.price)||23252;
-  var pts=[],p=d?d.previousClose:base*0.994;
-  for(var i=0;i<78;i++){p=j(p,.0018);pts.push(Math.round(p*100)/100)}
-  // Set last point to actual current price
-  if(d&&d.price)pts[pts.length-1]=d.price;
-  var labels=[];
-  for(var h=9;h<=15;h++)for(var m=0;m<60;m+=5){if(h===9&&m<15)continue;if(h===15&&m>30)continue;labels.push(h+':'+(m<10?'0':'')+m)}
+  // Real data only — Yahoo's chartData (5-min interval intraday closes),
+  // already returned by fetchYahooQuote() on the backend. No fabricated
+  // random-walk filler. If not yet loaded, the chart simply renders empty.
+  var pts = (d && Array.isArray(d.chartData)) ? d.chartData.filter(v=>v!=null) : [];
+  var labelsAll=[];
+  for(var h=9;h<=15;h++)for(var m=0;m<60;m+=5){if(h===9&&m<15)continue;if(h===15&&m>30)continue;labelsAll.push(h+':'+(m<10?'0':'')+m)}
+  var labels=labelsAll.slice(0,pts.length);
   var isUp=(d?.change||0)>=0;
   mktChartInst=new Chart(c,{
     type:'line',
-    data:{labels:labels.slice(0,pts.length),datasets:[{data:pts,borderColor:isUp?'#22C55E':'#EF4444',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:isUp?'rgba(34,197,94,.06)':'rgba(239,68,68,.06)',tension:.3}]},
+    data:{labels:labels,datasets:[{data:pts,borderColor:isUp?'#22C55E':'#EF4444',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:isUp?'rgba(34,197,94,.06)':'rgba(239,68,68,.06)',tension:.3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:v=>'₹'+f(v.raw,2)}}},scales:{x:{grid:{color:'rgba(30,58,95,.3)'},ticks:{color:'#4B607E',font:{size:8},maxTicksLimit:8}},y:{grid:{color:'rgba(30,58,95,.3)'},ticks:{color:'#4B607E',font:{size:8},callback:v=>f(v,0)}}}}
   });
 }
@@ -1339,12 +1767,223 @@ function startCountdown(){
   },1000);
 }
 
+// ─── MARKET HEALTH KPI (k-health / k-score) ──────────────────────────────────
+// Calls GET /market/health — deterministic rule-based score (no randomness).
+// Label colour: STRONGLY BULLISH/BULLISH → green, NEUTRAL → warn, BEARISH/STRONGLY BEARISH → red.
+// Shows "—" and "Unavailable" when backend is unreachable or market service is initialising.
+async function loadMarketHealth() {
+  var healthEl = document.getElementById('k-health');
+  var scoreEl  = document.getElementById('k-score');
+  if (!healthEl || !scoreEl) return;
+
+  try {
+    var res = await fetch(BACKEND + '/market/health', { signal: AbortSignal.timeout(10000) });
+    var d   = await res.json();
+
+    if (!d.ok || d.score == null) {
+      // Backend returned ok:false (market service initialising or error)
+      healthEl.textContent = d.label || 'Unavailable';
+      healthEl.className   = 'health-bull';
+      healthEl.style.color = 'var(--t3)';
+      scoreEl.textContent  = 'Score: — / 100' + (d.dataComplete === false ? ' · partial data' : '');
+      return;
+    }
+
+    // Colour by label
+    var col;
+    if      (d.label === 'STRONGLY BULLISH') col = 'var(--up)';
+    else if (d.label === 'BULLISH')          col = 'var(--up)';
+    else if (d.label === 'NEUTRAL')          col = 'var(--warn)';
+    else if (d.label === 'BEARISH')          col = 'var(--dn)';
+    else                                     col = 'var(--dn)';   // STRONGLY BEARISH
+
+    healthEl.textContent = d.label;
+    healthEl.className   = 'health-bull';
+    healthEl.style.color = col;
+    scoreEl.textContent  = 'Score: ' + d.score + '/100' + (d.dataComplete ? '' : ' · partial');
+    flash('k-health');
+
+  } catch (e) {
+    // Network error — show explicit unavailable, never stale static text
+    console.warn('[MarketHealth] fetch failed:', e.message);
+    if (healthEl) { healthEl.textContent = '—'; healthEl.style.color = 'var(--t3)'; }
+    if (scoreEl)  scoreEl.textContent = 'Score: unavailable';
+  }
+}
+
+// ─── SENTIMENT GAUGE (News view) — reuses GET /market/health, same real ──────
+// deterministic score as the dashboard Market Health KPI. Replaces the
+// previous hardcoded 72%/BULLISH bar. Lazy-loaded only when News view opens.
+async function loadSentimentGauge(){
+  var labelEl=document.getElementById('sent-label');
+  var barEl=document.getElementById('sent-bar');
+  var scoreEl=document.getElementById('sent-score');
+  if(!labelEl||!barEl||!scoreEl) return;
+  try{
+    var res=await fetch(BACKEND+'/market/health',{signal:AbortSignal.timeout(10000)});
+    var d=await res.json();
+    if(!d.ok || d.score==null){
+      labelEl.textContent=d.label||'Unavailable'; labelEl.style.color='var(--t3)';
+      barEl.style.width='0%';
+      scoreEl.textContent='Market health service unavailable';
+      return;
+    }
+    var bullish = d.label==='STRONGLY BULLISH'||d.label==='BULLISH';
+    var bearish = d.label==='STRONGLY BEARISH'||d.label==='BEARISH';
+    var col = bullish?'var(--up)':bearish?'var(--dn)':'var(--warn)';
+    labelEl.textContent=d.label;
+    labelEl.style.color=col;
+    barEl.style.width=Math.max(0,Math.min(100,d.score))+'%';
+    barEl.style.background = bearish
+      ? 'linear-gradient(90deg,var(--dn),#b91c1c)'
+      : bullish
+        ? 'linear-gradient(90deg,var(--up),#16a34a)'
+        : 'linear-gradient(90deg,var(--warn),#b45309)';
+    scoreEl.textContent = d.score+'% · '+d.label+(d.dataComplete===false?' · partial data':'');
+  }catch(e){
+    labelEl.textContent='Unavailable'; labelEl.style.color='var(--t3)';
+    barEl.style.width='0%';
+    scoreEl.textContent='Data unavailable';
+  }
+}
+
+// ─── DASHBOARD PORTFOLIO KPIs ─────────────────────────────────────────────────
+// Calls /portfolio/summary + /portfolio/analytics/health + /portfolio/analytics/risk
+// in parallel and wires k-pos, k-ret, k-risk, k-wr on the dashboard.
+// Zero-position / no-data state always shows — (never fabricated numbers).
+async function loadDashboardPortfolioKPIs() {
+  var headers = { 'x-user-id': PORTFOLIO_USER_ID };
+  try {
+    var [sumRes, healthRes, riskRes] = await Promise.all([
+      fetch(BACKEND + '/portfolio/summary',          { headers, signal: AbortSignal.timeout(12000) }),
+      fetch(BACKEND + '/portfolio/analytics/health', { headers, signal: AbortSignal.timeout(12000) }),
+      fetch(BACKEND + '/portfolio/analytics/risk',   { headers, signal: AbortSignal.timeout(12000) }),
+    ]);
+
+    var sumData    = await sumRes.json();
+    var healthData = await healthRes.json();
+    var riskData   = await riskRes.json();
+
+    var sum    = (sumData.ok    && sumData.data)    ? sumData.data    : null;
+    var health = (healthData.ok && healthData.data) ? healthData.data : null;
+    var risk   = (riskData.ok   && riskData.data)   ? riskData.data   : null;
+
+    // ── k-pos: Active Positions ───────────────────────────────────────────────
+    // IMPORTANT: sum.positionCount (from /portfolio/summary) counts ALL
+    // positions regardless of status, including closed ones — getPositions()
+    // has no status filter. health.openTrades (from /portfolio/analytics/health)
+    // correctly filters to status IN ('open','partial'), matching what "Active
+    // Positions" actually means. Always use health.openTrades here — never the
+    // unfiltered summary count, even as a fallback, or a closed position would
+    // silently inflate this number the moment any trade is fully sold.
+    var posEl  = document.getElementById('k-pos');
+    var posSEl = document.getElementById('k-pos-s');
+    if (posEl && posSEl) {
+      var posCount = health ? health.openTrades : null;
+      if (posCount != null) {
+        posEl.textContent  = posCount;
+        posEl.className    = 'kpi-v';
+        posSEl.textContent = posCount === 0 ? 'No positions' : 'Open trades';
+      } else {
+        posEl.textContent  = '—';
+        posEl.className    = 'kpi-v';
+        posSEl.textContent = 'No positions';
+      }
+      flash('k-pos');
+    }
+
+    // ── k-ret: Total Return (unrealized, since inception) ─────────────────────
+    // Use unrealized P&L % from /portfolio/summary (totalPnLPct). True
+    // month-to-date return would require NAV-snapshot history this schema
+    // doesn't have — labeled honestly as "Total Return" rather than "MTD".
+    var retEl  = document.getElementById('k-ret');
+    var retSEl = document.getElementById('k-ret-s');
+    if (retEl && retSEl) {
+      var posCount2 = health ? health.openTrades : 0;
+      if (sum && sum.totalPnLPct != null) {
+        var pct = sum.totalPnLPct;
+        retEl.textContent  = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        retEl.className    = 'kpi-v ' + (pct >= 0 ? 'up' : 'dn');
+        retSEl.textContent = 'Unrealized';
+      } else if (posCount2 === 0) {
+        retEl.textContent  = '—';
+        retEl.className    = 'kpi-v';
+        retSEl.textContent = 'No positions';
+      } else {
+        // Positions exist but live prices unavailable
+        retEl.textContent  = '—';
+        retEl.className    = 'kpi-v';
+        retSEl.textContent = 'Prices unavailable';
+      }
+      flash('k-ret');
+    }
+
+    // ── k-risk: Portfolio Risk (exposure %) ───────────────────────────────────
+    // exposurePct from /portfolio/analytics/risk = capital deployed / total capital.
+    // Subtext: HHI concentration label.
+    var riskEl  = document.getElementById('k-risk');
+    var riskSEl = document.getElementById('k-risk-s');
+    if (riskEl && riskSEl) {
+      if (risk && risk.positionCount > 0 && risk.exposurePct != null) {
+        var exp = risk.exposurePct;
+        riskEl.textContent  = exp.toFixed(1) + '%';
+        riskEl.className    = 'kpi-v ' + (exp > 80 ? 'dn' : exp > 50 ? 'wc' : 'up');
+        riskSEl.textContent = 'Exposure · ' + (risk.hhiLabel || 'Portfolio');
+      } else if (risk && risk.positionCount === 0) {
+        riskEl.textContent  = '—';
+        riskEl.className    = 'kpi-v';
+        riskSEl.textContent = 'No positions';
+      } else {
+        riskEl.textContent  = '—';
+        riskEl.className    = 'kpi-v';
+        riskSEl.textContent = 'Unavailable';
+      }
+      flash('k-risk');
+    }
+
+    // ── k-wr: Win Rate ────────────────────────────────────────────────────────
+    // winRate from /portfolio/analytics/health (all-time closed trades).
+    // Subtext: winningTradesW / losingTradesL.
+    var wrEl  = document.getElementById('k-wr');
+    var wrSEl = document.getElementById('k-wr-s');
+    if (wrEl && wrSEl) {
+      if (health && health.winRate != null) {
+        wrEl.textContent  = health.winRate.toFixed(1) + '%';
+        wrEl.className    = 'kpi-v ' + (health.winRate >= 50 ? 'up' : 'dn');
+        wrSEl.textContent = health.winningTrades + 'W / ' + health.losingTrades + 'L';
+      } else if (health && health.closedTrades === 0) {
+        wrEl.textContent  = '—';
+        wrEl.className    = 'kpi-v';
+        wrSEl.textContent = 'No closed trades';
+      } else {
+        wrEl.textContent  = '—';
+        wrEl.className    = 'kpi-v';
+        wrSEl.textContent = 'Unavailable';
+      }
+      flash('k-wr');
+    }
+
+  } catch (e) {
+    // On any network/parse error: show — across all four cards, never fabricate
+    console.warn('[KPI] Dashboard portfolio KPIs failed:', e.message);
+    ['k-pos','k-ret','k-risk','k-wr'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'kpi-v'; }
+    });
+    var subtexts = { 'k-pos-s':'No positions', 'k-ret-s':'Unavailable', 'k-risk-s':'Unavailable', 'k-wr-s':'Unavailable' };
+    Object.entries(subtexts).forEach(function([id, txt]) {
+      var el = document.getElementById(id); if (el) el.textContent = txt;
+    });
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init(){
-  // Render static elements immediately
-  buildSparks();
-  renderAlerts();
-  renderSectors(FALLBACK_SECTORS.map(s=>({...s,c:j(s.c,.02)})));
+  // buildMktChart/renderSectors are intentionally NOT seeded with fabricated
+  // data here. The chart renders empty until real Yahoo chartData arrives
+  // (buildMktChart is re-invoked from updateIndicesFromData). The sector
+  // panel keeps its HTML "Fetching sector data..." placeholder until real
+  // sector data arrives via updateSectorsFromData().
   buildMktChart('n50');
   updateClock();
 
@@ -1375,7 +2014,7 @@ async function init(){
   },2500);
 
   // Market breadth (NSE Nifty 500 advance/decline + 52wk high/low) — real data
-  setTimeout(fetchMarketBreadth, 3500);
+  setTimeout(fetchMarketInternals, 3500);
 
   setInterval(updateClock,1000);
   startCountdown();
@@ -1390,7 +2029,20 @@ async function init(){
   setInterval(()=>{ if(!wsReady) fetchScanner(); },45000);
 
   // Market breadth refresh every 60s
-  setInterval(fetchMarketBreadth, 60000);
+  setInterval(fetchMarketInternals, 60000);
+
+  // Market Health KPI — load once on init, then refresh every 15s
+  setTimeout(loadMarketHealth, 2000);
+  setInterval(loadMarketHealth, 15000);
+
+  // Dashboard portfolio KPIs — load once on init, then refresh every 15s
+  setTimeout(loadDashboardPortfolioKPIs, 1500);
+  setInterval(loadDashboardPortfolioKPIs, 15000);
+
+  // Alerts Center — real scanner + portfolio intelligence data (deferred so
+  // PORTFOLIO_USER_ID, declared later in this script, is initialized first)
+  setTimeout(loadAlerts, 1800);
+  setInterval(loadAlerts, 60000);
 
   document.getElementById('footer-ts').textContent='Initialized: '+nowIST();
 }
@@ -1398,7 +2050,7 @@ async function init(){
 init();
 
 // ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
-var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii'];
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings'];
 var activeView = 'dashboard';
 
 function switchView(view) {
@@ -1413,7 +2065,19 @@ function switchView(view) {
 
   // Show target view
   var target = document.getElementById('view-' + view);
-  if (target) target.style.display = (view === 'dashboard') ? 'contents' : 'block';
+  if (target) {
+    if (view === 'dashboard') target.style.display = 'contents';
+    else if (view === 'rankings') { target.style.display = 'flex'; }
+    else target.style.display = 'block';
+  }
+  // Rankings: fixed overlay from sidebar right edge
+  var mainEl = document.getElementById('main');
+  if (mainEl) mainEl.style.padding = (view === 'rankings') ? '0' : '7px';
+  var rkView = document.getElementById('view-rankings');
+  if (rkView && view === 'rankings') {
+    var sb = document.querySelector('.sidebar');
+    rkView.style.left = (sb ? sb.offsetWidth : 178) + 'px';
+  }
 
   // Update sidebar active state
   document.querySelectorAll('.sb-it').forEach(el => el.classList.remove('active'));
@@ -1429,10 +2093,14 @@ function switchView(view) {
 
   // Lazy-load view content
   if (view === 'scanner') renderScan2();
-  if (view === 'news') { renderNewsFeed(); renderCorporateAnnouncements(); }
+  if (view === 'news') { initNewsView(); }
+  if (view === 'alerts-news') { loadNewsAlerts(); }
+  if (view === 'alerts-breakout') { loadBreakoutAlerts(); }
+  if (view === 'alerts-volume') { loadVolumeAlerts(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
+  if (view === 'rankings') renderRankingsView();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
@@ -1510,33 +2178,414 @@ function scan2Tab(el, key) {
 
 function filterScan2() { renderScan2(); }
 
-// ─── NEWS FEED ────────────────────────────────────────────────────────────────
-var NEWS_ITEMS = [
-  {tag:'FII',col:'#22C55E',bg:'#0d2e1a',title:'FII Net Buyers for 5th Consecutive Session',body:'Foreign institutional investors bought ₹2,847 Cr worth of equities. IT and Banking sectors saw maximum inflows. Sentiment remains strongly bullish.',time:'11:45 AM',impact:'HIGH'},
-  {tag:'RBI',col:'#3B82F6',bg:'#0d1b35',title:'RBI Holds Rates, Signals Accommodative Stance',body:'The Reserve Bank of India kept the repo rate unchanged at 6.5%. Governor noted inflation is within target band. Markets react positively — Nifty up 0.8%.',time:'10:30 AM',impact:'HIGH'},
-  {tag:'RES',col:'#F59E0B',bg:'#2a1e06',title:'DIXON Technologies Q4 Results: PAT up 68% YoY',body:'Dixon Tech reported strong quarterly results. Revenue grew 42% to ₹4,280 Cr. EMS business shows no slowdown. Stock near 52-week high on heavy volumes.',time:'09:55 AM',impact:'MED'},
-  {tag:'SEC',col:'#22C55E',bg:'#0d2e1a',title:'IT Sector Sees Renewed Buying Interest',body:'HCL Tech, Persistent Systems, and Coforge lead the IT recovery. Deal wins pipeline improving. Rupee depreciation adds tailwind for export earnings.',time:'09:30 AM',impact:'MED'},
-  {tag:'GLB',col:'#EF4444',bg:'#2e0d0d',title:'US Markets Mixed Ahead of Fed Minutes',body:'S&P 500 futures flat. Nasdaq slightly lower. Fed minutes due tonight — markets watching for any hawkish signals. India VIX at 14.72, suggesting low fear.',time:'08:45 AM',impact:'LOW'},
-  {tag:'IPO',col:'#3B82F6',bg:'#0d1b35',title:'Strong IPO Pipeline for Q1 FY26',body:'SEBI approves 12 new IPOs. Total issue size ₹18,400 Cr. Anchor investor interest strong across sectors. Grey market premiums positive for most issues.',time:'08:15 AM',impact:'LOW'},
-  {tag:'BLK',col:'#22C55E',bg:'#0d2e1a',title:'Block Deal: HCLTECH — ₹182 Cr by FII',body:'A major FII purchased 12.2 lakh shares of HCL Technologies at ₹1,491 on BSE. This is a bullish accumulation signal. Stock added to high-confidence watchlist.',time:'Yesterday',impact:'HIGH'},
-];
+// ─── NEWS INTELLIGENCE CENTER ─────────────────────────────────────────────────
+// All data sourced from real API calls — /news/*, /news/high-impact, etc.
+// AI scoring is done on the backend by Claude (never fabricated client-side).
+// Affected stock symbols are pre-validated against the UNIVERSE before storage.
 
-function renderNewsFeed() {
-  var feed = document.getElementById('news-feed');
-  if (!feed || feed.children.length > 0) return;
-  feed.innerHTML = NEWS_ITEMS.map(n => `
-    <div class="al-it" style="padding:10px 14px;cursor:pointer" onclick="this.style.opacity='.6'">
-      <div class="al-ic" style="background:${n.bg};color:${n.col};width:36px;height:36px;font-size:9px;flex-shrink:0">${n.tag}</div>
-      <div class="al-b" style="flex:1">
-        <div style="font-size:11px;font-weight:500;color:var(--t1);margin-bottom:3px">${n.title}</div>
-        <div style="font-size:9px;color:var(--t3);line-height:1.5">${n.body}</div>
-        <div style="margin-top:5px;display:flex;gap:8px;align-items:center">
-          <span style="font-size:9px;color:var(--t3)">${n.time}</span>
-          <span style="font-size:9px;padding:1px 6px;border-radius:3px;font-weight:500;background:${n.impact==='HIGH'?'#0d2e1a':n.impact==='MED'?'#2a1e06':'#1a1f2e'};color:${n.impact==='HIGH'?'var(--up)':n.impact==='MED'?'var(--warn)':'var(--t3)'}">${n.impact}</span>
+var newsState     = {};          // per-tab session cache
+var newsActiveTab = 'high-impact';
+var newsViewLoaded  = false;     // sidebar panels loaded once per page load
+var newsAlertsLoaded = false;    // alerts-news view loaded once per session
+
+var NEWS_TAB_TITLES = {
+  'high-impact': 'High Impact News',
+  'latest':      'Latest News',
+  'watchlist':   'My Watchlist News',
+  'earnings':    'Earnings & Results',
+  'corporate':   'Corporate Actions',
+  'deals':       'Bulk / Block Deals',
+};
+
+// Called from switchView('news')
+async function initNewsView() {
+  if (!newsViewLoaded) {
+    // Fire sidebar loaders in parallel — they fill in independently
+    loadBreakingBanner();
+    loadNewsStats();
+    loadNewsTrending();
+    loadSentimentGauge();
+    newsViewLoaded = true;
+  }
+  await loadNewsTab(newsActiveTab);
+}
+
+// Tab switcher — called by onclick on each tab
+async function newsTab(el, key) {
+  newsActiveTab = key;
+  document.querySelectorAll('#news-tabs .mkt-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  var titleEl = document.getElementById('news-feed-title');
+  if (titleEl) titleEl.textContent = NEWS_TAB_TITLES[key] || key;
+  await loadNewsTab(key);
+}
+
+// Fetch and render data for the active tab
+async function loadNewsTab(key) {
+  var feed  = document.getElementById('news-main-feed');
+  var cntEl = document.getElementById('news-feed-cnt');
+  var srcEl = document.getElementById('news-feed-src');
+  var tsEl  = document.getElementById('news-feed-ts');
+  if (!feed) return;
+
+  // Session cache — tab data stays fresh until page reload
+  if (newsState[key]) { renderNewsItems(newsState[key], feed, cntEl, srcEl, tsEl, key); return; }
+
+  feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>';
+  if (cntEl) cntEl.textContent = '—';
+
+  try {
+    var data;
+    if (key === 'high-impact') {
+      var r = await fetch(BACKEND + '/news/high-impact?limit=40', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'latest') {
+      var r = await fetch(BACKEND + '/news?limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'watchlist') {
+      // Get open positions then cross-reference news
+      var posR   = await fetch(BACKEND + '/portfolio/positions', {
+        headers: { 'x-user-id': PORTFOLIO_USER_ID }, signal: AbortSignal.timeout(10000),
+      });
+      var posD   = await posR.json();
+      var syms   = [];
+      if (posD.ok && posD.data) {
+        syms = posD.data
+          .filter(p => p.status === 'open' || p.status === 'partial')
+          .map(p => (p.nse_symbol || p.sym || '').replace(/\.NS$/, ''))
+          .filter(Boolean);
+      }
+      if (!syms.length) {
+        data = { ok: true, data: [], message: 'No open positions — add positions in Portfolio to see watchlist news' };
+      } else {
+        var wR = await fetch(BACKEND + '/news/watchlist?symbols=' + encodeURIComponent(syms.join(',')), { signal: AbortSignal.timeout(15000) });
+        data = await wR.json();
+      }
+
+    } else if (key === 'earnings') {
+      var r = await fetch(BACKEND + '/news?category=Earnings&limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'corporate') {
+      var r = await fetch(BACKEND + '/news?category=Corporate+Action&limit=50', { signal: AbortSignal.timeout(15000) });
+      data = await r.json();
+
+    } else if (key === 'deals') {
+      // Merge Bulk Deal + Block Deal results
+      var [bkR, blR] = await Promise.all([
+        fetch(BACKEND + '/news?category=Bulk+Deal&limit=30',  { signal: AbortSignal.timeout(15000) }),
+        fetch(BACKEND + '/news?category=Block+Deal&limit=30', { signal: AbortSignal.timeout(15000) }),
+      ]);
+      var bk = await bkR.json();
+      var bl = await blR.json();
+      var merged = [...(bk.data || []), ...(bl.data || [])];
+      merged.sort((a, b) => new Date(b.published_at || b.fetched_at) - new Date(a.published_at || a.fetched_at));
+      data = { ok: true, data: merged };
+
+    } else {
+      data = { ok: true, data: [] };
+    }
+
+    newsState[key] = data;
+    renderNewsItems(data, feed, cntEl, srcEl, tsEl, key);
+  } catch (e) {
+    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
+// Render a list of news items into a container
+function renderNewsItems(d, container, cntEl, srcEl, tsEl, tabKey) {
+  if (tsEl) tsEl.textContent = nowIST();
+  if (srcEl) srcEl.textContent = 'AI-scored · NSE Corporate Announcements + RSS';
+
+  if (!d || !d.ok) {
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable${d && d.error ? ' — '+d.error : ''}</div>`;
+    if (cntEl) cntEl.textContent = '—';
+    return;
+  }
+
+  var items = d.data || [];
+  if (cntEl) cntEl.textContent = items.length || '0';
+
+  if (!items.length) {
+    var msg = d.message || 'No items yet — the AI scoring engine is building up. Announcements are scored every 20 minutes.';
+    container.innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--t3);font-size:10px;line-height:1.8">${msg}</div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(newsItemHtml).join('');
+}
+
+// Build HTML for a single news item card
+function newsItemHtml(item) {
+  var impact    = item.impact_score;
+  var impactBg  = impact >= 80 ? '#2e0d0d' : impact >= 60 ? '#2a1e06' : impact >= 40 ? '#0d1b35' : '#111520';
+  var impactCl  = impact >= 80 ? 'var(--dn)' : impact >= 60 ? 'var(--warn)' : impact >= 40 ? 'var(--acc2)' : 'var(--t3)';
+  var leftBorder= impact >= 80 ? 'border-left:2px solid var(--dn);' : impact >= 60 ? 'border-left:2px solid var(--warn);' : '';
+
+  var sentCl    = item.sentiment==='Bullish' ? 'var(--up)' : item.sentiment==='Bearish' ? 'var(--dn)' : 'var(--t3)';
+  var sentBg    = item.sentiment==='Bullish' ? '#0d2e1a' : item.sentiment==='Bearish' ? '#2e0d0d' : '#111520';
+
+  var cat       = item.category || 'General';
+  var catCol    = CORP_ANN_COLORS[cat] || {c:'var(--t3)', bg:'#111520'};
+
+  var affected  = Array.isArray(item.affected_stocks)  ? item.affected_stocks  : [];
+  var sectors   = Array.isArray(item.affected_sectors) ? item.affected_sectors.slice(0,2) : [];
+  var timeStr   = newsTimeAgo(item.published_at || item.fetched_at);
+
+  return `<div style="padding:10px 12px;border-bottom:1px solid var(--bd);${leftBorder}${leftBorder ? 'padding-left:10px;' : ''}">
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
+      ${item.symbol ? `<span class="sym" style="font-size:9px">${item.symbol}</span>` : ''}
+      ${impact != null ? `<span style="font-size:8px;padding:1px 5px;border-radius:3px;font-weight:700;background:${impactBg};color:${impactCl}">⚡${impact}</span>` : ''}
+      ${item.sentiment ? `<span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${sentBg};color:${sentCl}">${item.sentiment}</span>` : ''}
+      ${item.urgency && item.urgency !== 'Background' ? `<span style="font-size:8px;color:var(--t3)">${item.urgency}</span>` : ''}
+      <span style="font-size:8px;padding:1px 5px;border-radius:3px;background:${catCol.bg};color:${catCol.c}">${cat}</span>
+    </div>
+    <div style="font-size:10px;font-weight:500;color:var(--t1);line-height:1.4;margin-bottom:${item.why_it_matters ? '6px' : '4px'}">${item.title || ''}</div>
+    ${item.why_it_matters ? `<div style="font-size:9px;color:var(--t2);line-height:1.5;margin-bottom:4px;padding:5px 8px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--acc2)"><span style="color:var(--acc2);font-weight:600">Why it matters · </span>${item.why_it_matters}</div>` : ''}
+    ${item.trading_implication ? `<div style="font-size:9px;color:var(--t2);line-height:1.5;margin-bottom:5px;padding:5px 8px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--warn)"><span style="color:var(--warn);font-weight:600">Trade · </span>${item.trading_implication}</div>` : ''}
+    ${affected.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${affected.map(s=>`<span class="sym" style="font-size:8px">${s}</span>`).join('')}</div>` : ''}
+    <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+      <span style="font-size:8px;color:var(--t3)">${item.source || 'NSE'}</span>
+      ${timeStr ? `<span style="font-size:8px;color:var(--t3)">${timeStr}</span>` : ''}
+      ${sectors.length ? `<span style="font-size:8px;color:var(--t3)">${sectors.join(' · ')}</span>` : ''}
+      ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" style="font-size:8px;color:var(--acc2);text-decoration:none">↗ Source</a>` : ''}
+    </div>
+  </div>`;
+}
+
+// Relative timestamp formatter
+function newsTimeAgo(iso) {
+  if (!iso) return '';
+  try {
+    var mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  } catch { return ''; }
+}
+
+// Breaking news banner — auto-shows when impact_score >= 80 items exist in last 6h
+async function loadBreakingBanner() {
+  var wrap   = document.getElementById('news-breaking-wrap');
+  var ticker = document.getElementById('news-breaking-ticker');
+  if (!wrap || !ticker) return;
+  try {
+    var r = await fetch(BACKEND + '/news/breaking', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data || !d.data.length) { wrap.style.display = 'none'; return; }
+    ticker.textContent = d.data.slice(0, 5)
+      .map(i => (i.symbol ? i.symbol + ' — ' : '') + i.title)
+      .join('  ·  ');
+    wrap.style.display = 'block';
+  } catch { wrap.style.display = 'none'; }
+}
+
+// Intelligence Stats sidebar panel
+async function loadNewsStats() {
+  var panel = document.getElementById('news-stats-panel');
+  if (!panel) return;
+  try {
+    var r = await fetch(BACKEND + '/news/stats', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data) {
+      panel.innerHTML = '<div style="font-size:9px;color:var(--t3);padding:4px;text-align:center">No stats yet</div>';
+      return;
+    }
+    var s = d.data;
+    // Update sidebar News Alerts badge with real high-impact count
+    var sbNws = document.getElementById('sb-nws');
+    if (sbNws && s.highImpact != null) sbNws.textContent = s.highImpact || '—';
+    panel.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--t1)">${s.total||0}</div>
+          <div style="font-size:8px;color:var(--t3)">Total Items</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--acc2)">${s.scored||0}</div>
+          <div style="font-size:8px;color:var(--t3)">AI Scored</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--dn)">${s.highImpact||0}</div>
+          <div style="font-size:8px;color:var(--t3)">High Impact</div>
+        </div>
+        <div style="text-align:center;padding:6px 4px;background:var(--bg2);border-radius:5px">
+          <div style="font-size:18px;font-weight:500;color:var(--t2)">${s.last24h||0}</div>
+          <div style="font-size:8px;color:var(--t3)">Last 24h</div>
         </div>
       </div>
-    </div>`).join('');
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:9px;padding:0 2px">
+        <span class="up">▲ ${(s.sentiment&&s.sentiment.bullish)||0} Bull</span>
+        <span style="color:var(--t3)">${s.avgImpact != null ? '~'+s.avgImpact+' avg' : '—'}</span>
+        <span class="dn">▼ ${(s.sentiment&&s.sentiment.bearish)||0} Bear</span>
+      </div>`;
+  } catch {
+    panel.innerHTML = '<div style="font-size:9px;color:var(--t3);padding:4px;text-align:center">Unavailable</div>';
+  }
 }
+
+// Trending Stocks sidebar panel — most-mentioned symbols in last 24h
+async function loadNewsTrending() {
+  var panel = document.getElementById('news-trending-panel');
+  if (!panel) return;
+  try {
+    var r = await fetch(BACKEND + '/news/trending', { signal: AbortSignal.timeout(10000) });
+    var d = await r.json();
+    if (!d.ok || !d.data || !d.data.length) {
+      panel.innerHTML = '<div style="padding:10px;text-align:center;font-size:9px;color:var(--t3)">No trending data yet</div>';
+      return;
+    }
+    panel.innerHTML = d.data.map((r, i) => {
+      var sentCl = r.dominant_sentiment==='Bullish' ? 'var(--up)' : r.dominant_sentiment==='Bearish' ? 'var(--dn)' : 'var(--t3)';
+      var sentMk = r.dominant_sentiment==='Bullish' ? '▲' : r.dominant_sentiment==='Bearish' ? '▼' : '—';
+      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-bottom:1px solid var(--bd)">
+        <span style="font-size:9px;color:var(--t3);width:12px;flex-shrink:0">${i+1}</span>
+        <span class="sym" style="font-size:9px;flex-shrink:0">${r.symbol}</span>
+        <span style="font-size:9px;color:var(--t2);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${r.name||''}</span>
+        <span style="font-size:8px;color:var(--t3);flex-shrink:0">${r.mention_count}×</span>
+        <span style="font-size:9px;color:${sentCl};flex-shrink:0">${sentMk}</span>
+      </div>`;
+    }).join('');
+  } catch {
+    panel.innerHTML = '<div style="padding:10px;text-align:center;font-size:9px;color:var(--t3)">Unavailable</div>';
+  }
+}
+
+// News Alerts view (alerts-news sidebar entry) — high-impact AI-scored news
+// ─── BREAKOUT ALERTS VIEW ────────────────────────────────────────────────────
+var breakoutAlertsLoaded = false;
+async function loadBreakoutAlerts() {
+  var body  = document.getElementById('ba-body');
+  var cntEl = document.getElementById('ba-cnt');
+  var srcEl = document.getElementById('ba-src');
+  var tsEl  = document.getElementById('ba-ts');
+  if (!body) return;
+  // Always refresh (not cached — scanner results update every 45s)
+  body.innerHTML = '<tr><td colspan="12" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Fetching breakout alerts...</td></tr>';
+  try {
+    var r = await fetch(BACKEND + '/scanner/breakout-alerts?limit=200', { signal: AbortSignal.timeout(20000) });
+    var d = await r.json();
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      body.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--t3)">No active breakout alerts right now — scanner refreshes every 45 seconds.</td></tr>';
+      if (cntEl) cntEl.textContent = '0';
+      if (srcEl) srcEl.textContent = 'Active breakouts · scanner universe';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    if (srcEl) srcEl.textContent = d.data.length + ' active breakouts · scanner universe · ' + nowIST();
+    body.innerHTML = d.data.map(function(a, i) {
+      var chgCls = (a.chg||0) >= 0 ? 'up' : 'dn';
+      var alertBg = a.alertType && a.alertType.toLowerCase().includes('extreme') ? '#2e0d0d'
+                  : a.alertType && a.alertType.toLowerCase().includes('high') ? '#2a1e06' : '#0d2e1a';
+      var alertCol = a.alertType && a.alertType.toLowerCase().includes('extreme') ? 'var(--dn)'
+                   : a.alertType && a.alertType.toLowerCase().includes('high') ? 'var(--warn)' : 'var(--up)';
+      return '<tr onclick="openModal(' + i + ')">' +
+        '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+        '<td><span class="sym">' + (a.sym||'—') + '</span></td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.name||'') + '</td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.sector||'—') + '</td>' +
+        '<td style="font-size:9px;color:var(--t3)">' + (a.cap||'—') + '</td>' +
+        '<td style="color:var(--t1);font-weight:500">₹' + f(a.cmp) + '</td>' +
+        '<td class="' + chgCls + '">' + ((a.chg||0)>=0?'+':'') + f(a.chg,2) + '%</td>' +
+        '<td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:' + alertBg + ';color:' + alertCol + '">' + (a.alertType||'Breakout') + '</span></td>' +
+        '<td style="color:var(--acc2)">₹' + f(a.entry) + '</td>' +
+        '<td class="dn">₹' + f(a.stop) + '</td>' +
+        '<td><span style="color:' + ((a.volRatio||0)>=3?'var(--up)':(a.volRatio||0)>=2?'var(--warn)':'var(--t2)') + '">' + f(a.volRatio,1) + '×</span></td>' +
+        '<td><span class="cn ' + (a.conf>=8?'c-hi':a.conf>=6?'c-md':'c-lo') + '">' + (a.conf||'—') + '</span></td>' +
+        '</tr>';
+    }).join('');
+    // Update sidebar badge too
+    var sbBal = document.getElementById('sb-bal');
+    if (sbBal) sbBal.textContent = d.data.length;
+  } catch (e) {
+    if (body) body.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ' + e.message + '</td></tr>';
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
+// ─── VOLUME ALERTS VIEW ───────────────────────────────────────────────────────
+var volumeAlertsLoaded = false;
+async function loadVolumeAlerts() {
+  var body  = document.getElementById('va-body');
+  var cntEl = document.getElementById('va-cnt');
+  var srcEl = document.getElementById('va-src');
+  var tsEl  = document.getElementById('va-ts');
+  if (!body) return;
+  body.innerHTML = '<tr><td colspan="12" style="padding:14px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Fetching volume alerts...</td></tr>';
+  try {
+    var r = await fetch(BACKEND + '/scanner/volume-alerts?limit=200', { signal: AbortSignal.timeout(20000) });
+    var d = await r.json();
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      body.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--t3)">No volume alerts right now — scanner refreshes every 45 seconds.</td></tr>';
+      if (cntEl) cntEl.textContent = '0';
+      if (srcEl) srcEl.textContent = 'Stocks with vol ≥ 2.5× 20-day average';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    if (srcEl) srcEl.textContent = d.data.length + ' volume spikes · vol ≥ 2.5× avg · ' + nowIST();
+    body.innerHTML = d.data.map(function(a, i) {
+      var chgCls = (a.chg||0) >= 0 ? 'up' : 'dn';
+      var vol = a.volRatio || 0;
+      var volCol = vol >= 5 ? 'var(--dn)' : vol >= 3 ? 'var(--warn)' : 'var(--up)';
+      var alertLabel = vol >= 5 ? 'Extreme (5×+)' : vol >= 3 ? 'High (3×+)' : 'Elevated (2.5×+)';
+      var alertBg   = vol >= 5 ? '#2e0d0d' : vol >= 3 ? '#2a1e06' : '#0d2e1a';
+      return '<tr>' +
+        '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+        '<td><span class="sym">' + (a.sym||'—') + '</span></td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.name||'') + '</td>' +
+        '<td style="font-size:9px;color:var(--t2)">' + (a.sector||'—') + '</td>' +
+        '<td style="font-size:9px;color:var(--t3)">' + (a.cap||'—') + '</td>' +
+        '<td style="color:var(--t1);font-weight:500">₹' + f(a.cmp) + '</td>' +
+        '<td class="' + chgCls + '">' + ((a.chg||0)>=0?'+':'') + f(a.chg,2) + '%</td>' +
+        '<td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:' + alertBg + ';color:' + volCol + '">' + alertLabel + '</span></td>' +
+        '<td><span style="color:' + volCol + ';font-weight:500">' + f(vol,1) + '×</span></td>' +
+        '<td style="color:var(--t3)">' + (a.avgVolume ? a.avgVolume.toLocaleString('en-IN') : '—') + '</td>' +
+        '<td style="color:var(--t2)">' + (a.curVolume ? a.curVolume.toLocaleString('en-IN') : '—') + '</td>' +
+        '<td>' + (a.breakoutConfirmed ? '<span style="color:var(--up);font-size:9px">✓ BO</span>' : '<span style="color:var(--t3);font-size:9px">—</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+    // Update sidebar badge too
+    var sbVol = document.getElementById('sb-vol');
+    if (sbVol) sbVol.textContent = d.data.length;
+  } catch (e) {
+    if (body) body.innerHTML = '<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ' + e.message + '</td></tr>';
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
+async function loadNewsAlerts() {
+  if (newsAlertsLoaded) return;
+  var feed  = document.getElementById('news-alerts-feed');
+  var cntEl = document.getElementById('news-alerts-cnt');
+  var tsEl  = document.getElementById('news-alerts-ts');
+  if (!feed) return;
+  try {
+    var r = await fetch(BACKEND + '/news/high-impact?limit=40', { signal: AbortSignal.timeout(15000) });
+    var d = await r.json();
+    newsAlertsLoaded = true;
+    if (tsEl) tsEl.textContent = nowIST();
+    if (!d.ok || !d.data || !d.data.length) {
+      feed.innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--t3);font-size:10px;line-height:1.8">No high-impact news scored yet.<br>The AI scoring engine builds up as new announcements arrive every 20 minutes.</div>';
+      if (cntEl) cntEl.textContent = '0';
+      return;
+    }
+    if (cntEl) cntEl.textContent = d.data.length;
+    feed.innerHTML = d.data.map(newsItemHtml).join('');
+  } catch (e) {
+    newsAlertsLoaded = true;
+    if (feed) feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (cntEl) cntEl.textContent = '—';
+  }
+}
+
 
 // ─── SMART MONEY ACTIVITY (real NSE: Bulk/Block Deals, Delivery Volume, Institutional) ──
 var smartMoneyData  = {};   // cache per tab: { ok, data, source, error }
@@ -1754,103 +2803,38 @@ function renderStrategiesView() {
 // reads/writes from this browser hit the same logical "account".
 const PORTFOLIO_USER_ID = '11111111-1111-1111-1111-111111111111';
 
-async function renderPortfolioView(){
-  var body = document.getElementById('pf-body');
-  var cnt  = document.getElementById('pf-cnt');
-  var src  = document.getElementById('pf-src');
-  var ts   = document.getElementById('pf-ts');
-  if (!body) return;
-
-  body.innerHTML = '<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr>';
-
-  try{
-    var headers = {'x-user-id': PORTFOLIO_USER_ID};
-    var [posRes, sumRes] = await Promise.all([
-      fetch(BACKEND+'/portfolio/positions?live=true', {headers, signal:AbortSignal.timeout(20000)}),
-      fetch(BACKEND+'/portfolio/summary', {headers, signal:AbortSignal.timeout(20000)}),
-    ]);
-    var posData = await posRes.json();
-    var sumData = await sumRes.json();
-    if (!posData.ok) throw new Error(posData.error || ('HTTP '+posRes.status));
-    if (!sumData.ok) throw new Error(sumData.error || ('HTTP '+sumRes.status));
-
-    var positions = posData.positions || [];
-    var summary   = sumData.data || {};
-
-    // KPI cards — only show numbers the API actually provides
-    document.getElementById('pf-total').textContent =
-      summary.currentValue!=null ? '₹'+f(summary.currentValue,0) :
-      (summary.totalInvested!=null ? '₹'+f(summary.totalInvested,0) : '—');
-    document.getElementById('pf-total-s').textContent =
-      summary.currentValue!=null ? 'Live value' : 'Invested (live prices unavailable)';
-
-    var pnlEl = document.getElementById('pf-pnl');
-    if (summary.totalPnL!=null){
-      pnlEl.textContent = (summary.totalPnL>=0?'+':'-')+'₹'+f(Math.abs(summary.totalPnL),0);
-      pnlEl.className = 'kpi-v '+(summary.totalPnL>=0?'up':'dn');
-      document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct)+' unrealized';
-    } else {
-      pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
-      document.getElementById('pf-pnl-s').textContent = positions.length ? 'Prices unavailable' : 'No positions yet';
-    }
-
-    // Win Rate / Max Drawdown: not returned by /portfolio/summary today —
-    // left as "—" rather than inventing numbers. Follow-up item, not faked.
-    document.getElementById('pf-winrate').textContent = '—';
-    document.getElementById('pf-drawdown').textContent = '—';
-
-    if (cnt) cnt.textContent = positions.length + ' Active';
-    if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
-    if (ts)  ts.textContent  = nowIST();
-
-    body.innerHTML = positions.length ? positions.map((p,i)=>`
-      <tr>
-        <td style="color:var(--t3)">${i+1}</td>
-        <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name||p.sector||''}</div></td>
-        <td>${f(p.quantity,0)}</td>
-        <td>₹${f(p.average_buy_price)}</td>
-        <td>${p.cmp!=null?'₹'+f(p.cmp):'—'}</td>
-        <td class="${p.pnl>0?'up':p.pnl<0?'dn':''}">${p.pnl!=null?(p.pnl>=0?'+':'-')+'₹'+f(Math.abs(p.pnl),0):'—'}</td>
-        <td class="${p.pnlPct>0?'up':p.pnlPct<0?'dn':''}">${pc(p.pnlPct)}</td>
-        <td class="dn">${p.stop_loss?'₹'+f(p.stop_loss):'—'}</td>
-        <td class="up">${p.target?'₹'+f(p.target):'—'}</td>
-        <td>${p.daysHeld!=null?p.daysHeld:'—'}</td>
-      </tr>`).join('') :
-      '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--t3)">No open positions yet — add your first trade to get started.</td></tr>';
-
-  }catch(e){
-    body.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${e.message}</td></tr>`;
-    ['pf-total','pf-pnl','pf-winrate','pf-drawdown'].forEach(id=>{var el=document.getElementById(id); if(el){el.textContent='—'; el.className='kpi-v';}});
-    if (cnt) cnt.textContent = '—';
-    if (src) src.textContent = 'Backend unreachable';
-    if (ts)  ts.textContent  = nowIST();
-  }
-}
+// NOTE: renderPortfolioView() is defined once, further down this file, in the
+// "PORTFOLIO: UPDATED renderPortfolioView with Performance + History" section.
+// An earlier, simpler version of this function used to be duplicated here;
+// since JS function declarations are last-wins, it was silently dead code
+// (audit hazard) — removed rather than left in place.
 
 // ─── ADD POSITION MODAL ───────────────────────────────────────────────────
 function openAddPositionModal(){
-  document.getElementById('add-position-form').reset();
-  document.getElementById('ap-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('ap-error').style.display = 'none';
-  document.getElementById('add-position-modal').style.display = 'flex';
+  openAddPosition(); // redirect to actual modal
 }
 
 function closeAddPositionModal(){
   document.getElementById('add-position-modal').style.display = 'none';
 }
 
-async function submitAddPosition(e){
-  e.preventDefault();
+async function submitAddPosition(){
   var errEl = document.getElementById('ap-error');
   var btn   = document.getElementById('ap-submit-btn');
-  errEl.style.display = 'none';
+  if (errEl) errEl.style.display = 'none';
 
-  var symbol   = document.getElementById('ap-symbol').value.trim().toUpperCase();
-  var exchange = document.getElementById('ap-exchange').value;
-  var quantity = parseFloat(document.getElementById('ap-quantity').value);
-  var price    = parseFloat(document.getElementById('ap-price').value);
-  var buyDate  = document.getElementById('ap-date').value;
-  var stopLoss = document.getElementById('ap-stoploss').value;
+  // symbol + exchange come from the selected stock object, not form fields
+  if (!apSelectedStock) {
+    errEl.textContent = 'No stock selected. Please go back to Step 1 and search for a stock.';
+    errEl.style.display = 'block';
+    return;
+  }
+  var symbol   = (apSelectedStock.nseSymbol || apSelectedStock.sym || '').toUpperCase();
+  var exchange = apSelectedStock.exchange || 'NSE';
+  var quantity = parseFloat(document.getElementById('ap-qty').value);
+  var price    = parseFloat(document.getElementById('ap-buy-price').value);
+  var buyDate  = document.getElementById('ap-buy-date').value;
+  var stopLoss = document.getElementById('ap-sl').value;
   var target   = document.getElementById('ap-target').value;
   var notes    = document.getElementById('ap-notes').value.trim();
 
@@ -1882,14 +2866,15 @@ async function submitAddPosition(e){
     var data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
 
-    closeAddPositionModal();
+    closeAddPosition();
     toast('Position added — '+symbol+' ✓');
     renderPortfolioView();
   }catch(err){
     errEl.textContent = err.message;
     errEl.style.display = 'block';
   }finally{
-    btn.disabled = false; btn.textContent = 'Add Position';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus" style="font-size:11px"></i> Add Position';
   }
 }
 
@@ -1980,6 +2965,8 @@ function closeAddPosition() {
 }
 
 function resetAddPositionForm() {
+  var errEl = document.getElementById('ap-error');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
   apSelectedStock = null;
   apLivePrice     = null;
   symDDFocusIdx   = -1;
@@ -2285,70 +3272,6 @@ function apCalcPnl() {
 }
 
 // ── Form submission — POST to /portfolio/positions then refresh table ─────────
-async function submitAddPosition() {
-  if (!apSelectedStock) { toast('Please select a symbol first'); return; }
-  var qty   = parseFloat(document.getElementById('ap-qty').value);
-  var price = parseFloat(document.getElementById('ap-buy-price').value);
-  if (!qty || qty <= 0)   { document.getElementById('ap-qty').classList.add('error');       toast('Quantity is required'); return; }
-  if (!price || price <= 0){ document.getElementById('ap-buy-price').classList.add('error'); toast('Buy price is required'); return; }
-
-  var btn = document.getElementById('ap-submit-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spin">⟳</span> Saving...';
-
-  // Build payload matching portfolioService.addPosition() expected fields
-  var payload = {
-    symbol:      apSelectedStock.nseSymbol || apSelectedStock.sym,
-    exchange:    apSelectedStock.exchange  || 'NSE',
-    companyName: apSelectedStock.name      || apSelectedStock.sym,
-    sector:      apSelectedStock.sector    || null,
-    industry:    apSelectedStock.industry  || null,
-    cap:         apSelectedStock.cap       || null,
-    quantity:    qty,
-    buyPrice:    price,
-    stopLoss:    parseFloat(document.getElementById('ap-sl').value)     || null,
-    target:      parseFloat(document.getElementById('ap-target').value) || null,
-    strategy:    document.getElementById('ap-strategy').value           || null,
-    buyDate:     document.getElementById('ap-buy-date').value           || null,
-    notes:       document.getElementById('ap-notes').value              || null,
-  };
-
-  try {
-    var res = await fetch(BACKEND + '/portfolio/positions', {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      'x-user-id':    PORTFOLIO_USER_ID,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10000),
-    });
-    var d = await res.json();
-
-    if (d.ok) {
-      toast('✓ ' + payload.symbol + ' × ' + qty + ' @ ₹' + f(price) + ' added to portfolio', 3500);
-      closeAddPosition();
-      // Refresh the live portfolio table
-      renderPortfolioView();
-    } else {
-      // DB not configured — store locally and show in table anyway
-      if (res.status === 503) {
-        toast('DB offline — position saved locally only', 3000);
-        addPositionToLocalTable(payload);
-        closeAddPosition();
-      } else {
-        toast('Error: ' + (d.error || 'Could not save position'), 4000);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-plus" style="font-size:11px"></i> Add Position';
-      }
-    }
-  } catch (e) {
-    // Network error — add to local table so user sees their entry
-    toast('Backend unreachable — showing locally', 3000);
-    addPositionToLocalTable(payload);
-    closeAddPosition();
-  }
-}
 
 // ── Load live positions from API and re-render the portfolio table ────────────
 var portfolioPositions = [];   // in-memory cache of positions
@@ -2464,6 +3387,876 @@ document.addEventListener('click', function(e) {
     hideSymDropdown();
   }
 });
+
+// ─── PORTFOLIO: renderPortfolioView with Performance + History ────────────────
+// Win Rate / Profit Factor are sourced from GET /portfolio/analytics/health —
+// the exact same endpoint the Dashboard's loadDashboardPortfolioKPIs() calls
+// for its Win Rate KPI. Previously this page called the separate
+// /portfolio/performance route, which ran its own independent SQL against the
+// same positions table — two implementations of the same calculation that
+// could silently drift apart over time. Now both pages share one source.
+async function renderPortfolioView() {
+  var body = document.getElementById('pf-body');
+  var cnt  = document.getElementById('pf-cnt');
+  var src  = document.getElementById('pf-src');
+  var ts   = document.getElementById('pf-ts');
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading portfolio...</td></tr>';
+
+  var headers = { 'x-user-id': PORTFOLIO_USER_ID };
+
+  try {
+    // Fire all three requests in parallel
+    var [posRes, sumRes, healthRes] = await Promise.all([
+      fetch(BACKEND + '/portfolio/positions?live=true', { headers, signal: AbortSignal.timeout(20000) }),
+      fetch(BACKEND + '/portfolio/summary',             { headers, signal: AbortSignal.timeout(20000) }),
+      fetch(BACKEND + '/portfolio/analytics/health',    { headers, signal: AbortSignal.timeout(20000) }),
+    ]);
+
+    var posData    = await posRes.json();
+    var sumData    = await sumRes.json();
+    var healthData = await healthRes.json();
+
+    if (!posData.ok) throw new Error(posData.error || ('HTTP ' + posRes.status));
+    if (!sumData.ok) throw new Error(sumData.error || ('HTTP ' + sumRes.status));
+
+    var positions = posData.positions || [];
+    // getPositions()/getEnrichedPositions() return ALL positions regardless
+    // of status (open, partial, AND closed) — there's no status filter at
+    // that layer, since other features (e.g. position edit/history) may
+    // legitimately need the full list. The "Open Positions" panel itself
+    // must filter to open/partial only, or a fully-sold position would keep
+    // appearing here indefinitely with quantity 0 and a broken-looking row.
+    var openPositions = positions.filter(p => p.status === 'open' || p.status === 'partial');
+    var summary   = sumData.data      || {};
+    var health    = (healthData.ok && healthData.data) ? healthData.data : null;
+
+    // ── KPI: Total Value ──────────────────────────────────────────────────────
+    document.getElementById('pf-total').textContent =
+      summary.currentValue != null ? '₹' + f(summary.currentValue, 0) :
+      (summary.totalInvested != null ? '₹' + f(summary.totalInvested, 0) : '—');
+    document.getElementById('pf-total-s').textContent =
+      summary.currentValue != null ? 'Live value' : 'Invested (live prices unavailable)';
+
+    // ── KPI: Open P&L ─────────────────────────────────────────────────────────
+    var pnlEl = document.getElementById('pf-pnl');
+    if (summary.totalPnL != null) {
+      pnlEl.textContent = (summary.totalPnL >= 0 ? '+' : '-') + '₹' + f(Math.abs(summary.totalPnL), 0);
+      pnlEl.className   = 'kpi-v ' + (summary.totalPnL >= 0 ? 'up' : 'dn');
+      document.getElementById('pf-pnl-s').textContent = pc(summary.totalPnLPct) + ' unrealized';
+    } else {
+      pnlEl.textContent = '—'; pnlEl.className = 'kpi-v';
+      document.getElementById('pf-pnl-s').textContent = openPositions.length ? 'Prices unavailable' : 'No open positions';
+    }
+
+    // ── KPI: Win Rate — from /portfolio/analytics/health (same source the
+    // Dashboard's Win Rate KPI uses) ────────────────────────────────────────
+    var wrEl = document.getElementById('pf-winrate');
+    var wrSEl = document.getElementById('pf-winrate-s');
+    if (health && health.winRate != null) {
+      wrEl.textContent  = health.winRate.toFixed(1) + '%';
+      wrEl.className    = 'kpi-v ' + (health.winRate >= 50 ? 'up' : 'dn');
+      wrSEl.textContent = health.winningTrades + 'W / ' + health.losingTrades + 'L · ' + health.closedTrades + ' closed';
+    } else {
+      wrEl.textContent  = '—';
+      wrEl.className    = 'kpi-v';
+      wrSEl.textContent = health ? 'No closed trades yet' : 'Unavailable';
+    }
+
+    // ── KPI: Profit Factor — from /portfolio/analytics/health ────────────────
+    // getHealth() does not return a true historical max-drawdown (that needs
+    // NAV-snapshot history this schema doesn't have); profitFactor is the
+    // honest alternative (gross profit / gross loss). Shown as "—" when no
+    // closed trades exist.
+    var pfEl  = document.getElementById('pf-drawdown');
+    var pfSEl = document.getElementById('pf-drawdown-s');
+    if (health && health.profitFactor != null) {
+      pfEl.textContent  = health.profitFactor.toFixed(2) + '×';
+      pfEl.className    = 'kpi-v ' + (health.profitFactor >= 1.5 ? 'up' : health.profitFactor >= 1 ? 'wc' : 'dn');
+      pfSEl.textContent = '₹' + f(health.grossProfit, 0) + ' / ₹' + f(health.grossLoss, 0);
+    } else {
+      pfEl.textContent  = '—';
+      pfEl.className    = 'kpi-v';
+      pfSEl.textContent = health ? 'No closed trades yet' : 'Unavailable';
+    }
+
+    // ── Open Positions count + source ─────────────────────────────────────────
+    if (cnt) cnt.textContent = openPositions.length + ' Active';
+    if (src) src.textContent = summary.partialPrices ? 'Live DB — some prices unavailable' : 'Live DB · Yahoo Finance prices';
+    if (ts)  ts.textContent  = nowIST();
+
+    // ── Open Positions table rows (status-filtered — open/partial only) ──────
+    body.innerHTML = openPositions.length ? openPositions.map((p, i) => `
+      <tr onclick="openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')})" style="cursor:pointer">
+        <td style="color:var(--t3)">${i + 1}</td>
+        <td><span class="sym">${p.symbol}</span><div style="font-size:9px;color:var(--t3)">${p.company_name || p.sector || ''}</div></td>
+        <td>${f(p.quantity, 0)}</td>
+        <td>₹${f(p.average_buy_price)}</td>
+        <td>${p.cmp != null ? '₹' + f(p.cmp) : '—'}</td>
+        <td class="${p.pnl > 0 ? 'up' : p.pnl < 0 ? 'dn' : ''}">${p.pnl != null ? (p.pnl >= 0 ? '+' : '-') + '₹' + f(Math.abs(p.pnl), 0) : '—'}</td>
+        <td class="${p.pnlPct > 0 ? 'up' : p.pnlPct < 0 ? 'dn' : ''}">${pc(p.pnlPct)}</td>
+        <td class="dn">${p.stop_loss ? '₹' + f(p.stop_loss) : '—'}</td>
+        <td class="up">${p.target ? '₹' + f(p.target) : '—'}</td>
+        <td>${p.daysHeld != null ? p.daysHeld : '—'}</td>
+        <td>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'edit')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#0d1b35;color:var(--acc2);cursor:pointer;margin-right:3px"
+                title="Edit">✎</span>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'sell')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#0d2e1a;color:var(--up);cursor:pointer;margin-right:3px"
+                title="Sell">↓ Sell</span>
+          <span onclick="event.stopPropagation();openPositionDetailModal(${JSON.stringify(p).replace(/"/g,'&quot;')},'delete')"
+                style="font-size:9px;padding:2px 7px;border-radius:3px;background:#2e0d0d;color:var(--dn);cursor:pointer"
+                title="Delete">✕</span>
+        </td>
+      </tr>`).join('') :
+      '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--t3)">No open positions yet — add your first trade to get started.</td></tr>';
+
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="11" style="padding:20px;text-align:center;color:var(--t3)">Data unavailable — ${e.message}</td></tr>`;
+    ['pf-total','pf-pnl','pf-winrate','pf-drawdown'].forEach(id => {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'kpi-v'; }
+    });
+    if (cnt) cnt.textContent = '—';
+    if (src) src.textContent = 'Backend unreachable';
+    if (ts)  ts.textContent  = nowIST();
+  }
+
+  // Load trade history in parallel (non-blocking — failure just shows "—")
+  renderTradeHistory();
+}
+
+// ─── TRADE HISTORY ────────────────────────────────────────────────────────────
+async function renderTradeHistory() {
+  var body = document.getElementById('th-body');
+  var cnt  = document.getElementById('th-cnt');
+  var src  = document.getElementById('th-src');
+  var ts   = document.getElementById('th-ts');
+  var rlz  = document.getElementById('th-realized');
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="10" style="padding:12px;text-align:center;color:var(--t3)"><span class="spin">⟳</span> Loading...</td></tr>';
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/history', {
+      headers: { 'x-user-id': PORTFOLIO_USER_ID },
+      signal: AbortSignal.timeout(15000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    var history = d.data || [];
+    if (cnt) cnt.textContent = history.length;
+    if (src) src.textContent = 'Live DB · trade_history table';
+    if (ts)  ts.textContent  = nowIST();
+
+    // Compute total realized P&L from SELL/PARTIAL_SELL rows
+    var totalRealized = history
+      .filter(h => h.transaction_type === 'SELL' || h.transaction_type === 'PARTIAL_SELL')
+      .reduce((s, h) => s + (Number(h.pnl) || 0), 0);
+
+    if (rlz && history.length > 0) {
+      rlz.textContent = 'Realized P&L: ' + (totalRealized >= 0 ? '+' : '') + '₹' + f(Math.abs(totalRealized), 0);
+      rlz.style.color = totalRealized >= 0 ? 'var(--up)' : 'var(--dn)';
+    } else if (rlz) {
+      rlz.textContent = '';
+    }
+
+    if (!history.length) {
+      body.innerHTML = '<tr><td colspan="10" style="padding:16px;text-align:center;color:var(--t3)">No trade history yet — buy/sell transactions will appear here.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = history.map((h, i) => {
+      var isSell = h.transaction_type === 'SELL' || h.transaction_type === 'PARTIAL_SELL';
+      var isBuy  = h.transaction_type === 'BUY';
+      var actionCls = isBuy ? 'cat-m' : 'cat-a';
+      var actionBg  = isBuy ? '#0d1b35' : '#0d2e1a';
+      var actionCol = isBuy ? 'var(--acc2)' : 'var(--up)';
+      if (isSell && h.pnl != null && h.pnl < 0) { actionBg = '#2e0d0d'; actionCol = 'var(--dn)'; }
+
+      var pnlTxt = (isSell && h.pnl != null)
+        ? (h.pnl >= 0 ? '+' : '') + '₹' + f(Math.abs(h.pnl), 0)
+        : '—';
+      var pnlCls = (isSell && h.pnl != null) ? (h.pnl >= 0 ? 'up' : 'dn') : '';
+      var pnlPctTxt = (isSell && h.pnl_pct != null)
+        ? (h.pnl_pct >= 0 ? '+' : '') + Number(h.pnl_pct).toFixed(2) + '%'
+        : '—';
+
+      var dateStr = h.executed_at
+        ? new Date(h.executed_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
+        : '—';
+
+      return `<tr>
+        <td style="color:var(--t3)">${i + 1}</td>
+        <td><span class="sym">${h.symbol || '—'}</span><div style="font-size:9px;color:var(--t3)">${h.company_name || ''}</div></td>
+        <td><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${actionBg};color:${actionCol};font-weight:500">${h.transaction_type || h.action || '—'}</span></td>
+        <td>${f(h.quantity, 0)}</td>
+        <td>₹${f(h.price)}</td>
+        <td>₹${f(h.total_value, 0)}</td>
+        <td class="${pnlCls}">${pnlTxt}</td>
+        <td class="${pnlCls}">${pnlPctTxt}</td>
+        <td style="color:var(--t3)">${h.holding_days != null ? h.holding_days + 'd' : '—'}</td>
+        <td style="font-size:9px;color:var(--t3)">${dateStr}</td>
+      </tr>`;
+    }).join('');
+
+  } catch (e) {
+    if (body) body.innerHTML = `<tr><td colspan="10" style="padding:12px;text-align:center;color:var(--t3)">History unavailable — ${e.message}</td></tr>`;
+    if (cnt) cnt.textContent = '—';
+  }
+}
+
+// ─── POSITION DETAIL MODAL ────────────────────────────────────────────────────
+// State for the currently open position
+var pdCurrentPosition = null;
+
+function openPositionDetailModal(positionData, initialTab) {
+  // positionData may be a plain object (from onclick) or a JSON string
+  var p = (typeof positionData === 'string') ? JSON.parse(positionData) : positionData;
+  pdCurrentPosition = p;
+
+  // Header
+  document.getElementById('pd-title').textContent = p.symbol + (p.exchange ? ' · ' + p.exchange : '');
+  document.getElementById('pd-sub').textContent   =
+    (p.company_name || p.sector || '') +
+    (p.strategy ? ' · ' + p.strategy : '') +
+    (p.status ? ' · ' + p.status.toUpperCase() : '');
+
+  // Overview grid
+  var cmp = p.cmp != null ? '₹' + f(p.cmp) : '—';
+  var pnlTxt = p.pnl != null ? (p.pnl >= 0 ? '+' : '-') + '₹' + f(Math.abs(p.pnl), 0) : '—';
+  var pnlPctTxt = p.pnlPct != null ? (p.pnlPct >= 0 ? '+' : '') + Number(p.pnlPct).toFixed(2) + '%' : '—';
+  var pnlCls = p.pnl != null ? (p.pnl >= 0 ? 'up' : 'dn') : '';
+  document.getElementById('pd-info-grid').innerHTML = `
+    <div class="pd-info-cell"><div class="pd-info-l">Symbol</div><div class="pd-info-v">${p.symbol}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Exchange</div><div class="pd-info-v">${p.exchange || 'NSE'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Quantity</div><div class="pd-info-v">${f(p.quantity, 0)}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Avg Buy Price</div><div class="pd-info-v">₹${f(p.average_buy_price)}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">CMP</div><div class="pd-info-v">${cmp}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Unrealized P&L</div><div class="pd-info-v ${pnlCls}">${pnlTxt} (${pnlPctTxt})</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Stop Loss</div><div class="pd-info-v dn">${p.stop_loss ? '₹' + f(p.stop_loss) : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Target</div><div class="pd-info-v up">${p.target ? '₹' + f(p.target) : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Days Held</div><div class="pd-info-v">${p.daysHeld != null ? p.daysHeld : '—'}</div></div>
+    <div class="pd-info-cell"><div class="pd-info-l">Buy Date</div><div class="pd-info-v">${p.buy_date ? new Date(p.buy_date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—'}</div></div>
+    <div class="pd-info-cell" style="grid-column:span 2"><div class="pd-info-l">Notes</div><div class="pd-info-v" style="font-size:10px;color:var(--t2)">${p.notes || '—'}</div></div>
+  `;
+
+  // Pre-fill Edit tab fields
+  document.getElementById('pd-edit-qty').value    = p.quantity || '';
+  document.getElementById('pd-edit-price').value  = p.average_buy_price || '';
+  document.getElementById('pd-edit-sl').value     = p.stop_loss || '';
+  document.getElementById('pd-edit-target').value = p.target || '';
+  document.getElementById('pd-edit-date').value   = p.buy_date ? p.buy_date.slice(0, 10) : '';
+  document.getElementById('pd-edit-notes').value  = p.notes || '';
+
+  // Pre-fill Sell tab
+  document.getElementById('pd-sell-holding').textContent = f(p.quantity, 0);
+  document.getElementById('pd-sell-avgcost').textContent = '₹' + f(p.average_buy_price);
+  document.getElementById('pd-sell-qty').value   = '';
+  document.getElementById('pd-sell-price').value = p.cmp ? p.cmp.toFixed(2) : '';
+  document.getElementById('pd-sell-notes').value = '';
+  document.getElementById('pd-sell-preview').style.display = 'none';
+  pdCalcSellPreview();
+
+  // Delete tab
+  document.getElementById('pd-del-title').textContent =
+    'Delete ' + p.symbol + ' (' + f(p.quantity, 0) + ' shares)?';
+
+  // Reset button states
+  document.getElementById('pd-update-btn').disabled = false;
+  document.getElementById('pd-update-btn').innerHTML = '<i class="ti ti-check" style="font-size:11px"></i> Save Changes';
+  document.getElementById('pd-sell-btn').disabled = false;
+  document.getElementById('pd-sell-btn').innerHTML = '<i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell';
+  document.getElementById('pd-delete-btn').disabled = false;
+  document.getElementById('pd-delete-btn').innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
+
+  // Switch to requested tab (default: view)
+  pdSwitchTab(initialTab || 'view');
+
+  document.getElementById('pd-modal').style.display = 'flex';
+}
+
+function closePdModal() {
+  document.getElementById('pd-modal').style.display = 'none';
+  pdCurrentPosition = null;
+}
+
+function pdSwitchTab(tab) {
+  var tabs  = ['view', 'edit', 'sell', 'delete'];
+  tabs.forEach(function(t) {
+    var tabEl  = document.getElementById('pd-tab-' + t);
+    var paneEl = document.getElementById('pd-pane-' + t);
+    if (tabEl)  tabEl.classList.toggle('active', t === tab);
+    if (paneEl) paneEl.style.display = (t === tab) ? 'block' : 'none';
+  });
+}
+
+// ── Sell preview calculator ───────────────────────────────────────────────────
+function pdCalcSellPreview() {
+  var p = pdCurrentPosition;
+  if (!p) return;
+  var qty   = parseFloat(document.getElementById('pd-sell-qty').value)   || 0;
+  var price = parseFloat(document.getElementById('pd-sell-price').value) || 0;
+  var avgCost = Number(p.average_buy_price) || 0;
+  var holding = Number(p.quantity) || 0;
+
+  if (qty <= 0 || price <= 0) {
+    document.getElementById('pd-sell-preview').style.display = 'none';
+    return;
+  }
+
+  var proceeds  = qty * price;
+  var costBasis = qty * avgCost;
+  var pnl       = proceeds - costBasis;
+  var pnlPct    = avgCost > 0 ? (pnl / costBasis) * 100 : 0;
+  var remaining = holding - qty;
+
+  document.getElementById('pd-sp-proceeds').textContent  = '₹' + f(proceeds, 0);
+  var pnlEl = document.getElementById('pd-sp-pnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '₹' + f(pnl, 0);
+  pnlEl.className   = pnl >= 0 ? 'up' : 'dn';
+  var pnlPctEl = document.getElementById('pd-sp-pnlpct');
+  pnlPctEl.textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+  pnlPctEl.className   = pnlPct >= 0 ? 'up' : 'dn';
+  document.getElementById('pd-sp-remaining').textContent = remaining >= 0 ? f(remaining, 0) + ' shares' : '⚠ exceeds holding';
+  document.getElementById('pd-sell-preview').style.display = 'block';
+}
+
+// ── Submit: Update position (PUT /portfolio/positions/:id) ────────────────────
+async function submitUpdatePosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var qty   = parseFloat(document.getElementById('pd-edit-qty').value);
+  var price = parseFloat(document.getElementById('pd-edit-price').value);
+  if (!qty || qty <= 0)    { toast('Quantity must be > 0'); return; }
+  if (!price || price <= 0){ toast('Buy price must be > 0'); return; }
+
+  var btn = document.getElementById('pd-update-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Saving...';
+
+  var payload = {
+    quantity:          qty,
+    average_buy_price: price,
+    stop_loss:         parseFloat(document.getElementById('pd-edit-sl').value)     || null,
+    target:            parseFloat(document.getElementById('pd-edit-target').value) || null,
+    buy_date:          document.getElementById('pd-edit-date').value               || null,
+    notes:             document.getElementById('pd-edit-notes').value              || null,
+  };
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions/' + p.id, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': PORTFOLIO_USER_ID },
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    toast('✓ ' + p.symbol + ' updated', 2500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Update failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:11px"></i> Save Changes';
+  }
+}
+
+// ── Submit: Sell position (POST /portfolio/sell) ──────────────────────────────
+async function submitSellPosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var qty   = parseFloat(document.getElementById('pd-sell-qty').value);
+  var price = parseFloat(document.getElementById('pd-sell-price').value);
+  var notes = document.getElementById('pd-sell-notes').value || null;
+
+  if (!qty || qty <= 0)    { toast('Sell quantity must be > 0'); return; }
+  if (!price || price <= 0){ toast('Sell price must be > 0'); return; }
+  if (qty > Number(p.quantity)) { toast('Sell qty exceeds holding (' + f(p.quantity, 0) + ')'); return; }
+
+  var btn = document.getElementById('pd-sell-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Processing...';
+
+  var payload = {
+    position_id: p.id,
+    quantity:    qty,
+    price:       price,
+    notes:       notes,
+  };
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/sell', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': PORTFOLIO_USER_ID },
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    var isFull = qty >= Number(p.quantity);
+    toast('✓ ' + p.symbol + ' — ' + (isFull ? 'fully exited' : f(qty, 0) + ' shares sold @ ₹' + f(price)), 3500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Sell failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trending-down" style="font-size:11px"></i> Confirm Sell';
+  }
+}
+
+// ── Submit: Delete position (DELETE /portfolio/positions/:id) ─────────────────
+async function submitDeletePosition() {
+  var p = pdCurrentPosition;
+  if (!p || !p.id) { toast('No position selected'); return; }
+
+  var btn = document.getElementById('pd-delete-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Deleting...';
+
+  try {
+    var res = await fetch(BACKEND + '/portfolio/positions/' + p.id, {
+      method:  'DELETE',
+      headers: { 'x-user-id': PORTFOLIO_USER_ID },
+      signal:  AbortSignal.timeout(10000),
+    });
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || ('HTTP ' + res.status));
+
+    toast('✓ ' + p.symbol + ' position deleted', 2500);
+    closePdModal();
+    renderPortfolioView();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 4000);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash" style="font-size:11px"></i> Delete Position';
+  }
+}
+
+
+// ─── RECOMMENDATION ENGINE (presentation layer — zero engine logic changed) ───
+
+function getRecommendation(r) {
+  var score = r.consensusScore  || 0;
+  var conf  = r.confidenceScore || 50;
+  var agree = r.agreementPct    || 0;
+  var brk   = r.breakoutProb    || 0;
+  var inst  = r.institutionalProb || 0;
+  var fb    = r.falseBORisk != null ? r.falseBORisk : 100;
+  var dir   = r.direction || 'neutral';
+  var label, cls, color;
+
+  if (dir === 'long') {
+    if (score >= 90 && agree >= 80 && fb <= 20 && brk >= 65 && inst >= 60)
+      { label = 'STRONG BUY';  cls = 'rec-sb'; color = '#22C55E'; }
+    else if (score >= 82 && agree >= 80 && fb <= 30 && brk >= 55)
+      { label = 'BUY';         cls = 'rec-b';  color = '#4ADE80'; }
+    else if (score >= 70 && agree >= 60 && fb <= 50)
+      { label = 'WATCHLIST';   cls = 'rec-wl'; color = '#60A5FA'; }
+    else
+      { label = 'NEUTRAL';     cls = 'rec-n';  color = '#EAB308'; }
+  } else if (dir === 'short') {
+    if (score <= 35 && fb > 50)
+      { label = 'STRONG AVOID'; cls = 'rec-sa'; color = '#EF4444'; }
+    else
+      { label = 'AVOID';        cls = 'rec-av'; color = '#F97316'; }
+  } else {
+    if (fb > 60)
+      { label = 'AVOID';   cls = 'rec-av'; color = '#F97316'; }
+    else
+      { label = 'NEUTRAL'; cls = 'rec-n';  color = '#EAB308'; }
+  }
+
+  var ACTIONS = {
+    'STRONG BUY':   'Suitable for immediate consideration',
+    'BUY':          'Favorable setup, monitor entry',
+    'WATCHLIST':    'Monitor for confirmation',
+    'NEUTRAL':      'No edge currently',
+    'AVOID':        'Risk outweighs opportunity',
+    'STRONG AVOID': 'Do not consider unless conditions change'
+  };
+  var confLabel = conf >= 80 ? 'Very High Confidence'
+               : conf >= 65 ? 'High Confidence'
+               : conf >= 50 ? 'Medium Confidence' : 'Low Confidence';
+
+  return { label: label, cls: cls, color: color,
+           action: ACTIONS[label] || '', confLabel: confLabel };
+}
+
+function getRecReasons(r) {
+  var agree = r.agreementPct    || 0;
+  var brk   = r.breakoutProb    || 0;
+  var inst  = r.institutionalProb || 0;
+  var fb    = r.falseBORisk != null ? r.falseBORisk : 100;
+  var dir   = r.direction || 'neutral';
+  var score = r.consensusScore  || 0;
+  var bull = [], risk = [];
+
+  if (dir === 'long') {
+    if (agree >= 80)       bull.push('High engine agreement (' + agree + '%)');
+    else if (agree >= 60)  bull.push('Moderate engine agreement (' + agree + '%)');
+    if (inst >= 65)        bull.push('Strong institutional participation (' + inst + ')');
+    if (brk  >= 65)        bull.push('Breakout probability above threshold (' + brk + ')');
+    if (fb   <= 20)        bull.push('Very low false-breakout risk (' + fb + ')');
+    else if (fb <= 30)     bull.push('Acceptable false-breakout risk (' + fb + ')');
+    if (score >= 85)       bull.push('High consensus score (' + score + ')');
+  }
+  if (dir === 'short')     risk.push('Majority engines bearish — market structure unfavorable');
+  if (dir === 'neutral')   risk.push('No clear directional consensus');
+  if (fb  > 50)            risk.push('High false-breakout risk (' + fb + ')');
+  else if (fb > 30)        risk.push('Elevated false-breakout risk (' + fb + ')');
+  if (brk  < 40)           risk.push('Weak breakout probability (' + brk + ')');
+  if (inst < 40)           risk.push('Institutional participation weak (' + inst + ')');
+  if (agree < 60)          risk.push('Low engine agreement (' + agree + '%)');
+
+  var explain = r.explainData || r.explain || {};
+  (explain.positiveSignals || []).forEach(function(s){ if (bull.length < 5) bull.push(s); });
+  (explain.riskSignals     || []).forEach(function(s){ if (risk.length < 5) risk.push(s); });
+  return { bull: bull, risk: risk };
+}
+
+
+// ─── RANKINGS VIEW ────────────────────────────────────────────────────────────
+var rkState = { category:'ALL', tier:'ALL', data:[], loading:false, lastFetch:0 };
+
+async function renderRankingsView() {
+  updateRankingStatus();
+  if (!rkState.data.length || Date.now() - rkState.lastFetch > 300000) {
+    try { await fetchRankings(); } catch(e) { console.warn('[Rankings]', e.message); }
+  }
+  try { renderRankingsTable(); } catch(e) {
+    var tbody = document.getElementById('rk-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty" style="color:var(--warn)">Table error: ' + e.message + ' — please hard refresh (Ctrl+Shift+R)</td></tr>';
+  }
+}
+
+async function fetchRankings() {
+  if (rkState.loading) return;
+  rkState.loading = true;
+  var tbody = document.getElementById('rk-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-loader"></i> Fetching rankings...</td></tr>';
+  try {
+    var params = new URLSearchParams({ limit: 100 });
+    if (rkState.category !== 'ALL') params.set('category', rkState.category);
+    if (rkState.tier !== 'ALL') params.set('tier', rkState.tier);
+    var resp = await fetch(BACKEND + '/rankings?' + params.toString(), { signal: AbortSignal.timeout(15000) });
+    var json = await resp.json();
+    if (json.ok && Array.isArray(json.data)) { rkState.data = json.data; rkState.lastFetch = Date.now(); }
+  } catch(e) { console.warn('[Rankings]', e.message); }
+  rkState.loading = false;
+}
+
+function renderRankingsTable() {
+  var tbody = document.getElementById('rk-tbody');
+  if (!tbody) return;
+  var rows = rkState.data;
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty"><i class="ti ti-database-off" style="font-size:22px;display:block;margin-bottom:8px"></i>No rankings yet — click <b>Scan Now</b> to trigger a scan, or wait for the scheduled EOD scan (16:30 IST)</td></tr>';
+    return;
+  }
+  var TIER_C = { S:'#F59E0B', A:'#22C55E', B:'#2563EB', C:'#94A3C0', REJECT:'#4B607E' };
+  var CAT_C  = { LARGECAP:'#2563EB', MIDCAP:'#22C55E', SMALLCAP:'#F59E0B', MICROCAP:'#EF4444' };
+  try { tbody.innerHTML = rows.map(function(r, i) {
+    var tier = r.tier || '—';
+    var tc   = TIER_C[tier] || '#94A3C0';
+    var cc   = CAT_C[r.category] || '#94A3C0';
+    var score = r.consensusScore || 0;
+    var barC = score >= 90 ? '#F59E0B' : score >= 80 ? '#22C55E' : '#2563EB';
+    var dirIcon = r.direction === 'long' ? '▲' : r.direction === 'short' ? '▼' : '—';
+    var dirColor = r.direction === 'long' ? 'var(--up)' : r.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+    var fbr = r.falseBORisk != null ? r.falseBORisk : '—';
+    var fbC = fbr < 25 ? 'var(--up)' : fbr < 45 ? 'var(--warn)' : 'var(--dn)';
+    var brk = r.breakoutProb != null ? r.breakoutProb : '—';
+    var brkC = (brk !== '—' && brk >= 65) ? 'var(--up)' : 'var(--t2)';
+    var rec  = getRecommendation(r);
+    return '<tr class="rk-row" data-ticker="' + r.ticker + '">' +
+      '<td style="color:var(--t3)">' + (i+1) + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600">' + r.ticker + '</span>' +
+        '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:' + cc + '22;color:' + cc + '">' + (r.category||'').slice(0,3) + '</span></div>' +
+        '<div style="font-size:9px;color:var(--t3)">' + (r.sector||'') + '</div></td>' +
+      '<td><span class="rec-badge ' + rec.cls + '">' + rec.label + '</span></td>' +
+      '<td><div style="display:flex;align-items:center;gap:6px">' +
+        '<div class="rk-bar-track" style="width:65px"><div class="rk-bar-fill" style="width:' + score + '%;background:' + barC + '"></div></div>' +
+        '<span style="font-weight:600;color:var(--t1)">' + score + '</span></div></td>' +
+      '<td style="color:' + dirColor + ';font-weight:600">' + dirIcon + '</td>' +
+      '<td style="color:var(--t2)">' + (r.agreementPct != null ? r.agreementPct + '%' : '—') + '</td>' +
+      '<td style="color:var(--t2)">' + (r.institutionalProb != null ? r.institutionalProb : '—') + '</td>' +
+      '<td style="color:' + brkC + '">' + brk + '</td>' +
+      '<td style="color:' + fbC + '">' + fbr + '</td>' +
+    '</tr>';
+  }).join('');
+  tbody.querySelectorAll('.rk-row').forEach(function(tr) {
+    tr.addEventListener('click', function() { openRankDrill(this.dataset.ticker); });
+  });
+  } catch(e) {
+    console.error('[Rankings render]', e);
+    tbody.innerHTML = '<tr><td colspan="9" class="rk-empty" style="color:var(--warn)"><i class="ti ti-alert-triangle" style="font-size:20px;display:block;margin-bottom:6px"></i>Render error: ' + e.message + '<br><small style="color:var(--t3)">Hard refresh (Ctrl+Shift+R) to reload latest code</small></td></tr>';
+  }
+}
+
+function setRankCat(cat) {
+  rkState.category = cat; rkState.data = [];
+  document.querySelectorAll('#rk-cat-tabs .rk-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.cat === cat); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+function setRankTier(tier) {
+  rkState.tier = tier; rkState.data = [];
+  document.querySelectorAll('#rk-tier-tabs .rk-tier-btn').forEach(function(t){ t.classList.toggle('active', t.dataset.tier === tier); });
+  fetchRankings().then(renderRankingsTable);
+}
+
+async function triggerRankingScan() {
+  var btn = document.querySelector('.rk-scan-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Triggering...'; }
+  try {
+    await fetch(BACKEND + '/rankings/scan', { method:'POST', signal: AbortSignal.timeout(5000) });
+    var s = document.getElementById('rk-status');
+    if (s) { s.textContent = 'Scan triggered — auto-refresh in ~4 min'; s.style.color = 'var(--warn)'; }
+    setTimeout(async function() {
+      if (activeView !== 'rankings') return;
+      rkState.data = []; rkState.lastFetch = 0;
+      try { await fetchRankings(); renderRankingsTable(); } catch(e) {}
+    }, 240000);
+  } catch(e) {}
+  setTimeout(function(){ if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-refresh"></i> Scan Now'; } }, 3000);
+}
+
+async function refreshRankingData() {
+  rkState.data = []; rkState.lastFetch = 0;
+  var s = document.getElementById('rk-status');
+  if (s) s.textContent = 'Refreshing...';
+  try { await fetchRankings(); renderRankingsTable(); } catch(e) {}
+}
+
+
+async function openRankDrill(ticker) {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;color:var(--t3);text-align:center"><i class="ti ti-loader" style="font-size:20px;display:block;margin-bottom:8px"></i>Loading ' + ticker + '...</div>';
+  try {
+    var resp = await fetch(BACKEND + '/rankings/stock/' + ticker, { signal: AbortSignal.timeout(10000) });
+    var json = await resp.json();
+    if (!json.ok || !json.data) { panel.innerHTML = '<div style="padding:20px;color:var(--dn)">No data for ' + ticker + '</div>'; return; }
+    var r = json.data;
+    var engines = r.engines || {};
+    var explain = r.explainData || r.explain || {};
+
+    // Recommendation (presentation layer — no engine calculations changed)
+    var rec = getRecommendation(r);
+    var reasons = getRecReasons(r);
+
+    var bullTags = reasons.bull.slice(0, 4).map(function(b) {
+      return '<span style="font-size:9px;background:#052e16;color:#22C55E;padding:2px 7px;border-radius:4px;white-space:nowrap">\u2713 ' + b + '</span>';
+    }).join('');
+    var riskTags = reasons.risk.slice(0, 4).map(function(b) {
+      return '<span style="font-size:9px;background:#2d0d0d;color:#EF4444;padding:2px 7px;border-radius:4px;white-space:nowrap">\u2717 ' + b + '</span>';
+    }).join('');
+
+    var ENG_NAMES = { emavol:'EMA + Vol', lux:'LuxAlgo', trendspider:'TrendSpider', chartprime:'ChartPrime', algoalpha:'AlgoAlpha' };
+
+    function chip(label, val, positive, inverse) {
+      var c = inverse ? (positive ? 'var(--up)' : 'var(--dn)') : (positive ? 'var(--up)' : 'var(--t2)');
+      return '<div class="rk-metric"><div class="rk-metric-label">' + label + '</div><div class="rk-metric-val" style="color:' + c + '">' + val + '</div></div>';
+    }
+
+    var engBars = Object.entries(engines).map(function(entry) {
+      var id = entry[0], e = entry[1];
+      var s = e.score || 0;
+      var bc = s >= 80 ? '#22C55E' : s >= 60 ? '#2563EB' : '#94A3C0';
+      var dc = e.direction === 'long' ? 'var(--up)' : e.direction === 'short' ? 'var(--dn)' : 'var(--t3)';
+      var di = e.direction === 'long' ? '\u25b2' : e.direction === 'short' ? '\u25bc' : '\u2014';
+      return '<div class="rk-eng-bar"><span class="rk-eng-name">' + (ENG_NAMES[id]||id) + '</span>' +
+        '<div class="rk-bar-track"><div class="rk-bar-fill" style="width:' + s + '%;background:' + bc + '"></div></div>' +
+        '<span style="font-size:11px;font-weight:600;color:var(--t1);width:26px;text-align:right;flex-shrink:0">' + s + '</span>' +
+        '<span style="width:14px;font-size:10px;color:' + dc + ';flex-shrink:0">' + di + '</span></div>';
+    }).join('');
+
+    var posHtml = (explain.positiveSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--up)">\u2713 ' + s + '</div>'; }).join('');
+    var rskHtml = (explain.riskSignals||[]).map(function(s){ return '<div class="rk-signal" style="color:var(--dn)">\u26a0 ' + s + '</div>'; }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:700;color:var(--t1)">' + ticker + '</div>' +
+          '<div style="font-size:9px;color:var(--t3);margin-top:2px">' + (r.category||'') + ' \u00b7 ' + (r.sector||'Unknown') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<span style="font-size:22px;font-weight:700;color:' + rec.color + '">' + (r.consensusScore||0) + '</span>' +
+          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:18px;padding:2px 4px">\u00d7</button>' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:var(--bg2);border:1px solid ' + rec.color + '44;border-radius:8px;padding:12px;margin-bottom:10px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">' +
+          '<span style="font-size:14px;font-weight:700;letter-spacing:.04em;color:' + rec.color + '">' + rec.label + '</span>' +
+          '<span style="font-size:9px;padding:2px 8px;border-radius:10px;border:1px solid var(--bd);color:var(--t2)">' + rec.confLabel + '</span>' +
+        '</div>' +
+        '<div style="font-size:10px;color:var(--t2);font-style:italic;margin-bottom:8px">' + rec.action + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:4px">' + bullTags + riskTags + '</div>' +
+      '</div>' +
+      '<div class="rk-metric-grid">' +
+        chip('Agreement', (r.agreementPct != null ? r.agreementPct + '%' : '\u2014'), r.agreementPct >= 80) +
+        chip('Confidence', r.confidenceScore != null ? r.confidenceScore : '\u2014', r.confidenceScore >= 65) +
+        chip('Inst Prob', r.institutionalProb != null ? r.institutionalProb : '\u2014', r.institutionalProb >= 60) +
+        chip('Trend Cont', r.trendContinuationProb != null ? r.trendContinuationProb : '\u2014', r.trendContinuationProb >= 60) +
+        chip('Breakout', r.breakoutProb != null ? r.breakoutProb : '\u2014', r.breakoutProb >= 65) +
+        chip('FB Risk', r.falseBORisk != null ? r.falseBORisk : '\u2014', (r.falseBORisk||100) < 25, true) +
+      '</div>' +
+      '<div class="rk-sec-label">Engine Breakdown</div>' +
+      engBars +
+      (posHtml || rskHtml ? (
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Signals</div>' + (posHtml || '<div class="rk-signal" style="color:var(--t3)">\u2014</div>') + '</div>' +
+          '<div><div class="rk-sec-label" style="margin-top:0">Risk Factors</div>' + (rskHtml || '<div class="rk-signal" style="color:var(--t3)">\u2014</div>') + '</div>' +
+        '</div>'
+      ) : '') +
+      (explain.summary ? '<div style="font-size:10px;color:var(--t3);border-top:1px solid var(--bd);padding-top:8px;margin-top:8px;line-height:1.5">' + explain.summary + '</div>' : '');
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:20px;color:var(--dn)">Error: ' + e.message + '</div>';
+  }
+}
+
+async function updateRankingStatus() {
+  try {
+    var resp = await fetch(BACKEND + '/rankings/status', { signal: AbortSignal.timeout(5000) });
+    var json = await resp.json();
+    var el = document.getElementById('rk-status'); if (!el) return;
+    if (json.ok && json.data) {
+      var d = json.data;
+      if (d.isRunning) { el.textContent = 'Scanning...'; el.style.color = 'var(--warn)'; }
+      else if (d.lastRunAt) { var ago = Math.round((Date.now()-d.lastRunAt)/60000); el.textContent = 'Last scan: ' + (ago < 1 ? 'just now' : ago + 'm ago'); el.style.color = 'var(--t3)'; }
+      else { el.textContent = 'No scan yet'; el.style.color = 'var(--t3)'; }
+    }
+  } catch(e) {}
+}
+
+
+// ─── PHASE 8: VALIDATION ──────────────────────────────────────────────────────
+
+function closeRkPanel(){var p=document.getElementById('rk-panel');if(p)p.className='rk-panel';}
+
+async function openValidationPanel() {
+  var panel = document.getElementById('rk-panel');
+  if (!panel) return;
+  panel.className = 'rk-panel open';
+  panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary)"><i class="ti ti-shield-check" style="font-size:28px;display:block;margin-bottom:8px"></i>Running validation...</div>';
+
+  try {
+    var resp = await fetch(BACKEND + '/rankings/validate', { signal: AbortSignal.timeout(20000) });
+    var r = await resp.json();
+
+    if (!r.ok) {
+      panel.innerHTML = '<div style="padding:16px"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation</div>' +
+        '<div style="font-size:11px;color:var(--color-text-danger);background:var(--color-background-danger);padding:10px;border-radius:6px">' + (r.error || 'No data') + '</div>' +
+        '<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:12px">Trigger a scan first: click Scan Now and wait ~3 minutes.</div>' +
+        '<button onclick="closeRkPanel()" style="margin-top:12px;font-family:var(--font-mono);font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px">Close</button></div>';
+      return;
+    }
+
+    var healthColor = r.health >= 80 ? 'var(--color-text-success)' : r.health >= 60 ? 'var(--color-text-warning)' : 'var(--color-text-danger)';
+    var CORR_C = { correlated: 'var(--color-text-danger)', moderate: 'var(--color-text-warning)', independent: 'var(--color-text-success)' };
+
+    var corrRows = (r.correlations?.pairs || []).map(function(p) {
+      return '<tr><td style="padding:4px 6px;font-size:11px">' + p.labelA + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px">' + p.labelB + '</td>' +
+        '<td style="padding:4px 6px;font-size:11px;font-weight:500;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.r != null ? p.r : '—') + '</td>' +
+        '<td style="padding:4px 6px;font-size:10px;color:' + (CORR_C[p.status]||'var(--color-text-secondary)') + '">' + (p.status||'—') + '</td></tr>';
+    }).join('');
+
+    var tiers = r.tierStats?.counts || {};
+    var tierBar = ['S','A','B','C','REJECT'].map(function(t) {
+      var pct = r.tierStats?.percentages?.[t] || 0;
+      var c = {S:'var(--color-text-warning)',A:'var(--color-text-success)',B:'var(--color-text-info)',C:'var(--color-text-secondary)',REJECT:'var(--color-border-secondary)'}[t];
+      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">' +
+        '<span style="width:40px;font-size:10px;font-weight:500;color:'+c+'">'+t+'</span>' +
+        '<div style="flex:1;height:4px;background:var(--color-background-tertiary);border-radius:2px">' +
+          '<div style="width:'+pct+'%;height:100%;background:'+c+';border-radius:2px"></div></div>' +
+        '<span style="font-size:10px;color:var(--color-text-secondary);width:48px;text-align:right">'+(tiers[t]||0)+' ('+pct+'%)</span></div>';
+    }).join('');
+
+    var allAlerts = r.alerts || [];
+    var alertsHtml = allAlerts.length
+      ? allAlerts.map(function(a) { return '<div style="font-size:10px;color:var(--color-text-warning);margin-bottom:5px;line-height:1.4">⚠ '+a+'</div>'; }).join('')
+      : '<div style="font-size:11px;color:var(--color-text-success)">✓ No alerts — system behaving correctly</div>';
+
+    var dirStats = r.directionStats || {};
+    var distRows = Object.entries(r.distributions?.distributions || {}).map(function(e) {
+      var id = e[0], d = e[1];
+      if (!d) return '';
+      return '<tr><td style="padding:3px 6px;font-size:10px;color:var(--color-text-secondary)">' + (id === 'consensus' ? 'Consensus' : id) + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.mean + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.std + '</td>' +
+        '<td style="padding:3px 6px;font-size:10px;text-align:right">' + d.min + '–' + d.max + '</td></tr>';
+    }).join('');
+
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--color-text-primary)"><i class="ti ti-shield-check" style="font-size:14px"></i> Validation Report</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:22px;font-weight:500;color:'+healthColor+'">' + r.health + '</span>' +
+          '<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;color:'+healthColor+';background:var(--color-background-secondary)">' + r.status + '</span>' +
+          '<button onclick="closeRkPanel()" style="background:none;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:16px;padding:2px 4px">✕</button>' +
+        '</div></div>' +
+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">stocks</div>' +
+          '<div style="font-size:16px;font-weight:500">' + r.stocksEvaluated + '</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">gate pass</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-success)">' + (dirStats.passRate || 0) + '%</div></div>' +
+        '<div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:8px;text-align:center">' +
+          '<div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:3px">tier S+A</div>' +
+          '<div style="font-size:16px;font-weight:500;color:var(--color-text-warning)">' + ((tiers.S||0)+(tiers.A||0)) + '</div></div>' +
+      '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tier distribution</div>' +
+      '<div style="margin-bottom:14px">' + tierBar + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Engine correlation matrix</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine A</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">Engine B</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">r</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">status</th>' +
+          '</tr></thead>' +
+          '<tbody>' + corrRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Score distributions</div>' +
+      '<div style="margin-bottom:14px;overflow-x:auto">' +
+        '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono)">' +
+          '<thead><tr>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:left;font-weight:400">engine</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">mean</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">std</th>' +
+            '<th style="padding:3px 6px;font-size:10px;color:var(--color-text-tertiary);text-align:right;font-weight:400">range</th>' +
+          '</tr></thead>' +
+          '<tbody>' + distRows + '</tbody>' +
+        '</table></div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Alerts</div>' +
+      '<div style="margin-bottom:12px">' + alertsHtml + '</div>' +
+
+      '<div style="font-size:10px;color:var(--color-text-tertiary);border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;line-height:1.6">' +
+        (r.forwardReturns?.note || '') + '</div>';
+
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:16px;color:var(--color-text-danger)">Error: ' + e.message + '</div>';
+  }
+}
+
 
 </script>
 </body>
