@@ -27,6 +27,7 @@ let intelligence = null;
 let newsIntelligence = null;
 let rankingOrch  = null;
 let validationEng = null;
+let alertsEngine  = null;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -331,7 +332,7 @@ app.get('/scanner/institutional', async (req, res) => {
 
 // ── Market — Internals (A/D, 52W H/L, Volume from Yahoo Finance scanner data) ──
 // NSE API is blocked from cloud server IPs, so we derive these from the
-// scanner's last results which are fetched from Yahoo Finance (344 stocks).
+// scanner's last results which are fetched from Yahoo Finance (~1000 stocks).
 // No new API calls — reads scanner.lastResults which is Redis-cached.
 // FII/DII is genuinely unavailable without a licensed data feed.
 app.get('/market/internals', async (req, res) => {
@@ -377,7 +378,7 @@ app.get('/market/internals', async (req, res) => {
         stocksScanned: results.length,
         lastScanAt:   meta.lastScanAt || null,
       },
-      source: 'Yahoo Finance · scanner universe (344 stocks)',
+      source: 'Yahoo Finance · scanner universe (~1000 stocks)',
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -839,7 +840,12 @@ async function start() {
     nseData  = new NSEDataService(safeRedis);
     scanner  = new ScannerService(safeRedis, nseData);
     // Pass existing instances — WebSocket reuses them instead of creating a second scanner
-    wss      = new WebSocketServer(server, safeRedis, { market, scanner });
+    // AlertsEngine — must be created before WebSocket so WS can broadcast alerts
+    const AlertsEngine = require('./services/alertsEngine');
+    alertsEngine = new AlertsEngine(db, safeRedis);
+    console.log('[AlertsEngine] System alert pipeline ready ✓');
+
+    wss      = new WebSocketServer(server, safeRedis, { market, scanner, alerts: alertsEngine });
 
     console.log('[Market] Data service ready ✓');
     console.log('[NSEData] NSE data service ready ✓');
@@ -907,6 +913,70 @@ async function start() {
   } catch (e) {
     console.warn('[Validation] Failed to start (non-fatal):', e.message);
   }
+
+  // ── Alert Intelligence Routes ─────────────────────────────────────────────
+  // System-generated alerts from scanner + news. No user auth required.
+
+  // GET /alerts/breakout — live breakout alerts (from last scanner run)
+  app.get('/alerts/breakout', async (req, res) => {
+    try {
+      if (!alertsEngine) return res.json({ ok: true, data: [], message: 'Alert engine initializing' });
+      const live = alertsEngine.getBreakoutAlerts();
+      if (live.length) {
+        const { data, pagination } = applyListParams(live, req);
+        return res.json({ ok: true, data, ...pagination, source: 'live' });
+      }
+      // Fallback: fetch from DB if in-memory cache is empty (cold start)
+      const hist = await alertsEngine.getHistoricalAlerts({ type: 'breakout', hours: 8 });
+      const { data, pagination } = applyListParams(hist.data || [], req);
+      res.json({ ok: true, data, ...pagination, source: 'historical' });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /alerts/volume — live volume alerts (from last scanner run)
+  app.get('/alerts/volume', async (req, res) => {
+    try {
+      if (!alertsEngine) return res.json({ ok: true, data: [], message: 'Alert engine initializing' });
+      const live = alertsEngine.getVolumeAlerts();
+      if (live.length) {
+        const { data, pagination } = applyListParams(live, req);
+        return res.json({ ok: true, data, ...pagination, source: 'live' });
+      }
+      const hist = await alertsEngine.getHistoricalAlerts({ type: 'volume', hours: 8 });
+      const { data, pagination } = applyListParams(hist.data || [], req);
+      res.json({ ok: true, data, ...pagination, source: 'historical' });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /alerts/news — live news alerts (from news_items with AI scoring)
+  app.get('/alerts/news', async (req, res) => {
+    try {
+      if (!alertsEngine) return res.json({ ok: true, data: [], message: 'Alert engine initializing' });
+      const alerts = await alertsEngine.generateNewsAlerts();
+      const { data, pagination } = applyListParams(alerts, req);
+      res.json({ ok: true, data, ...pagination, source: 'news_intelligence' });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /alerts/recent — all recent alerts from DB (combined)
+  app.get('/alerts/recent', async (req, res) => {
+    try {
+      if (!alertsEngine) return res.json({ ok: true, data: [], message: 'Alert engine initializing' });
+      const hours  = Math.min(parseInt(req.query.hours || '24'), 72);
+      const type   = req.query.type || null;
+      const result = await alertsEngine.getHistoricalAlerts({ type, hours });
+      const { data, pagination } = applyListParams(result.data || [], req);
+      res.json({ ok: true, data, ...pagination, total: result.total });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // GET /alerts/stats — alert statistics
+  app.get('/alerts/stats', async (req, res) => {
+    try {
+      if (!alertsEngine) return res.json({ ok: true, data: null, message: 'Alert engine initializing' });
+      res.json(await alertsEngine.getStats());
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
 
   // ── News Intelligence Center ───────────────────────────────────────────────
   // All routes return { ok, data } — gracefully degrade when service not ready.
