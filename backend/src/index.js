@@ -289,6 +289,125 @@ app.get('/scanner/stats', async (req, res) => {
   }
 });
 
+// ── Breakout Probability Center ───────────────────────────────────────────────
+
+// GET /breakout/top10 — Top 10 stocks by Breakout Probability Score
+// Requires multi-strategy scan data (allStrategies, bps fields)
+app.get('/breakout/top10', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
+    let results;
+    if (redisClient?.isReady) {
+      const cached = await redisClient.get('cache:scanner').catch(() => null);
+      results = cached ? JSON.parse(cached) : null;
+    }
+    if (!results) results = await scanner.runScan();
+
+    // Sort by BPS descending, take top 10
+    const top10 = [...results]
+      .filter(r => r.bps != null)
+      .sort((a, b) => (b.bps || 0) - (a.bps || 0))
+      .slice(0, 10)
+      .map((r, i) => ({
+        rank:          i + 1,
+        sym:           r.sym,
+        name:          r.name,
+        sector:        r.sector,
+        cap:           r.cap,
+        cmp:           r.cmp,
+        chg:           r.chg,
+        bps:           r.bps,
+        bpsLabel:      r.bpsLabel,
+        strategyCount: r.strategyCount || 1,
+        allStrategies: r.allStrategies || [{ pattern: r.strat, stratName: r.stratName, category: r.cat }],
+        primaryStrat:  r.stratName,
+        vol:           r.vol,
+        rs:            r.rs,
+        conf:          r.conf,
+        proximity52w:  r.proximity52w,
+        // Explainability
+        why: _buildBPSExplain(r),
+      }));
+
+    res.json({ ok: true, data: top10, count: top10.length, source: 'scanner' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET /breakout/strategy/:name — Top 10 stocks for a specific strategy
+// ?name = vcp | darvas | stage2 | pp | 52wkhi | vol | tight | minervini |
+//         ema_comp | gap | momentum | rel_vol | early | mom_ignite | earnings_mom | vol_shock
+app.get('/breakout/strategy/:name', async (req, res) => {
+  try {
+    if (!scanner) return res.json({ ok: true, data: [], message: 'Scanner initializing' });
+    let results;
+    if (redisClient?.isReady) {
+      const cached = await redisClient.get('cache:scanner').catch(() => null);
+      results = cached ? JSON.parse(cached) : null;
+    }
+    if (!results) results = await scanner.runScan();
+
+    const stratName = req.params.name.toLowerCase();
+    // Map friendly names to pattern codes
+    const STRATEGY_MAP = {
+      vcp: 'vcp', darvas: 'darvas', stage2: 'rs', pp: 'pp',
+      '52wkhi': '52wkhi', vol: 'vol', tight: 'tight', minervini: 'minervini',
+      ema_comp: 'ema_comp', gap: 'gap', momentum: 'momentum',
+      rel_vol: 'rel_vol', early: 'early', mom_ignite: 'mom_ignite',
+      earnings_mom: 'earnings_mom', vol_shock: 'vol_shock',
+    };
+    const pattern = STRATEGY_MAP[stratName] || stratName;
+
+    // Filter stocks where this strategy is in allStrategies
+    const filtered = results
+      .filter(r => {
+        const strategies = r.allStrategies || [{ pattern: r.strat }];
+        return strategies.some(s => s.pattern === pattern);
+      })
+      .sort((a, b) => (b.bps || 0) - (a.bps || 0))
+      .slice(0, 10)
+      .map((r, i) => ({
+        rank:    i + 1,
+        sym:     r.sym,
+        name:    r.name,
+        sector:  r.sector,
+        cap:     r.cap,
+        cmp:     r.cmp,
+        chg:     r.chg,
+        bps:     r.bps,
+        bpsLabel: r.bpsLabel,
+        strategyCount: r.strategyCount || 1,
+        allStrategies: r.allStrategies || [{ pattern: r.strat, stratName: r.stratName }],
+        vol:     r.vol,
+        rs:      r.rs,
+        conf:    r.conf,
+        proximity52w: r.proximity52w,
+      }));
+
+    res.json({ ok: true, strategy: stratName, data: filtered, count: filtered.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Helper: build human-readable explanation for why a stock ranks where it does
+function _buildBPSExplain(r) {
+  const reasons = [];
+  const strategies = r.allStrategies || [{ stratName: r.stratName }];
+  if (strategies.length >= 4) reasons.push(`${strategies.length} bullish strategies active simultaneously`);
+  else if (strategies.length >= 2) reasons.push(`${strategies.length} strategies confirmed: ${strategies.slice(0,3).map(s=>s.stratName).join(', ')}`);
+  else reasons.push(`${strategies[0]?.stratName || r.stratName} pattern confirmed`);
+  if (r.vol >= 3) reasons.push(`Relative volume ${r.vol}x — strong institutional interest`);
+  else if (r.vol >= 2) reasons.push(`Relative volume ${r.vol}x above average`);
+  if (r.rs >= 90) reasons.push(`RS score ${r.rs} — top 10% relative strength vs Nifty`);
+  else if (r.rs >= 80) reasons.push(`RS score ${r.rs} — strong outperformer vs Nifty`);
+  if (r.proximity52w >= 95) reasons.push(`Within ${(100-r.proximity52w).toFixed(1)}% of 52-week high — trend leader`);
+  if (r.minerviniScore === 8) reasons.push('Minervini Trend Template: all 8 conditions passed');
+  if (r.vcpStage >= 3) reasons.push(`VCP Stage ${r.vcpStage} — tight base near pivot`);
+  return reasons.slice(0, 5);
+}
+
 // ── Scanner — Bulk Deal Scanner (real NSE data) ───────────────────────────────
 app.get('/scanner/bulk-deals', async (req, res) => {
   try {

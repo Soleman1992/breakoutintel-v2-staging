@@ -255,6 +255,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .flash{animation:flash .6s ease-out}
 .spin{animation:spin 1s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+.bpc-card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px;transition:.15s}
+.bpc-card:hover{border-color:var(--t3)}
+.bpc-rank{font-size:22px;font-weight:500;color:var(--t3);min-width:32px}
+.bpc-sym{font-size:16px;font-weight:500;color:var(--t1)}
+.bpc-name{font-size:11px;color:var(--t3);margin-top:1px}
+.bpc-bps{font-size:20px;font-weight:500}
+.bps-bar{height:6px;border-radius:3px;background:var(--bd);margin-top:4px;overflow:hidden}
+.bps-fill{height:100%;border-radius:3px;transition:.4s}
+.bpc-strat-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.bpc-strat-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg);border:1px solid var(--bd);color:var(--t2)}
+.bpc-strat-tag.primary{background:#0F172A;border-color:#22C55E;color:#22C55E}
+.bpc-why{font-size:11px;color:var(--t3);margin-top:8px;border-top:1px solid var(--bd);padding-top:8px}
+.bpc-why li{margin-bottom:2px;padding-left:4px}
+.bpc-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--t3)}
+.bpc-meta span{display:flex;align-items:center;gap:3px}
+.bpc-empty{text-align:center;padding:40px;color:var(--t3);font-size:13px}
 .skel{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
 @keyframes shimmer{to{background-position:-200% 0}}
 .footer{text-align:center;padding:4px;font-size:9px;color:var(--t3);flex-shrink:0}
@@ -337,6 +353,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" id="nav-portfolio" onclick="switchView('portfolio')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
   <div class="sb-it" id="nav-news" onclick="switchView('news')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
   <div class="sb-it" id="nav-rankings" onclick="switchView('rankings')"><div class="sb-lb"><i class="ti ti-trophy" style="font-size:14px"></i><span>Rankings</span></div></div>
+  <div class="sb-it" id="nav-breakout" onclick="switchView('breakout')"><div class="sb-lb"><i class="ti ti-rocket" style="font-size:14px;color:#22C55E"></i><span>Breakout Center</span></div></div>
   <div class="sb-sec">Watchlist</div>
   <div class="sb-it" onclick="setFilter('pre')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0"></div><span>Pre-Breakout</span></div><div class="sb-bd bg-y" id="sb-pre">—</div></div>
   <div class="sb-it" onclick="setFilter('active')"><div class="sb-lb"><div style="width:6px;height:6px;border-radius:50%;background:var(--up);flex-shrink:0"></div><span>Active Breakout</span></div><div class="sb-bd bg-g" id="sb-act">—</div></div>
@@ -751,6 +768,46 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       </div>
       <div class="data-src"><span>AI-scored · impact ≥ 60 · NSE + RSS</span><span id="news-alerts-ts">—</span></div>
     </div>
+  </div>
+</div>
+
+<!-- VIEW: breakout (Breakout Probability Center) -->
+<div id="view-breakout" style="display:none">
+  <div style="padding:0 0 12px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:18px;font-weight:500;color:var(--t1)">Breakout Probability Center</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:2px">Multi-strategy confluence engine · Real scanner data · No fabricated signals</div>
+    </div>
+    <button class="btn-sm" onclick="loadBreakoutCenter()" style="margin-left:auto"><i class="ti ti-refresh"></i> Refresh</button>
+  </div>
+
+  <!-- Strategy tabs -->
+  <div class="mkt-tabs" id="bpc-tabs" style="margin-bottom:14px">
+    <div class="mkt-tab active" onclick="setBPCTab('top10',this)">🏆 Top 10 Breakouts</div>
+    <div class="mkt-tab" onclick="setBPCTab('vcp',this)">VCP</div>
+    <div class="mkt-tab" onclick="setBPCTab('stage2',this)">Stage 2</div>
+    <div class="mkt-tab" onclick="setBPCTab('minervini',this)">Minervini</div>
+    <div class="mkt-tab" onclick="setBPCTab('pp',this)">Pocket Pivot</div>
+    <div class="mkt-tab" onclick="setBPCTab('darvas',this)">Darvas</div>
+    <div class="mkt-tab" onclick="setBPCTab('earnings_mom',this)">Earnings</div>
+    <div class="mkt-tab" onclick="setBPCTab('momentum',this)">Momentum</div>
+    <div class="mkt-tab" onclick="setBPCTab('early',this)">Early Breakout</div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="bpc-loading" style="text-align:center;padding:40px;color:var(--t3);display:none">
+    <i class="ti ti-loader" style="font-size:24px;animation:spin 1s linear infinite"></i>
+    <div style="margin-top:8px;font-size:13px">Scanning universe for breakout setups...</div>
+  </div>
+
+  <!-- Top 10 content -->
+  <div id="bpc-top10">
+    <div id="bpc-top10-list"></div>
+  </div>
+
+  <!-- Strategy leaderboard content -->
+  <div id="bpc-strategy" style="display:none">
+    <div id="bpc-strategy-list"></div>
   </div>
 </div>
 
@@ -2050,7 +2107,7 @@ async function init(){
 init();
 
 // ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
-var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings'];
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings','breakout'];
 var activeView = 'dashboard';
 
 function switchView(view) {
@@ -2101,6 +2158,7 @@ function switchView(view) {
   if (view === 'fiidii') renderSmartMoneyView();
   if (view === 'portfolio') renderPortfolioView();
   if (view === 'rankings') renderRankingsView();
+  if (view === 'breakout') loadBreakoutCenter();
 
   // Scroll main to top
   document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
@@ -3923,6 +3981,164 @@ function getRecReasons(r) {
   return { bull: bull, risk: risk };
 }
 
+
+// ─── BREAKOUT PROBABILITY CENTER ──────────────────────────────────────────────
+var bpcState = { tab: 'top10', loading: false, lastFetch: 0, data: [] };
+
+var BPC_STRAT_LABELS = {
+  vcp:'VCP', darvas:'Darvas Box', rs:'Stage 2', pp:'Pocket Pivot',
+  '52wkhi':'52W High', vol:'Vol Surge', tight:'Tight Base', minervini:'Minervini',
+  ema_comp:'EMA Compress', gap:'Gap-Up', momentum:'Momentum', rel_vol:'Rel Volume',
+  early:'Early BO', mom_ignite:'Mom Ignition', earnings_mom:'Earnings', vol_shock:'Vol Shock',
+};
+
+function setBPCTab(tab, el) {
+  bpcState.tab = tab;
+  document.querySelectorAll('#bpc-tabs .mkt-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  var top10 = document.getElementById('bpc-top10');
+  var strat  = document.getElementById('bpc-strategy');
+  if (tab === 'top10') {
+    top10.style.display = 'block';
+    strat.style.display = 'none';
+    loadBreakoutCenter();
+  } else {
+    top10.style.display = 'none';
+    strat.style.display = 'block';
+    loadStrategyLeaderboard(tab);
+  }
+}
+
+async function loadBreakoutCenter() {
+  if (bpcState.loading) return;
+  if (Date.now() - bpcState.lastFetch < 45000 && bpcState.data.length) {
+    renderBPCTop10(bpcState.data); return;
+  }
+  bpcState.loading = true;
+  document.getElementById('bpc-loading').style.display = 'block';
+  document.getElementById('bpc-top10-list').innerHTML = '';
+  try {
+    var r = await fetch(BACKEND + '/breakout/top10');
+    var j = await r.json();
+    if (j.ok && j.data) {
+      bpcState.data = j.data;
+      bpcState.lastFetch = Date.now();
+      renderBPCTop10(j.data);
+    } else {
+      document.getElementById('bpc-top10-list').innerHTML = '<div class="bpc-empty">No breakout setups found. Scanner may still be warming up.</div>';
+    }
+  } catch(e) {
+    document.getElementById('bpc-top10-list').innerHTML = '<div class="bpc-empty">Error loading data. Check backend connection.</div>';
+  } finally {
+    bpcState.loading = false;
+    document.getElementById('bpc-loading').style.display = 'none';
+  }
+}
+
+async function loadStrategyLeaderboard(stratName) {
+  document.getElementById('bpc-strategy-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i></div>';
+  try {
+    var r = await fetch(BACKEND + '/breakout/strategy/' + stratName);
+    var j = await r.json();
+    if (j.ok && j.data && j.data.length) {
+      renderBPCStrategyList(j.data, stratName);
+    } else {
+      document.getElementById('bpc-strategy-list').innerHTML = '<div class="bpc-empty">No ' + (BPC_STRAT_LABELS[stratName]||stratName) + ' setups found in current scan.</div>';
+    }
+  } catch(e) {
+    document.getElementById('bpc-strategy-list').innerHTML = '<div class="bpc-empty">Error loading strategy data.</div>';
+  }
+}
+
+function bpsColor(bps) {
+  if (bps >= 85) return '#22C55E';
+  if (bps >= 70) return '#84CC16';
+  if (bps >= 55) return '#EAB308';
+  return '#F97316';
+}
+
+function renderBPCTop10(data) {
+  var el = document.getElementById('bpc-top10-list');
+  if (!data || !data.length) {
+    el.innerHTML = '<div class="bpc-empty">No high-probability breakouts found in current scan. Market may be in a weak phase.</div>';
+    return;
+  }
+  var html = data.map(function(s) {
+    var color = bpsColor(s.bps || 0);
+    var strategies = (s.allStrategies || [{stratName: s.primaryStrat}]);
+    var stratTags = strategies.map(function(st, i) {
+      var label = BPC_STRAT_LABELS[st.pattern] || st.stratName || st.pattern;
+      return '<span class="bpc-strat-tag' + (i===0?' primary':'') + '">' + label + '</span>';
+    }).join('');
+    var whyHtml = (s.why && s.why.length)
+      ? '<ul class="bpc-why" style="list-style:none;padding:0;margin:0">' +
+        s.why.map(function(w){ return '<li>✓ ' + w + '</li>'; }).join('') + '</ul>'
+      : '';
+    return '<div class="bpc-card">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px">' +
+        '<div class="bpc-rank">#' + s.rank + '</div>' +
+        '<div style="flex:1">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+            '<div class="bpc-sym">' + s.sym + '</div>' +
+            '<div style="font-size:11px;color:var(--t3)">' + (s.sector||'') + ' · ' + (s.cap||'') + '</div>' +
+            '<div style="font-size:12px;color:' + (s.chg>=0?'var(--up)':'var(--dn)') + ';margin-left:auto">₹' + (s.cmp||0).toFixed(1) + ' <span>' + (s.chg>=0?'+':'') + (s.chg||0).toFixed(2) + '%</span></div>' +
+          '</div>' +
+          '<div class="bpc-name">' + (s.name||'') + '</div>' +
+          '<div style="margin-top:8px;display:flex;align-items:center;gap:10px">' +
+            '<div>' +
+              '<div class="bpc-bps" style="color:' + color + '">' + (s.bps||0) + '<span style="font-size:13px;color:var(--t3)">/100</span></div>' +
+              '<div class="bps-bar" style="width:120px"><div class="bps-fill" style="width:' + (s.bps||0) + '%;background:' + color + '"></div></div>' +
+              '<div style="font-size:10px;color:' + color + ';margin-top:2px;font-weight:500">' + (s.bpsLabel||'') + ' Probability</div>' +
+            '</div>' +
+            '<div class="bpc-meta">' +
+              '<span><i class="ti ti-activity"></i> Vol ' + (s.vol||0).toFixed(1) + 'x</span>' +
+              '<span><i class="ti ti-trending-up"></i> RS ' + (s.rs||0) + '</span>' +
+              '<span><i class="ti ti-star"></i> Conf ' + (s.conf||0) + '/10</span>' +
+              '<span><i class="ti ti-chart-bar"></i> ' + (s.strategyCount||1) + ' strategy match' + (s.strategyCount>1?'es':'') + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="bpc-strat-tags">' + stratTags + '</div>' +
+          whyHtml +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  el.innerHTML = html;
+}
+
+function renderBPCStrategyList(data, stratName) {
+  var label = BPC_STRAT_LABELS[stratName] || stratName;
+  var el = document.getElementById('bpc-strategy-list');
+  var html = '<div style="font-size:13px;color:var(--t3);margin-bottom:10px">Top 10 stocks matching <strong>' + label + '</strong> strategy · sorted by Breakout Probability</div>';
+  html += data.map(function(s) {
+    var color = bpsColor(s.bps || 0);
+    var strategies = (s.allStrategies || []);
+    var extraStrategies = strategies.filter(function(st){ return st.pattern !== stratName; });
+    return '<div class="bpc-card" style="display:flex;align-items:center;gap:12px">' +
+      '<div class="bpc-rank" style="font-size:18px">#' + s.rank + '</div>' +
+      '<div style="flex:1">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+          '<div class="bpc-sym">' + s.sym + '</div>' +
+          '<div style="font-size:11px;color:var(--t3)">' + (s.sector||'') + '</div>' +
+          (extraStrategies.length ? '<div style="font-size:10px;color:var(--t3)">+' + extraStrategies.length + ' more signal' + (extraStrategies.length>1?'s':'') + '</div>' : '') +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--t3)">' + (s.name||'') + '</div>' +
+        '<div class="bpc-meta" style="margin-top:4px">' +
+          '<span>₹' + (s.cmp||0).toFixed(1) + '</span>' +
+          '<span style="color:' + ((s.chg||0)>=0?'var(--up)':'var(--dn)') + '">' + ((s.chg||0)>=0?'+':'') + (s.chg||0).toFixed(2) + '%</span>' +
+          '<span>Vol ' + (s.vol||0).toFixed(1) + 'x</span>' +
+          '<span>RS ' + (s.rs||0) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:right">' +
+        '<div class="bpc-bps" style="color:' + color + ';font-size:18px">' + (s.bps||0) + '</div>' +
+        '<div class="bps-bar" style="width:80px;margin-left:auto"><div class="bps-fill" style="width:' + (s.bps||0) + '%;background:' + color + '"></div></div>' +
+        '<div style="font-size:10px;color:' + color + ';margin-top:2px">' + (s.bpsLabel||'') + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  el.innerHTML = html;
+}
 
 // ─── RANKINGS VIEW ────────────────────────────────────────────────────────────
 var rkState = { category:'ALL', tier:'ALL', data:[], loading:false, lastFetch:0 };

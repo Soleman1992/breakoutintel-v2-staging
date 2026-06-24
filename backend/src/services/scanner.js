@@ -226,6 +226,81 @@ class ScannerService {
     return Math.min(10, Math.max(1, s));
   }
 
+  // ── Breakout Probability Score (0-100) ────────────────────────────────────
+  // Combines strategy confluence + existing scanner metrics into a single score.
+  // No new data — reuses vr, rs, prox52w, conf already computed in scan loop.
+  //
+  // Weights:
+  //   Strategy confluence  35% — how many high-quality strategies align
+  //   Relative volume      20% — institutional volume confirmation
+  //   Relative strength    20% — stock vs Nifty (momentum leadership)
+  //   52w proximity        15% — near highs = trend leader
+  //   Scanner confidence   10% — existing confidence score
+  _breakoutProbabilityScore(allDetected, vr, rs, prox52w, conf) {
+    // ── Strategy confluence score (0-100) ──────────────────────────────────
+    // Each strategy has a quality weight. Sum weighted scores, normalize.
+    const STRAT_WEIGHTS = {
+      'minervini':    1.5,  // most rigorous — highest weight
+      'earnings_mom': 1.4,  // fundamental catalyst
+      'vcp':          1.4,  // institutional accumulation
+      'rs':           1.3,  // Stage 2 base
+      'pp':           1.2,  // Pocket Pivot
+      'darvas':       1.1,  // Darvas Box
+      'tight':        1.1,  // Tight Consolidation
+      'early':        1.1,  // Early Breakout
+      'rel_vol':      1.0,  // Relative Volume
+      'ema_comp':     1.0,  // EMA Compression
+      '52wkhi':       1.0,  // 52-Week High
+      'gap':          1.0,  // Gap-Up
+      'momentum':     1.0,  // High Momentum
+      'vol':          0.8,  // Volume Surge
+      'vol_shock':    0.7,  // Volume Shock
+      'mom_ignite':   0.7,  // Momentum Ignition
+    };
+
+    let confluenceRaw = 0;
+    let maxPossible = 0;
+    for (const d of allDetected) {
+      const w = STRAT_WEIGHTS[d.pattern] || 1.0;
+      confluenceRaw += w;
+    }
+    // Normalize: 1 strategy = ~25, 2 = ~45, 3 = ~60, 4 = ~72, 5+ = ~85+
+    // Uses diminishing returns: each extra strategy adds less
+    const confluenceScore = Math.min(100, Math.round(
+      allDetected.length === 1 ? confluenceRaw * 18 :
+      allDetected.length === 2 ? confluenceRaw * 14 :
+      allDetected.length === 3 ? confluenceRaw * 11 :
+      allDetected.length === 4 ? confluenceRaw * 9  :
+      confluenceRaw * 7.5
+    ));
+
+    // ── Volume score (0-100) ───────────────────────────────────────────────
+    const volScore = vr >= 5 ? 100 : vr >= 3 ? 85 : vr >= 2 ? 70 :
+                     vr >= 1.5 ? 55 : vr >= 1.0 ? 40 : 20;
+
+    // ── RS score already 0-100 from _rsScore ──────────────────────────────
+    const rsScore = Math.min(100, Math.max(0, rs));
+
+    // ── 52w proximity score (0-100) ────────────────────────────────────────
+    const proxScore = prox52w >= 98 ? 100 : prox52w >= 95 ? 88 :
+                      prox52w >= 90 ? 75 : prox52w >= 85 ? 62 :
+                      prox52w >= 75 ? 48 : 30;
+
+    // ── Confidence score normalized to 0-100 (conf is 1-10) ───────────────
+    const confScore = Math.round((conf / 10) * 100);
+
+    // ── Weighted blend ─────────────────────────────────────────────────────
+    const bps = Math.round(
+      confluenceScore * 0.35 +
+      volScore        * 0.20 +
+      rsScore         * 0.20 +
+      proxScore       * 0.15 +
+      confScore       * 0.10
+    );
+
+    return Math.min(100, Math.max(0, bps));
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // DETECTION METHODS (return null or { pattern, category, ...extras })
   // ══════════════════════════════════════════════════════════════════════════
@@ -597,10 +672,9 @@ class ScannerService {
 
         const hasRecentEarnings = recentEarningsSymbols.has(stockMeta.sym.replace('.NS',''));
 
-        // Run ALL detectors — collect every signal (a stock can match multiple)
-        // Earnings Momentum is checked first: an earnings catalyst + immediate
-        // positive price/volume reaction is a more specific, higher-information
-        // signal than generic technical patterns, so it takes priority.
+        // Run ALL detectors — collect EVERY signal that fires per stock
+        // Previously: break after first match (missed multi-strategy confluence)
+        // Now: run all 16, collect all matches for Breakout Probability Center
         const detectors = [
           ()=>this._detectEarningsMomentum(bars, hasRecentEarnings),
           ()=>this._detectVCP(bars),
@@ -620,17 +694,19 @@ class ScannerService {
           ()=>this._detectMomentumIgnition(bars),
         ];
 
-        // Take first match to avoid duplicate entries per stock
-        let detected = null;
-        for (const fn of detectors) {
-          detected = fn();
-          if (detected) break;
-        }
-        if (!detected) continue;
+        // Collect ALL matching strategies
+        const allDetected = detectors.map(fn => fn()).filter(Boolean);
+        if (!allDetected.length) continue;
+
+        // Primary strategy = first match (highest priority order)
+        const detected = allDetected[0];
 
         const lvl  = this._levels(bars, detected.pattern, detected);
         const conf = this._confidence(vr, rs, prox52w, detected);
         if (conf < 4) continue;
+
+        // Breakout Probability Score — from confluence + existing metrics
+        const bps = this._breakoutProbabilityScore(allDetected, vr, rs, prox52w, conf);
 
         results.push({
           sym:          stockMeta.sym.replace('.NS',''),
@@ -650,6 +726,10 @@ class ScannerService {
           strat:        detected.pattern,
           stratName:    detected.stratName||detected.pattern,
           cat:          detected.category,
+          allStrategies: allDetected.map(d=>({ pattern:d.pattern, stratName:d.stratName||d.pattern, category:d.category })),
+          strategyCount: allDetected.length,
+          bps,
+          bpsLabel: bps>=85?'Very High':bps>=70?'High':bps>=55?'Moderate':'Low',
           vcpStage:     detected.vcpStage||null,
           minerviniScore:detected.minerviniScore||null,
           darvasHigh:   detected.darvasHigh||null,
