@@ -52,6 +52,21 @@ const RSS_FEEDS = [
     url:   'https://www.livemint.com/rss/markets',
     label: 'LiveMint Markets',
   },
+  {
+    name:  'RSS:businessline',
+    url:   'https://www.thehindubusinessline.com/markets/feeder/default.rss',
+    label: 'BusinessLine Markets',
+  },
+  {
+    name:  'RSS:financialexpress',
+    url:   'https://www.financialexpress.com/market/feed/',
+    label: 'Financial Express Markets',
+  },
+  {
+    name:  'RSS:ndtvprofit',
+    url:   'https://www.ndtvprofit.com/feeds/market',
+    label: 'NDTV Profit Markets',
+  },
 ];
 
 // Redis cache TTLs (seconds)
@@ -89,7 +104,7 @@ class NewsIntelligenceService {
   // On Render free tier there is no background worker, so this ensures the
   // server refreshes news whenever a stale threshold is crossed — without
   // adding any latency to the current request (fire-and-forget).
-  triggerRefreshIfStale(maxAgeMs = 20 * 60 * 1000) {
+  triggerRefreshIfStale(maxAgeMs = 10 * 60 * 1000) {
     if (this._running) return;                              // already in progress
     if (Date.now() - this._lastRefreshAt < maxAgeMs) return; // still fresh
     this.refresh().catch(e =>                               // non-blocking
@@ -421,7 +436,7 @@ Return this exact JSON shape (all fields required):
 
   // ── Query methods (used by API routes) ────────────────────────────────────
 
-  async getNews({ limit = 30, offset = 0, category, sentiment } = {}) {
+  async getNews({ limit = 100, offset = 0, category, sentiment } = {}) {
     this.triggerRefreshIfStale();
     const cacheKey = `list:${limit}:${offset}:${category||''}:${sentiment||''}`;
     const cached = await this._get(cacheKey);

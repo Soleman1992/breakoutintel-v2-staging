@@ -772,7 +772,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 <!-- VIEW: breakout (Breakout Probability Center) -->
-<div id="view-breakout" style="display:none;width:100%;box-sizing:border-box">
+<div id="view-breakout" style="display:none;width:100%;box-sizing:border-box;min-height:0">
   <div style="padding:0 0 12px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <div>
       <div style="font-size:18px;font-weight:500;color:var(--t1)">Breakout Probability Center</div>
@@ -802,14 +802,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
   <!-- Top 10 content -->
   <div id="bpc-top10">
-    <div id="bpc-top10-list" style="min-height:200px"></div>
+    <div id="bpc-top10-list" style="min-height:200px;padding-bottom:60px"></div>
   </div>
 
   <!-- Strategy leaderboard content -->
   <div id="bpc-strategy" style="display:none">
-    <div id="bpc-strategy-list" style="min-height:200px"></div>
+    <div id="bpc-strategy-list" style="min-height:200px;padding-bottom:60px"></div>
   </div>
-  <div style="height:40px"></div>
+  <div style="height:60px"></div>
 </div>
 
 <!-- VIEW: fiidii (Smart Money Activity — real NSE data) -->
@@ -1390,6 +1390,7 @@ async function fetchMarketInternals(){
     document.getElementById('int-date').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   }catch(e){
     console.warn('[REST] market internals failed:',e.message);
+    // Keep existing displayed values — never blank out on transient error
   }
 }
 
@@ -1432,16 +1433,14 @@ function updateIndicesFromData(indices){
 }
 
 function updateAdvDecFromData(d){
-  // ok:false means NSE was unreachable — show explicit "unavailable", never 0/0
+  // ok:false means NSE was unreachable — keep existing displayed values, only update timestamp
+  // Never blank out A/D data — scanner REST endpoint is the reliable fallback source
   if(!d||d.ok===false){
-    document.getElementById('r-ad').textContent='— / —';
-    document.getElementById('int-adv').textContent='—';
-    document.getElementById('int-dec').textContent='—';
-    document.getElementById('int-ab').style.width='0%';
-    document.getElementById('int-db').style.width='0%';
-    document.getElementById('r-adb').style.width='4px';
-    document.getElementById('r-dcb').style.width='4px';
-    document.getElementById('int-ts').textContent='NSE unavailable · '+nowIST();
+    // Only reset if we've never had data (showing '—' already)
+    var curAd=document.getElementById('r-ad');
+    if(curAd&&curAd.textContent==='— / —'){
+      document.getElementById('int-ts').textContent='NSE unavailable · '+nowIST();
+    }
     return;
   }
   // Guard against null values (ok:true but advances/declines not yet populated)
@@ -1733,6 +1732,18 @@ function buildMktChart(tab){
   // already returned by fetchYahooQuote() on the backend. No fabricated
   // random-walk filler. If not yet loaded, the chart simply renders empty.
   var pts = (d && Array.isArray(d.chartData)) ? d.chartData.filter(v=>v!=null) : [];
+
+  // Show placeholder when no intraday data (market closed / Yahoo rate-limited)
+  if(!pts.length){
+    var ctx2=c.getContext('2d');
+    ctx2.clearRect(0,0,c.width,c.height);
+    ctx2.fillStyle='rgba(255,255,255,0.08)';
+    ctx2.font='11px monospace';
+    ctx2.textAlign='center';
+    ctx2.fillText(d&&d.stale?'Last session data · market closed':'Intraday data loading...',c.width/2,c.height/2);
+    return;
+  }
+
   var labelsAll=[];
   for(var h=9;h<=15;h++)for(var m=0;m<60;m+=5){if(h===9&&m<15)continue;if(h===15&&m>30)continue;labelsAll.push(h+':'+(m<10?'0':'')+m)}
   var labels=labelsAll.slice(0,pts.length);
@@ -1839,11 +1850,14 @@ async function loadMarketHealth() {
     var d   = await res.json();
 
     if (!d.ok || d.score == null) {
-      // Backend returned ok:false (market service initialising or error)
-      healthEl.textContent = d.label || 'Unavailable';
-      healthEl.className   = 'health-bull';
-      healthEl.style.color = 'var(--t3)';
-      scoreEl.textContent  = 'Score: — / 100' + (d.dataComplete === false ? ' · partial data' : '');
+      // Backend returned ok:false — only update if we have no live data yet
+      var curScore = scoreEl.textContent;
+      if (!curScore || curScore === 'Score: 72/100' || curScore === 'Score: unavailable') {
+        healthEl.textContent = d.label || 'Unavailable';
+        healthEl.className   = 'health-bull';
+        healthEl.style.color = 'var(--t3)';
+        scoreEl.textContent  = 'Score: — / 100' + (d.dataComplete === false ? ' · partial data' : '');
+      }
       return;
     }
 
@@ -1858,14 +1872,24 @@ async function loadMarketHealth() {
     healthEl.textContent = d.label;
     healthEl.className   = 'health-bull';
     healthEl.style.color = col;
-    scoreEl.textContent  = 'Score: ' + d.score + '/100' + (d.dataComplete ? '' : ' · partial');
+    scoreEl.textContent  = 'Score: ' + d.score + '/100' + (d.stale ? ' · last known' : d.dataComplete ? '' : ' · partial');
     flash('k-health');
 
   } catch (e) {
-    // Network error — show explicit unavailable, never stale static text
+    // Network error — keep existing displayed values, just add subtle indicator
     console.warn('[MarketHealth] fetch failed:', e.message);
-    if (healthEl) { healthEl.textContent = '—'; healthEl.style.color = 'var(--t3)'; }
-    if (scoreEl)  scoreEl.textContent = 'Score: unavailable';
+    // Only show unavailable if we've never had data
+    if (healthEl && (healthEl.textContent === 'BULLISH' || healthEl.textContent === '—' || healthEl.textContent === 'Unavailable')) {
+      healthEl.textContent = '—';
+      healthEl.style.color = 'var(--t3)';
+    }
+    if (scoreEl && scoreEl.textContent === 'Score: 72/100') {
+      scoreEl.textContent = 'Score: unavailable';
+    }
+    // If we have a stale value showing, add subtle indicator
+    if (scoreEl && scoreEl.textContent.includes('/100') && !scoreEl.textContent.includes('stale')) {
+      scoreEl.textContent = scoreEl.textContent + ' · stale';
+    }
   }
 }
 
@@ -2296,11 +2320,11 @@ async function loadNewsTab(key) {
   try {
     var data;
     if (key === 'high-impact') {
-      var r = await fetch(BACKEND + '/news/high-impact?limit=40', { signal: AbortSignal.timeout(15000) });
+      var r = await fetch(BACKEND + '/news/high-impact?limit=80', { signal: AbortSignal.timeout(15000) });
       data = await r.json();
 
     } else if (key === 'latest') {
-      var r = await fetch(BACKEND + '/news?limit=50', { signal: AbortSignal.timeout(15000) });
+      var r = await fetch(BACKEND + '/news?limit=100', { signal: AbortSignal.timeout(15000) });
       data = await r.json();
 
     } else if (key === 'watchlist') {
@@ -2324,18 +2348,18 @@ async function loadNewsTab(key) {
       }
 
     } else if (key === 'earnings') {
-      var r = await fetch(BACKEND + '/news?category=Earnings&limit=50', { signal: AbortSignal.timeout(15000) });
+      var r = await fetch(BACKEND + '/news?category=Earnings&limit=100', { signal: AbortSignal.timeout(15000) });
       data = await r.json();
 
     } else if (key === 'corporate') {
-      var r = await fetch(BACKEND + '/news?category=Corporate+Action&limit=50', { signal: AbortSignal.timeout(15000) });
+      var r = await fetch(BACKEND + '/news?category=Corporate+Action&limit=100', { signal: AbortSignal.timeout(15000) });
       data = await r.json();
 
     } else if (key === 'deals') {
       // Merge Bulk Deal + Block Deal results
       var [bkR, blR] = await Promise.all([
-        fetch(BACKEND + '/news?category=Bulk+Deal&limit=30',  { signal: AbortSignal.timeout(15000) }),
-        fetch(BACKEND + '/news?category=Block+Deal&limit=30', { signal: AbortSignal.timeout(15000) }),
+        fetch(BACKEND + '/news?category=Bulk+Deal&limit=50',  { signal: AbortSignal.timeout(15000) }),
+        fetch(BACKEND + '/news?category=Block+Deal&limit=50', { signal: AbortSignal.timeout(15000) }),
       ]);
       var bk = await bkR.json();
       var bl = await blR.json();
@@ -2350,8 +2374,11 @@ async function loadNewsTab(key) {
     newsState[key] = data;
     renderNewsItems(data, feed, cntEl, srcEl, tsEl, key);
   } catch (e) {
-    feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
-    if (cntEl) cntEl.textContent = '—';
+    // Keep existing content if available, only show error if feed is empty
+    if (!feed.querySelector('.ni-row')) {
+      feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Loading news — ${e.message}<br><span style="font-size:9px">Retrying automatically...</span></div>`;
+    }
+    if (cntEl && cntEl.textContent === '—') cntEl.textContent = '—';
   }
 }
 
@@ -2640,7 +2667,7 @@ async function loadNewsAlerts() {
     feed.innerHTML = d.data.map(newsItemHtml).join('');
   } catch (e) {
     newsAlertsLoaded = true;
-    if (feed) feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Data unavailable — ${e.message}</div>`;
+    if (feed) feed.innerHTML = `<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">Loading high-impact news...</div>`;
     if (cntEl) cntEl.textContent = '—';
   }
 }

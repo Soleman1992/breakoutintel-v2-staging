@@ -566,8 +566,21 @@ app.get('/market/health', async (req, res) => {
   try {
     if (!market) return res.json({ ok: false, score: null, label: 'Unavailable', dataComplete: false, message: 'Market service initializing' });
     const data = await market.getMarketHealth();
+    // If score came back null/0 and dataComplete is false, try stale fallback
+    if ((!data.score || !data.dataComplete) && redisClient?.isReady) {
+      const stale = await redisClient.get('market:health:stale').catch(() => null);
+      if (stale) {
+        const staleData = JSON.parse(stale);
+        return res.json({ ...staleData, stale: true, message: 'Using last known data (Yahoo temporarily unavailable)' });
+      }
+    }
     res.json(data);
   } catch (e) {
+    // Try stale fallback on error too
+    if (redisClient?.isReady) {
+      const stale = await redisClient.get('market:health:stale').catch(() => null);
+      if (stale) return res.json({ ...JSON.parse(stale), stale: true });
+    }
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -1067,7 +1080,7 @@ async function start() {
   app.get('/news', async (req, res) => {
     try {
       if (!newsIntelligence) return res.json({ ok: true, data: [], message: 'News service initializing' });
-      const limit    = Math.min(parseInt(req.query.limit  || '30'), 100);
+      const limit    = Math.min(parseInt(req.query.limit  || '100'), 200);
       const offset   = Math.max(parseInt(req.query.offset || '0'),  0);
       const category = req.query.category  || null;
       const sentiment= req.query.sentiment || null;

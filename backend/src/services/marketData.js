@@ -54,7 +54,8 @@ class MarketDataService {
   // _initNSESession removed — session managed by nseSession.js singleton
 
   async fetchYahooQuote(symbol) {
-    const cacheKey = `quote:${symbol}`;
+    const cacheKey     = `quote:${symbol}`;
+    const cacheKeyStale = `quote:stale:${symbol}`;  // long-lived fallback cache
     const cached = await this._safeRedisGet(cacheKey);
     if (cached) return JSON.parse(cached);
 
@@ -86,15 +87,26 @@ class MarketDataService {
         chartData: closes.filter(c => c != null),
         fetchedAt: Date.now(),
         ok: true,
+        stale: false,
       };
 
       await this._safeRedisSet(cacheKey, this.cacheTTL, JSON.stringify(quote));
+      // Also store a long-lived stale fallback (4 hours) — serves when Yahoo blocks
+      await this._safeRedisSet(cacheKeyStale, 14400, JSON.stringify({ ...quote, stale: true }));
       return quote;
     } catch (e) {
       if (!e.message.includes('404') && !e.message.includes('403')) {
         console.warn(`[Yahoo] ${symbol}:`, e.message);
       }
-      return { symbol, ok: false, error: e.message, price: 0, changePct: 0, chartData: [] };
+      // Try stale fallback before returning ok:false — keeps dashboard data visible
+      const stale = await this._safeRedisGet(cacheKeyStale);
+      if (stale) {
+        const staleParsed = JSON.parse(stale);
+        staleParsed.stale = true;
+        staleParsed.chartData = []; // don't show stale intraday chart
+        return staleParsed;
+      }
+      return { symbol, ok: false, error: e.message, price: 0, changePct: 0, chartData: [], stale: false };
     }
   }
 
@@ -342,6 +354,10 @@ class MarketDataService {
 
     // Cache for 15s (matches dashboard refresh cadence)
     await this._safeRedisSet(cacheKey, 15, JSON.stringify(result));
+    // Store long-lived stale fallback (2 hours) for when Yahoo is blocked
+    if (dataComplete || result.score > 0) {
+      await this._safeRedisSet('market:health:stale', 7200, JSON.stringify({ ...result, stale: true }));
+    }
     return result;
   }
 
