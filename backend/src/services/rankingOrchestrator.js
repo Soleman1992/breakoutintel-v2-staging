@@ -26,6 +26,18 @@
 const axios  = require('axios');
 const { CATEGORIES, FALLBACK_TICKERS, toYahooSymbol, detectCategory } = require('../engines/universeConfig');
 
+// ── Sector lookup — enrich fallback tickers with real sector data ─────────────
+// When NSE API is unavailable (403/timeout), fallback tickers get sector:'Unknown'.
+// We fix this by cross-referencing our own universe.js which has sector/industry
+// for every stock. NSE API failure no longer causes 'Unknown' sector in rankings.
+const { UNIVERSE_MAP } = require('./universe');
+
+function sectorForTicker(ticker) {
+  // ticker is NSE symbol without .NS suffix e.g. 'RELIANCE'
+  const meta = UNIVERSE_MAP[`${ticker}.NS`];
+  return meta?.sector || 'Unknown';
+}
+
 // ── Engines ───────────────────────────────────────────────────────────────────
 const emaVol    = require('../engines/emaVolEngine');
 const lux       = require('../engines/luxAlgoEngine');
@@ -126,7 +138,7 @@ class RankingOrchestrator {
           ticker:      s.symbol,
           yahooSymbol: toYahooSymbol(s.symbol),
           category:    categoryKey,
-          sector:      s.meta?.industry || 'Unknown',
+          sector:      s.meta?.industry || sectorForTicker(s.symbol),  // prefer NSE data, fall back to universe.js
           lastPrice:   s.lastPrice || 0,
           pChange:     s.pChange   || 0,
           // Approximate ADV from NSE data (totalTradedValue in Lakh → divide by 100 for Cr)
@@ -156,7 +168,7 @@ class RankingOrchestrator {
           ticker,
           yahooSymbol: toYahooSymbol(ticker),
           category:    categoryKey,
-          sector:      'Unknown',
+          sector:      sectorForTicker(ticker),  // real sector from universe.js, not 'Unknown'
           lastPrice:   0,
           pChange:     0,
           advEstCr:    0,
