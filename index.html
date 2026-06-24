@@ -772,7 +772,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 <!-- VIEW: breakout (Breakout Probability Center) -->
-<div id="view-breakout" style="display:none;width:100%;box-sizing:border-box;min-height:0">
+<div id="view-breakout" style="display:none;width:100%;box-sizing:border-box;min-height:0;overflow-y:auto">
   <div style="padding:0 0 12px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <div>
       <div style="font-size:18px;font-weight:500;color:var(--t1)">Breakout Probability Center</div>
@@ -802,14 +802,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
   <!-- Top 10 content -->
   <div id="bpc-top10">
-    <div id="bpc-top10-list" style="min-height:200px;padding-bottom:60px"></div>
+    <div id="bpc-top10-list" style="min-height:400px;padding-bottom:80px"></div>
   </div>
 
   <!-- Strategy leaderboard content -->
   <div id="bpc-strategy" style="display:none">
-    <div id="bpc-strategy-list" style="min-height:200px;padding-bottom:60px"></div>
+    <div id="bpc-strategy-list" style="min-height:400px;padding-bottom:80px"></div>
   </div>
-  <div style="height:60px"></div>
+  <div style="height:80px"></div>
 </div>
 
 <!-- VIEW: fiidii (Smart Money Activity — real NSE data) -->
@@ -1904,12 +1904,17 @@ async function loadSentimentGauge(){
   try{
     var res=await fetch(BACKEND+'/market/health',{signal:AbortSignal.timeout(10000)});
     var d=await res.json();
-    if(!d.ok || d.score==null){
-      labelEl.textContent=d.label||'Unavailable'; labelEl.style.color='var(--t3)';
-      barEl.style.width='0%';
-      scoreEl.textContent='Market health service unavailable';
+    // Accept both live data and stale fallback — never show Unavailable if we have a score
+    if(!d.ok && d.score==null){
+      // Only show unavailable if we truly have nothing
+      if(labelEl.textContent==='—'||labelEl.textContent==='loading...'){
+        labelEl.textContent='Unavailable'; labelEl.style.color='var(--t3)';
+        barEl.style.width='0%';
+        scoreEl.textContent='Market health service unavailable';
+      }
       return;
     }
+    if(!d.score && d.score!==0) return; // no score yet, keep existing display
     var bullish = d.label==='STRONGLY BULLISH'||d.label==='BULLISH';
     var bearish = d.label==='STRONGLY BEARISH'||d.label==='BEARISH';
     var col = bullish?'var(--up)':bearish?'var(--dn)':'var(--warn)';
@@ -1921,11 +1926,16 @@ async function loadSentimentGauge(){
       : bullish
         ? 'linear-gradient(90deg,var(--up),#16a34a)'
         : 'linear-gradient(90deg,var(--warn),#b45309)';
-    scoreEl.textContent = d.score+'% · '+d.label+(d.dataComplete===false?' · partial data':'');
+    var staleNote = d.stale?' · last known':'';
+    var partialNote = (!d.stale && d.dataComplete===false)?' · partial':'';
+    scoreEl.textContent = d.score+'% · '+d.label+staleNote+partialNote;
   }catch(e){
-    labelEl.textContent='Unavailable'; labelEl.style.color='var(--t3)';
-    barEl.style.width='0%';
-    scoreEl.textContent='Data unavailable';
+    // On network error keep existing display — never erase a valid score
+    if(labelEl.textContent==='—'||labelEl.textContent==='loading...'){
+      labelEl.textContent='Unavailable'; labelEl.style.color='var(--t3)';
+      barEl.style.width='0%';
+      scoreEl.textContent='Data unavailable';
+    }
   }
 }
 
@@ -2150,16 +2160,21 @@ function switchView(view) {
   if (target) {
     if (view === 'dashboard') target.style.display = 'contents';
     else if (view === 'rankings') { target.style.display = 'flex'; }
+    else if (view === 'breakout') { target.style.display = 'block'; target.style.overflowY = 'auto'; target.style.height = '100%'; }
     else target.style.display = 'block';
   }
   // Rankings: fixed overlay from sidebar right edge
+  // Breakout: remove main padding so it gets full height for scroll
   var mainEl = document.getElementById('main');
-  if (mainEl) mainEl.style.padding = (view === 'rankings') ? '0' : '7px';
+  if (mainEl) mainEl.style.padding = (view === 'rankings' || view === 'breakout') ? '0' : '7px';
   var rkView = document.getElementById('view-rankings');
   if (rkView && view === 'rankings') {
     var sb = document.querySelector('.sidebar');
     rkView.style.left = (sb ? sb.offsetWidth : 178) + 'px';
   }
+  // Breakout: add padding inside the view itself
+  var bpcView = document.getElementById('view-breakout');
+  if (bpcView) bpcView.style.padding = (view === 'breakout') ? '7px' : '0';
 
   // Update sidebar active state
   document.querySelectorAll('.sb-it').forEach(el => el.classList.remove('active'));
@@ -2312,7 +2327,10 @@ async function loadNewsTab(key) {
   if (!feed) return;
 
   // Session cache — tab data stays fresh until page reload
-  if (newsState[key]) { renderNewsItems(newsState[key], feed, cntEl, srcEl, tsEl, key); return; }
+  // Don't use cache if it has empty data (allows retries when NSE was temporarily blocked)
+  if (newsState[key] && newsState[key].data && newsState[key].data.length > 0) {
+    renderNewsItems(newsState[key], feed, cntEl, srcEl, tsEl, key); return;
+  }
 
   feed.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px"><span class="spin">⟳</span> Loading...</div>';
   if (cntEl) cntEl.textContent = '—';
@@ -2397,7 +2415,15 @@ function renderNewsItems(d, container, cntEl, srcEl, tsEl, tabKey) {
   if (cntEl) cntEl.textContent = items.length || '0';
 
   if (!items.length) {
-    var msg = d.message || 'No items yet — the AI scoring engine is building up. Announcements are scored every 20 minutes.';
+    var tabMsgs = {
+      'high-impact': 'No high-impact news scored yet.<br>AI scoring runs every 10 minutes as new announcements arrive.',
+      'latest': 'No news loaded yet.<br>RSS feeds refresh every 10 minutes. Check back shortly.',
+      'watchlist': 'No news for your watchlist stocks.<br>Add positions to Portfolio to see relevant news here.',
+      'earnings': 'No earnings announcements found.<br>This tab shows quarterly results — check during results season (Apr/Jul/Oct/Jan).<br><span style="font-size:9px;opacity:.7">NSE corporate announcements load when NSE allows access from this IP.</span>',
+      'corporate': 'No corporate actions found.<br>This tab shows dividends, buybacks, splits, and AGM notices.<br><span style="font-size:9px;opacity:.7">NSE announcements will appear once NSE session is established.</span>',
+      'bulk-block': 'No bulk/block deals found in recent data.<br>Deals are sourced from NSE bhav copy and appear on trading days.',
+    };
+    var msg = d.message || tabMsgs[tabKey] || 'No items yet. Data refreshes every 10 minutes.';
     container.innerHTML = `<div style="padding:30px 20px;text-align:center;color:var(--t3);font-size:10px;line-height:1.8">${msg}</div>`;
     return;
   }

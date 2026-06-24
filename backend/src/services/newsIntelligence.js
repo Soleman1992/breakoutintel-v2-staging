@@ -188,14 +188,20 @@ class NewsIntelligenceService {
 
   _inferCategory(title) {
     const t = (title || '').toLowerCase();
-    if (/result|earnings|quarterly|profit|revenue/.test(t)) return 'Earnings';
+    // Earnings — broad match including Q1/Q2/Q3/Q4 results, PAT, net profit
+    if (/\bq[1-4]\b|result|earnings|quarterly|profit|revenue|pat|ebitda|net income|turnover|consolidated result|standalone result/.test(t)) return 'Earnings';
+    // Bulk/Block deals
     if (/bulk deal/.test(t)) return 'Bulk Deal';
     if (/block deal/.test(t)) return 'Block Deal';
-    if (/insider.*buy|insider.*acqui/.test(t)) return 'Insider Buying';
-    if (/insider.*sell|insider.*disp/.test(t)) return 'Insider Selling';
-    if (/dividend|bonus|split|buyback/.test(t)) return 'Corporate Action';
-    if (/shareholding/.test(t)) return 'Shareholding Change';
-    if (/credit rating|downgrad|upgrad/.test(t)) return 'Credit Rating';
+    // Insider trading
+    if (/insider.*buy|insider.*acqui|promoter.*buy|promoter.*acqui/.test(t)) return 'Insider Buying';
+    if (/insider.*sell|insider.*disp|promoter.*sell/.test(t)) return 'Insider Selling';
+    // Corporate Actions — broad match
+    if (/dividend|bonus share|stock split|share split|buyback|buy.back|rights issue|open offer|delisting|record date|ex-date|agm|egm/.test(t)) return 'Corporate Action';
+    // Shareholding
+    if (/shareholding|shareholder pattern|stake|fii holding|dii holding/.test(t)) return 'Shareholding Change';
+    // Credit ratings
+    if (/credit rating|downgrad|upgrad|icra|crisil|care rating|india rating/.test(t)) return 'Credit Rating';
     return 'General';
   }
 
@@ -204,7 +210,7 @@ class NewsIntelligenceService {
   async _fetchNseItems() {
     const items = [];
     try {
-      const result = await this.nse.getCorporateAnnouncements(100);
+      const result = await this.nse.getCorporateAnnouncements(200);
       if (!result.ok || !Array.isArray(result.data)) return items;
 
       result.data.forEach(r => {
@@ -463,7 +469,11 @@ Return this exact JSON shape (all fields required):
         params.slice(0, -2)
       );
       const result = { ok: true, data: rows, total: parseInt(ct.total) };
-      await this._set(cacheKey, TTL.NEWS_LIST, JSON.stringify(result));
+      // Only cache if results are non-empty — don't cache empty category queries
+      // (empty = NSE blocked, would cache the failure for 5 min unnecessarily)
+      if (rows.length > 0) {
+        await this._set(cacheKey, TTL.NEWS_LIST, JSON.stringify(result));
+      }
       return result;
     } catch (e) {
       return { ok: false, error: e.message, data: [] };

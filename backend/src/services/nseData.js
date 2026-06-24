@@ -180,7 +180,8 @@ class NSEDataService {
   // CORPORATE ANNOUNCEMENTS
   // ══════════════════════════════════════════════════════════════════════════
   async getCorporateAnnouncements(limit = 50) {
-    const cacheKey = 'nse:announcements';
+    const cacheKey      = 'nse:announcements';
+    const cacheKeyStale = 'nse:announcements:stale'; // 24h fallback
     const cached = await this._get(cacheKey);
     if (cached) return JSON.parse(cached);
 
@@ -188,6 +189,13 @@ class NSEDataService {
     const result = await this._nseGet(url);
 
     if (!result.ok) {
+      // Serve stale announcements when NSE is blocked — keeps Earnings/Corp tabs populated
+      const stale = await this._get(cacheKeyStale);
+      if (stale) {
+        const staleData = JSON.parse(stale);
+        console.log(`[NSEData] Serving stale announcements (${staleData.total} items) — NSE blocked`);
+        return { ...staleData, stale: true };
+      }
       return { ok: false, error: result.error, data: [], source: 'NSE Corporate Announcements' };
     }
 
@@ -203,7 +211,8 @@ class NSEDataService {
     }));
 
     const payload = { ok: true, data: mapped, source: 'NSE Corporate Announcements', total: mapped.length };
-    await this._set(cacheKey, 900, JSON.stringify(payload)); // 15 min cache
+    await this._set(cacheKey, 900, JSON.stringify(payload));         // 15 min live cache
+    await this._set(cacheKeyStale, 86400, JSON.stringify(payload)); // 24h stale fallback
     return payload;
   }
 
