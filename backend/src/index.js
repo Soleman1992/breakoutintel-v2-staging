@@ -41,6 +41,12 @@ app.use(rateLimit({ windowMs: 60000, max: 200, standardHeaders: true, legacyHead
 const REPO_ROOT = path.join(__dirname, '..', '..');  // backend/src -> backend -> repo-root
 app.use(express.static(REPO_ROOT));
 
+// Cache index.html for 5 minutes in browser — prevents 231 KB re-download on every tab open
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.sendFile(path.join(REPO_ROOT, 'index.html'));
+});
+
 // ── List query helper: pagination + search + sort for scanner/market arrays ──
 // Query params supported on all list-returning endpoints:
 //   ?search=<term>   case-insensitive match against sym/name/sector/industry/

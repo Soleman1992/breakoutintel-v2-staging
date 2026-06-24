@@ -2031,13 +2031,13 @@ async function init(){
   // Market breadth refresh every 60s
   setInterval(fetchMarketInternals, 60000);
 
-  // Market Health KPI — load once on init, then refresh every 15s
+  // Market Health KPI — load once on init, then refresh every 15s (guarded: REST only when WS not ready)
   setTimeout(loadMarketHealth, 2000);
-  setInterval(loadMarketHealth, 15000);
+  setInterval(()=>{ if(!wsReady) loadMarketHealth(); }, 15000);
 
-  // Dashboard portfolio KPIs — load once on init, then refresh every 15s
+  // Dashboard portfolio KPIs — load once on init, then refresh every 15s (guarded: REST only when WS not ready)
   setTimeout(loadDashboardPortfolioKPIs, 1500);
-  setInterval(loadDashboardPortfolioKPIs, 15000);
+  setInterval(()=>{ if(!wsReady) loadDashboardPortfolioKPIs(); }, 15000);
 
   // Alerts Center — real scanner + portfolio intelligence data (deferred so
   // PORTFOLIO_USER_ID, declared later in this script, is initialized first)

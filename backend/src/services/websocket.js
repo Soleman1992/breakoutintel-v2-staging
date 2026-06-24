@@ -8,7 +8,7 @@ const ScannerService = require('./scanner');
 
 class WebSocketServer {
   constructor(server, redisClient) {
-    this.wss = new WebSocket.Server({ server, path: '/ws' });
+    this.wss = new WebSocket.Server({ server, path: '/ws', perMessageDeflate: true });
     this.redis = redisClient;
     this.market = new MarketDataService(redisClient);
     this.scanner = new ScannerService(redisClient);
@@ -58,7 +58,7 @@ class WebSocketServer {
   }
 
   _startBroadcasting() {
-    // Indices every 15s
+    // Indices every 30s (NSE has mandatory 15s data delay — 30s is identical signal quality for swing trading)
     const idxInt = setInterval(async () => {
       try {
         const [indices, advDec, marketStatus] = await Promise.all([
@@ -70,9 +70,7 @@ class WebSocketServer {
         await this._safeRedis('setEx', 'cache:indices', 30, JSON.stringify(payload));
         if (this.clients.size > 0) this.broadcast('indices', payload);
       } catch (e) { console.warn('[WS] Indices error:', e.message); }
-    }, 15000);
-
-    // Sectors every 30s
+    }, 30000);
     const secInt = setInterval(async () => {
       try {
         const sectors = await this.market.getSectorPerformance();
