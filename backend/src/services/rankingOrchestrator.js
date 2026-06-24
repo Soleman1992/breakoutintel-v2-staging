@@ -52,8 +52,8 @@ const REDIS_KEYS = {
   stockReject:  (ticker) => `stock:${ticker}:rejected`,
 };
 
-const SCAN_CONCURRENCY   = 5;    // concurrent stocks (Yahoo rate limit protection)
-const BATCH_DELAY_MS     = 600;  // ms between batches
+const SCAN_CONCURRENCY   = 3;    // reduced from 5 — phone RAM protection (Android kills heavy processes)
+const BATCH_DELAY_MS     = 1000; // increased from 600ms — gives Yahoo Finance breathing room
 const STOCK_RECORD_TTL   = 86400; // 24h — full consensus record per stock
 const RANKINGS_TTL       = 86400; // 24h — sorted sets
 
@@ -375,7 +375,26 @@ class RankingOrchestrator {
     // ── Supabase (pg) persistence ───────────────────────────────────────────
     if (this.db) {
       try {
-        // Upsert accepted results (table created in Phase 6 migration)
+        // Insert scan_runs FIRST — consensus_results has FK → scan_runs.run_id
+        // Previous bug: consensus_results inserted first, causing FK violation
+        await this.db.query(`
+          INSERT INTO scan_runs (run_id, universe_size, accepted, rejected, tier_counts, completed_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          ON CONFLICT (run_id) DO NOTHING
+        `, [
+          runId,
+          allResults.length,
+          accepted.length,
+          rejected.length,
+          JSON.stringify({
+            S: accepted.filter(r => r.tier === 'S').length,
+            A: accepted.filter(r => r.tier === 'A').length,
+            B: accepted.filter(r => r.tier === 'B').length,
+            C: accepted.filter(r => r.tier === 'C').length,
+          }),
+        ]);
+
+        // Now safe to insert consensus_results (parent row exists)
         for (const r of accepted) {
           await this.db.query(`
             INSERT INTO consensus_results (
@@ -421,24 +440,6 @@ class RankingOrchestrator {
             JSON.stringify(r.explain       || {}),
           ]);
         }
-
-        // Record the scan run
-        await this.db.query(`
-          INSERT INTO scan_runs (run_id, universe_size, accepted, rejected, tier_counts, completed_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
-          ON CONFLICT (run_id) DO NOTHING
-        `, [
-          runId,
-          allResults.length,
-          accepted.length,
-          rejected.length,
-          JSON.stringify({
-            S: accepted.filter(r => r.tier === 'S').length,
-            A: accepted.filter(r => r.tier === 'A').length,
-            B: accepted.filter(r => r.tier === 'B').length,
-            C: accepted.filter(r => r.tier === 'C').length,
-          }),
-        ]);
         console.log('[Persist] PostgreSQL upsert complete');
       } catch (e) {
         // Table may not exist yet (Phase 6 migration pending) — non-fatal

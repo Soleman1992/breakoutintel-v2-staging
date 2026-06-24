@@ -7,6 +7,16 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
+// ── Global crash protection — prevent any unhandled error from killing the process ──
+// Without these, a single bad DB query or network timeout crashes Node entirely.
+// With these, the error is logged and the process keeps running.
+process.on('uncaughtException',  (err) => {
+  console.error('[CRASH] Uncaught Exception — process kept alive:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRASH] Unhandled Promise Rejection — process kept alive:', reason?.message || reason);
+});
+
 const app = express();
 const server = http.createServer(app);
 
@@ -779,9 +789,10 @@ async function start() {
       db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        max: 3,                      // Supabase free tier: keep 2 slots free for admin/dashboard
+        max: 5,                      // increased from 3 — handles concurrent scanner+news+portfolio load
         idleTimeoutMillis: 30000,    // release idle connections faster (free tier courtesy)
         connectionTimeoutMillis: 5000,
+        statement_timeout: 10000,    // kill hung queries after 10s — prevents pool exhaustion
       });
       await db.query('SELECT 1');
       console.log('[PostgreSQL] Connected ✓');

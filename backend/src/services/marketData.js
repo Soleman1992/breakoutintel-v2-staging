@@ -140,7 +140,15 @@ class MarketDataService {
   }
 
   async getAdvanceDecline() {
-    const cacheKey = 'nse:advdec';
+    const cacheKey     = 'nse:advdec';
+    const cooldownKey  = 'nse:advdec:cooldown';
+
+    // If NSE blocked us recently, don't hammer it — wait out the cooldown
+    const onCooldown = await this._safeRedisGet(cooldownKey);
+    if (onCooldown) {
+      return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE A/D on cooldown (blocked)' };
+    }
+
     const cached = await this._safeRedisGet(cacheKey);
     if (cached) return JSON.parse(cached);
 
@@ -154,6 +162,7 @@ class MarketDataService {
       'NIFTY 50',    // last resort — smaller but always present
     ];
 
+    let blocked = false;
     for (const indexName of NSE_ADV_DEC_INDICES) {
       try {
         const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
@@ -184,13 +193,20 @@ class MarketDataService {
         return result;
       } catch (e) {
         const status = e.response?.status;
-        // 404 = retired endpoint name, 403 = session blocked — both expected;
-        // try next candidate silently. Log only on unexpected errors.
-        if (status !== 404 && status !== 403) {
+        if (status === 403) {
+          blocked = true; // NSE blocked — set cooldown, stop trying
+          break;
+        }
+        // 404 = retired endpoint name — try next candidate silently
+        if (status !== 404) {
           console.warn(`[NSE] getAdvanceDecline (${indexName}): ${e.message}`);
         }
-        // continue to next candidate
       }
+    }
+
+    // If NSE blocked us (403), set 60s cooldown to stop hammering
+    if (blocked) {
+      await this._safeRedisSet(cooldownKey, 60, '1');
     }
 
     // All candidates failed — return ok:false without logging (callers handle gracefully)
