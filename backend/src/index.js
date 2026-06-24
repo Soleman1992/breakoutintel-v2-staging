@@ -299,13 +299,26 @@ app.get('/breakout/top10', async (req, res) => {
     let results;
     if (redisClient?.isReady) {
       const cached = await redisClient.get('cache:scanner').catch(() => null);
-      results = cached ? JSON.parse(cached) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Validate cache has new bps field — if not, it's old format, force fresh scan
+        if (parsed.length && parsed[0].bps != null) {
+          results = parsed;
+        } else {
+          console.log('[Breakout] Stale cache (no bps field) — clearing for fresh scan');
+          await redisClient.del('cache:scanner').catch(() => {});
+        }
+      }
     }
     if (!results) results = await scanner.runScan();
 
     // Sort by BPS descending, take top 10
-    const top10 = [...results]
-      .filter(r => r.bps != null)
+    const withBps = results.filter(r => r.bps != null);
+    if (!withBps.length) {
+      return res.json({ ok: false, data: [], message: 'Scanner has not completed new-format scan yet. Results available after first full scan (~4 min).' });
+    }
+
+    const top10 = [...withBps]
       .sort((a, b) => (b.bps || 0) - (a.bps || 0))
       .slice(0, 10)
       .map((r, i) => ({
@@ -315,17 +328,16 @@ app.get('/breakout/top10', async (req, res) => {
         sector:        r.sector,
         cap:           r.cap,
         cmp:           r.cmp,
-        chg:           r.chg,
+        chg:           r.chg || 0,
         bps:           r.bps,
-        bpsLabel:      r.bpsLabel,
+        bpsLabel:      r.bpsLabel || 'Low',
         strategyCount: r.strategyCount || 1,
         allStrategies: r.allStrategies || [{ pattern: r.strat, stratName: r.stratName, category: r.cat }],
         primaryStrat:  r.stratName,
-        vol:           r.vol,
-        rs:            r.rs,
-        conf:          r.conf,
-        proximity52w:  r.proximity52w,
-        // Explainability
+        vol:           r.vol || 0,
+        rs:            r.rs || 50,
+        conf:          r.conf || 0,
+        proximity52w:  r.proximity52w || 0,
         why: _buildBPSExplain(r),
       }));
 
@@ -344,12 +356,14 @@ app.get('/breakout/strategy/:name', async (req, res) => {
     let results;
     if (redisClient?.isReady) {
       const cached = await redisClient.get('cache:scanner').catch(() => null);
-      results = cached ? JSON.parse(cached) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.length && parsed[0].bps != null) results = parsed;
+      }
     }
     if (!results) results = await scanner.runScan();
 
     const stratName = req.params.name.toLowerCase();
-    // Map friendly names to pattern codes
     const STRATEGY_MAP = {
       vcp: 'vcp', darvas: 'darvas', stage2: 'rs', pp: 'pp',
       '52wkhi': '52wkhi', vol: 'vol', tight: 'tight', minervini: 'minervini',
@@ -359,7 +373,6 @@ app.get('/breakout/strategy/:name', async (req, res) => {
     };
     const pattern = STRATEGY_MAP[stratName] || stratName;
 
-    // Filter stocks where this strategy is in allStrategies
     const filtered = results
       .filter(r => {
         const strategies = r.allStrategies || [{ pattern: r.strat }];
@@ -374,13 +387,13 @@ app.get('/breakout/strategy/:name', async (req, res) => {
         sector:  r.sector,
         cap:     r.cap,
         cmp:     r.cmp,
-        chg:     r.chg,
-        bps:     r.bps,
-        bpsLabel: r.bpsLabel,
+        chg:     r.chg || 0,
+        bps:     r.bps || 0,
+        bpsLabel: r.bpsLabel || 'Low',
         strategyCount: r.strategyCount || 1,
         allStrategies: r.allStrategies || [{ pattern: r.strat, stratName: r.stratName }],
-        vol:     r.vol,
-        rs:      r.rs,
+        vol:     r.vol || 0,
+        rs:      r.rs || 50,
         conf:    r.conf,
         proximity52w: r.proximity52w,
       }));

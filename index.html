@@ -772,7 +772,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 </div>
 
 <!-- VIEW: breakout (Breakout Probability Center) -->
-<div id="view-breakout" style="display:none">
+<div id="view-breakout" style="display:none;width:100%;box-sizing:border-box">
   <div style="padding:0 0 12px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <div>
       <div style="font-size:18px;font-weight:500;color:var(--t1)">Breakout Probability Center</div>
@@ -802,13 +802,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
   <!-- Top 10 content -->
   <div id="bpc-top10">
-    <div id="bpc-top10-list"></div>
+    <div id="bpc-top10-list" style="min-height:200px"></div>
   </div>
 
   <!-- Strategy leaderboard content -->
   <div id="bpc-strategy" style="display:none">
-    <div id="bpc-strategy-list"></div>
+    <div id="bpc-strategy-list" style="min-height:200px"></div>
   </div>
+  <div style="height:40px"></div>
 </div>
 
 <!-- VIEW: fiidii (Smart Money Activity — real NSE data) -->
@@ -4011,24 +4012,33 @@ function setBPCTab(tab, el) {
 
 async function loadBreakoutCenter() {
   if (bpcState.loading) return;
-  if (Date.now() - bpcState.lastFetch < 45000 && bpcState.data.length) {
+  // Use cached data if fresh (45s) — but only if it has bps field (new format)
+  if (Date.now() - bpcState.lastFetch < 45000 && bpcState.data.length && bpcState.data[0].bps != null) {
     renderBPCTop10(bpcState.data); return;
   }
   bpcState.loading = true;
   document.getElementById('bpc-loading').style.display = 'block';
   document.getElementById('bpc-top10-list').innerHTML = '';
   try {
-    var r = await fetch(BACKEND + '/breakout/top10');
+    // 60s timeout — scanner can take up to 250s on first run; this endpoint
+    // reads from Redis cache so should be fast once scanner has run once
+    var r = await fetch(BACKEND + '/breakout/top10', { signal: AbortSignal.timeout(60000) });
     var j = await r.json();
-    if (j.ok && j.data) {
+    if (j.ok && j.data && j.data.length) {
       bpcState.data = j.data;
       bpcState.lastFetch = Date.now();
       renderBPCTop10(j.data);
     } else {
-      document.getElementById('bpc-top10-list').innerHTML = '<div class="bpc-empty">No breakout setups found. Scanner may still be warming up.</div>';
+      document.getElementById('bpc-top10-list').innerHTML =
+        '<div class="bpc-empty"><i class="ti ti-clock" style="font-size:24px;display:block;margin-bottom:8px"></i>' +
+        'Scanner warming up — no results yet.<br><span style="font-size:10px;margin-top:4px;display:block">Full scan takes ~4 minutes on first run. Try again shortly.</span></div>';
     }
   } catch(e) {
-    document.getElementById('bpc-top10-list').innerHTML = '<div class="bpc-empty">Error loading data. Check backend connection.</div>';
+    var msg = e.name === 'TimeoutError'
+      ? 'Scanner is running first scan (~4 min). Refresh in a moment.'
+      : 'Backend connection error. Check Termux is running.';
+    document.getElementById('bpc-top10-list').innerHTML =
+      '<div class="bpc-empty"><i class="ti ti-wifi-off" style="font-size:24px;display:block;margin-bottom:8px"></i>' + msg + '</div>';
   } finally {
     bpcState.loading = false;
     document.getElementById('bpc-loading').style.display = 'none';
@@ -4036,17 +4046,20 @@ async function loadBreakoutCenter() {
 }
 
 async function loadStrategyLeaderboard(stratName) {
-  document.getElementById('bpc-strategy-list').innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i></div>';
+  document.getElementById('bpc-strategy-list').innerHTML =
+    '<div style="text-align:center;padding:30px;color:var(--t3)"><i class="ti ti-loader" style="animation:spin 1s linear infinite;font-size:20px"></i><div style="margin-top:8px">Loading ' + (BPC_STRAT_LABELS[stratName]||stratName) + ' setups...</div></div>';
   try {
-    var r = await fetch(BACKEND + '/breakout/strategy/' + stratName);
+    var r = await fetch(BACKEND + '/breakout/strategy/' + stratName, { signal: AbortSignal.timeout(60000) });
     var j = await r.json();
     if (j.ok && j.data && j.data.length) {
       renderBPCStrategyList(j.data, stratName);
     } else {
-      document.getElementById('bpc-strategy-list').innerHTML = '<div class="bpc-empty">No ' + (BPC_STRAT_LABELS[stratName]||stratName) + ' setups found in current scan.</div>';
+      document.getElementById('bpc-strategy-list').innerHTML =
+        '<div class="bpc-empty">No ' + (BPC_STRAT_LABELS[stratName]||stratName) + ' setups found in current scan.<br><span style="font-size:10px">This strategy may be inactive in current market conditions.</span></div>';
     }
   } catch(e) {
-    document.getElementById('bpc-strategy-list').innerHTML = '<div class="bpc-empty">Error loading strategy data.</div>';
+    document.getElementById('bpc-strategy-list').innerHTML =
+      '<div class="bpc-empty">Error loading strategy data. Backend may be scanning — try again in a moment.</div>';
   }
 }
 
@@ -4081,7 +4094,7 @@ function renderBPCTop10(data) {
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
             '<div class="bpc-sym">' + s.sym + '</div>' +
             '<div style="font-size:11px;color:var(--t3)">' + (s.sector||'') + ' · ' + (s.cap||'') + '</div>' +
-            '<div style="font-size:12px;color:' + (s.chg>=0?'var(--up)':'var(--dn)') + ';margin-left:auto">₹' + (s.cmp||0).toFixed(1) + ' <span>' + (s.chg>=0?'+':'') + (s.chg||0).toFixed(2) + '%</span></div>' +
+            '<div style="font-size:12px;color:' + ((s.chg||0)>=0?'var(--up)':'var(--dn)') + ';margin-left:auto">₹' + (s.cmp||0).toFixed(1) + ' <span>' + ((s.chg||0)>=0?'+':'') + (s.chg||0).toFixed(2) + '%</span></div>' +
           '</div>' +
           '<div class="bpc-name">' + (s.name||'') + '</div>' +
           '<div style="margin-top:8px;display:flex;align-items:center;gap:10px">' +
