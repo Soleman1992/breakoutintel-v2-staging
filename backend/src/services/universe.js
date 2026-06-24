@@ -252,7 +252,6 @@ const RAW_UNIVERSE = [
   {sym:'VSTTILLERS.NS', name:'VST Tillers Tractors',     sector:'Auto',           industry:'Farm Equipment',         cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'SWSOLAR.NS',    name:'Sterling & Wilson Solar',  sector:'Energy',         industry:'Solar EPC',              cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'GOCOLORS.NS',   name:'Go Fashion',               sector:'Retail',         industry:'Fashion Retail',         cap:'Small',foStock:false,nifty500:true,penny:false},
-  {sym:'SAPPHIRE.NS',   name:'Sapphire Foods',           sector:'QSR',            industry:'Restaurants',            cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'INOXWIND.NS',   name:'Inox Wind',                sector:'Energy',         industry:'Wind Energy',            cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'RPOWER.NS',     name:'Reliance Power',           sector:'Power',          industry:'Power Generation',       cap:'Micro',foStock:false,nifty500:false,penny:true},
   {sym:'YESBANK.NS',    name:'Yes Bank',                 sector:'Banking',        industry:'Private Banks',          cap:'Small',foStock:true, nifty500:true,penny:true},
@@ -261,7 +260,6 @@ const RAW_UNIVERSE = [
   {sym:'NHPC.NS',       name:'NHPC',                     sector:'Power',          industry:'Hydropower',             cap:'Small',foStock:true, nifty500:true,penny:true},
   {sym:'SJVN.NS',       name:'SJVN',                     sector:'Power',          industry:'Hydropower',             cap:'Small',foStock:true, nifty500:true,penny:true},
   {sym:'MRPL.NS',       name:'MRPL',                     sector:'Energy',         industry:'Oil Refining',           cap:'Small',foStock:false,nifty500:true,penny:false},
-  {sym:'PRESTIGE.NS',   name:'Prestige Estates',         sector:'Realty',         industry:'Real Estate',            cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'SOBHA.NS',      name:'Sobha',                    sector:'Realty',         industry:'Real Estate',            cap:'Small',foStock:true, nifty500:true,penny:false},
   {sym:'MAHLIFE.NS',    name:'Mahindra Lifespace',       sector:'Realty',         industry:'Real Estate',            cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'KOLTEPATIL.NS', name:'Kolte-Patil Developers',  sector:'Realty',         industry:'Real Estate',            cap:'Small',foStock:false,nifty500:false,penny:false},
@@ -298,8 +296,6 @@ const RAW_UNIVERSE = [
   {sym:'ADANIGREEN.NS', name:'Adani Green Energy',       sector:'Energy',         industry:'Solar & Wind Energy',    cap:'Large',foStock:true, nifty500:true,penny:false},
   {sym:'ADANITRANS.NS', name:'Adani Transmission',       sector:'Power',          industry:'Power Transmission',     cap:'Large',foStock:true, nifty500:true,penny:false},
   {sym:'PAYTM.NS',      name:'One97 Communications',     sector:'Fintech',        industry:'Payment Services',       cap:'Mid', foStock:true, nifty500:true,penny:false},
-  {sym:'NYKAA.NS',      name:'Nykaa',                    sector:'Retail',         industry:'Beauty Retail',          cap:'Mid', foStock:true, nifty500:true,penny:false},
-  {sym:'ZOMATO.NS',     name:'Zomato',                   sector:'Internet',       industry:'Food Tech',              cap:'Large',foStock:true, nifty500:true,penny:false},
   // ── ADDITIONAL F&O STOCKS ───────────────────────────────────────────────────
   {sym:'AUBANK.NS',     name:'AU Small Finance Bank',    sector:'Banking',        industry:'Small Finance Banks',    cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'BATAINDIA.NS',  name:'Bata India',               sector:'Consumer',       industry:'Footwear',               cap:'Mid', foStock:true, nifty500:true,penny:false},
@@ -320,21 +316,18 @@ const RAW_UNIVERSE = [
   {sym:'INDIACEM.NS',   name:'India Cements',            sector:'Cement',         industry:'Cement',                 cap:'Small',foStock:true, nifty500:true,penny:false},
   {sym:'INGERRAND.NS',  name:'Ingersoll-Rand India',     sector:'Industrials',    industry:'Compressors',            cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'JKIL.NS',       name:'J Kumar Infraprojects',    sector:'Infra',          industry:'Engineering & Construction',cap:'Small',foStock:false,nifty500:false,penny:false},
-  {sym:'MANAPPURAM.NS', name:'Manappuram Finance',       sector:'NBFC',           industry:'Gold Finance',           cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'NIACL.NS',      name:'New India Assurance',      sector:'Insurance',      industry:'General Insurance',      cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'PCBL.NS',       name:'PCBL',                     sector:'Chemicals',      industry:'Carbon Black',           cap:'Small',foStock:true, nifty500:true,penny:false},
   {sym:'PVRINOX.NS',    name:'PVR Inox',                 sector:'Consumer',       industry:'Entertainment',          cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'RALLIS.NS',     name:'Rallis India',             sector:'Agrochem',       industry:'Agrochemicals',          cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'RAMCOCEM.NS',   name:'Ramco Cements',            sector:'Cement',         industry:'Cement',                 cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'STAR.NS',       name:'Strides Pharma',           sector:'Pharma',         industry:'Generics',               cap:'Small',foStock:false,nifty500:true,penny:false},
-  {sym:'TATACOMM.NS',   name:'Tata Communications',      sector:'Telecom',        industry:'Data Services',          cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'TATAMETALI.NS', name:'Tata Metaliks',            sector:'Metals',         industry:'Cast Iron',              cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'TFCILTD.NS',    name:'Tourism Finance Corp',     sector:'NBFC',           industry:'Tourism Finance',        cap:'Micro',foStock:false,nifty500:false,penny:true,  minVolFilter:500000},
   {sym:'TV18BRDCST.NS', name:'TV18 Broadcast',           sector:'Media',          industry:'Broadcasting',           cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'TVSMOTOR.NS',   name:'TVS Motor Company',        sector:'Auto',           industry:'Two Wheelers',           cap:'Large',foStock:true, nifty500:true,penny:false},
   {sym:'UJJIVAN.NS',    name:'Ujjivan Financial Services',sector:'NBFC',          industry:'Microfinance',           cap:'Small',foStock:true, nifty500:true,penny:false},
   {sym:'VBL.NS',        name:'Varun Beverages',          sector:'Consumer',       industry:'Beverages',              cap:'Large',foStock:true, nifty500:true,penny:false},
-  {sym:'VEDL.NS',       name:'Vedanta',                  sector:'Metals',         industry:'Diversified Metals',     cap:'Large',foStock:true, nifty500:true,penny:false},
   {sym:'VGUARD.NS',     name:'V-Guard Industries',       sector:'Electrical',     industry:'Consumer Electrical',    cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'WENDT.NS',      name:'Wendt India',              sector:'Industrials',    industry:'Abrasives',              cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'ZENSARTECH.NS', name:'Zensar Technologies',      sector:'IT',             industry:'IT Services',            cap:'Small',foStock:false,nifty500:true,penny:false},
@@ -355,7 +348,6 @@ const RAW_UNIVERSE = [
   {sym:'MOTILALOFS.NS', name:'Motilal Oswal Financial',  sector:'Fintech',        industry:'Broking',                cap:'Mid', foStock:true, nifty500:true,penny:false},
   {sym:'IIFL.NS',       name:'IIFL Finance',             sector:'NBFC',           industry:'Consumer Finance',       cap:'Small',foStock:true, nifty500:true,penny:false},
   {sym:'NUVOCO.NS',     name:'Nuvoco Vistas',            sector:'Cement',         industry:'Cement',                 cap:'Small',foStock:false,nifty500:true,penny:false},
-  {sym:'JKIL.NS',       name:'JK Paper',                 sector:'Paper',          industry:'Paper Products',         cap:'Small',foStock:false,nifty500:true,penny:false},
   {sym:'CRAFTSMAN.NS',  name:'Craftsman Automation',     sector:'Auto Ancillary', industry:'Auto Parts',             cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'ELECTCAST.NS',  name:'Electrosteel Castings',    sector:'Metals',         industry:'Cast Iron Pipes',        cap:'Small',foStock:false,nifty500:false,penny:false},
   {sym:'RHFL.NS',       name:'Repco Home Finance',       sector:'Housing Finance', industry:'Mortgage Finance',      cap:'Small',foStock:false,nifty500:false,penny:false},
@@ -380,7 +372,132 @@ const RAW_UNIVERSE = [
   {sym:'DISHTV.NS',     name:'Dish TV India',            sector:'Media',          industry:'DTH Services',           cap:'Micro',foStock:false,nifty500:false,penny:true,  minVolFilter:1000000},
   {sym:'HATHWAY.NS',    name:'Hathway Cable & Datacom',  sector:'Media',          industry:'Cable & Broadband',      cap:'Micro',foStock:false,nifty500:false,penny:true,  minVolFilter:500000},
   {sym:'EROSMEDIA.NS',  name:'Eros STX Global',          sector:'Media',          industry:'Film Production',        cap:'Micro',foStock:false,nifty500:false,penny:true,  minVolFilter:500000},
+
+  // ── EXPANSION BATCH 1 — HOTELS & HOSPITALITY (missing sector) ─────────────
+  {sym:'LEMONTREE.NS',  name:'Lemon Tree Hotels',         sector:'Hotels',         industry:'Mid-Scale Hotels',       cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'CHALET.NS',     name:'Chalet Hotels',             sector:'Hotels',         industry:'Luxury Hotels',          cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'EIHOTEL.NS',    name:'EIH (Oberoi Hotels)',       sector:'Hotels',         industry:'Luxury Hotels',          cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'TAJGVK.NS',     name:'Taj GVK Hotels',            sector:'Hotels',         industry:'Luxury Hotels',          cap:'Small',foStock:false,nifty500:false,penny:false},
+
+  // ── EXPANSION BATCH 2 — DEFENCE & AEROSPACE (underrepresented) ────────────
+  {sym:'BDL.NS',        name:'Bharat Dynamics',           sector:'Defence',        industry:'Missiles & Ammunition',  cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'MIDHANI.NS',    name:'Mishra Dhatu Nigam',        sector:'Defence',        industry:'Speciality Alloys',      cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'PARAS.NS',      name:'Paras Defence',             sector:'Defence',        industry:'Defence Electronics',    cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'DATAPATTNS.NS', name:'Data Patterns India',       sector:'Defence',        industry:'Defence Electronics',    cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'GRSE.NS',       name:'Garden Reach Shipbuilders', sector:'Defence',        industry:'Shipbuilding',           cap:'Mid',  foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 3 — RENEWABLES & CLEAN ENERGY ─────────────────────────
+  {sym:'TPWR.NS',       name:'Torrent Power',             sector:'Power',          industry:'Power Distribution',     cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'GREENKO.NS',    name:'Greenko Energy',            sector:'Renewables',     industry:'Renewable Energy',       cap:'Mid',  foStock:false,nifty500:false,penny:false},
+  {sym:'WAREEENE.NS',   name:'Waaree Energies',           sector:'Renewables',     industry:'Solar Panels',           cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'PREMIER.NS',    name:'Premier Energies',          sector:'Renewables',     industry:'Solar Panels',           cap:'Mid',  foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 4 — TEXTILES & FASHION ────────────────────────────────
+  {sym:'VEDANT.NS',     name:'Vedant Fashions (Manyavar)',sector:'Retail',         industry:'Ethnic Wear',            cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'ARVIND.NS',     name:'Arvind',                    sector:'Textiles',       industry:'Textiles',               cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'WELSPUNIND.NS', name:'Welspun India',             sector:'Textiles',       industry:'Home Textiles',          cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'SPORTKING.NS',  name:'Sportking India',           sector:'Textiles',       industry:'Yarn',                   cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'KITEX.NS',      name:'Kitex Garments',            sector:'Textiles',       industry:'Garments Export',        cap:'Small',foStock:false,nifty500:false,penny:false},
+
+  // ── EXPANSION BATCH 5 — QSR & FOOD CHAINS ─────────────────────────────────
+  {sym:'DEVYANI.NS',    name:'Devyani International (KFC)',sector:'QSR',           industry:'Restaurants',            cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'WESTLIFE.NS',   name:'Westlife Foodworld (McD)',  sector:'QSR',           industry:'Restaurants',            cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'BURGER.NS',     name:'Burger King India',         sector:'QSR',           industry:'Restaurants',            cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'BARBEQUE.NS',   name:'Barbeque Nation',           sector:'QSR',           industry:'Casual Dining',          cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 6 — EV & AUTO ANCILLARY EXPANSION ─────────────────────
+  {sym:'AMARAJABAT.NS', name:'Amara Raja Energy',         sector:'Auto Ancillary', industry:'Batteries',             cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'OLECTRA.NS',    name:'Olectra Greentech',         sector:'Auto Ancillary', industry:'Electric Buses',        cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'GREAVES.NS',    name:'Greaves Cotton',            sector:'Auto Ancillary', industry:'EV Components',         cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'VARROC.NS',     name:'Varroc Engineering',        sector:'Auto Ancillary', industry:'Auto Parts',            cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'BALKRISHNA.NS', name:'Balkrishna Industries',     sector:'Auto Ancillary', industry:'Tyres',                 cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'CEATLTD.NS',    name:'CEAT Tyres',                sector:'Auto Ancillary', industry:'Tyres',                 cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'MRF.NS',        name:'MRF',                       sector:'Auto Ancillary', industry:'Tyres',                 cap:'Large',foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 7 — MISSING LARGE/MID F&O STOCKS ──────────────────────
+  {sym:'APTUS.NS',      name:'Aptus Value Housing',       sector:'Housing Finance', industry:'Mortgage Finance',     cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'FINPIPE.NS',    name:'Finolex Industries',        sector:'Industrials',    industry:'PVC Pipes',             cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'KALYANKJIL.NS', name:'Kalyan Jewellers',          sector:'Consumer',       industry:'Jewellery',             cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'SENCO.NS',      name:'Senco Gold',                sector:'Consumer',       industry:'Jewellery',             cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'PCJEWELLER.NS', name:'PC Jeweller',               sector:'Consumer',       industry:'Jewellery',             cap:'Small',foStock:true, nifty500:false,penny:false},
+  {sym:'SULA.NS',       name:'Sula Vineyards',            sector:'Consumer',       industry:'Beverages & Alcohol',   cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'RADICO.NS',     name:'Radico Khaitan',            sector:'Consumer',       industry:'Beverages & Alcohol',   cap:'Mid',  foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 8 — AGROCHEMICALS EXPANSION ───────────────────────────
+  {sym:'BAYERCROP.NS',  name:'Bayer CropScience',         sector:'Agrochem',       industry:'Agrochemicals',         cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'DHANUKA.NS',    name:'Dhanuka Agritech',          sector:'Agrochem',       industry:'Agrochemicals',         cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'GHCL.NS',       name:'GHCL',                      sector:'Chemicals',      industry:'Soda Ash',              cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'AARTI.NS',      name:'Aarti Industries',          sector:'Chemicals',      industry:'Specialty Chemicals',   cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'NOCIL.NS',      name:'NOCIL',                     sector:'Chemicals',      industry:'Rubber Chemicals',      cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 9 — DIAGNOSTIC & HEALTHCARE ───────────────────────────
+  {sym:'VIJAYABANK.NS', name:'Vijaya Diagnostic',         sector:'Healthcare',     industry:'Diagnostics',           cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'HEALTHCARE.NS', name:'Healthium Medtech',         sector:'Healthcare',     industry:'Medical Devices',       cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'POLY.NS',       name:'Poly Medicure',             sector:'Healthcare',     industry:'Medical Devices',       cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'DIVI.NS',       name:'Divis Laboratories',        sector:'Pharma',         industry:'API',                   cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'SUVEN.NS',      name:'Suven Pharmaceuticals',     sector:'Pharma',         industry:'CDMO',                  cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'NEULANDLAB.NS', name:'Neuland Laboratories',      sector:'Pharma',         industry:'API',                   cap:'Small',foStock:false,nifty500:false,penny:false},
+
+  // ── EXPANSION BATCH 10 — LOGISTICS & SUPPLY CHAIN ─────────────────────────
+  {sym:'BLUEDART.NS',   name:'Blue Dart Express',         sector:'Logistics',      industry:'Courier & Express',     cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'GATEWAY.NS',    name:'Gateway Distriparks',       sector:'Logistics',      industry:'Container Logistics',   cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'ALLCARGO.NS',   name:'Allcargo Logistics',        sector:'Logistics',      industry:'Third Party Logistics', cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'MAHLOG.NS',     name:'Mahindra Logistics',        sector:'Logistics',      industry:'Third Party Logistics', cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'TCI.NS',        name:'Transport Corp of India',   sector:'Logistics',      industry:'Road Freight',          cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'VRLLOG.NS',     name:'VRL Logistics',             sector:'Logistics',      industry:'Road Freight',          cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 11 — INSURANCE EXPANSION ──────────────────────────────
+  {sym:'ICICIPRU.NS',   name:'ICICI Prudential Life',     sector:'Insurance',      industry:'Life Insurance',        cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'HDFCLIFE.NS',   name:'HDFC Life Insurance',       sector:'Insurance',      industry:'Life Insurance',        cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'GODIGIT.NS',    name:'Go Digit General Insurance',sector:'Insurance',      industry:'General Insurance',     cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'STARHEALTH.NS', name:'Star Health Insurance',     sector:'Insurance',      industry:'Health Insurance',      cap:'Mid',  foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 12 — CAPITAL GOODS EXPANSION ──────────────────────────
+  {sym:'CG.NS',         name:'CG Power & Industrial',     sector:'Capital Goods',  industry:'Electrical Equipment',  cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'ISGEC.NS',      name:'ISGEC Heavy Engineering',   sector:'Capital Goods',  industry:'Industrial Equipment',  cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'LTTECHNO.NS',   name:'L&T Technology Services',   sector:'IT',             industry:'Engineering R&D',       cap:'Large',foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 13 — TRAVEL & AVIATION ────────────────────────────────
+  {sym:'MAHAIRPORT.NS', name:'GMR Airports Infrastructure',sector:'Aviation',      industry:'Airport Operations',    cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'EASEMYTRIP.NS', name:'Easy Trip Planners',         sector:'Travel',        industry:'Online Travel',         cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'THOMASCOOK.NS', name:'Thomas Cook India',          sector:'Travel',        industry:'Travel Services',       cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 14 — BANKING EXPANSION (PSU & Small Finance) ──────────
+  {sym:'BANKBARODA.NS', name:'Bank of Baroda',            sector:'Banking',        industry:'Public Sector Banks',   cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'UNIONBANK.NS',  name:'Union Bank of India',       sector:'Banking',        industry:'Public Sector Banks',   cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'EQUITASBNK.NS', name:'Equitas Small Finance Bank',sector:'Banking',        industry:'Small Finance Banks',   cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'UTKARSHBNK.NS', name:'Utkarsh Small Finance Bank',sector:'Banking',        industry:'Small Finance Banks',   cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'SURYODAY.NS',   name:'Suryoday Small Finance Bank',sector:'Banking',       industry:'Small Finance Banks',   cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'ESAFSFB.NS',    name:'ESAF Small Finance Bank',   sector:'Banking',        industry:'Small Finance Banks',   cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'KTKBANK.NS',    name:'Karnataka Bank',            sector:'Banking',        industry:'Private Banks',         cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'DCBBANK.NS',    name:'DCB Bank',                  sector:'Banking',        industry:'Private Banks',         cap:'Small',foStock:true, nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 15 — REAL ESTATE EXPANSION ────────────────────────────
+  {sym:'NESCO.NS',      name:'Nesco',                     sector:'Realty',         industry:'Exhibition & Office',   cap:'Small',foStock:false,nifty500:false,penny:false},
+  {sym:'SUNTECK.NS',    name:'Sunteck Realty',            sector:'Realty',         industry:'Real Estate',           cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 16 — INTERNET & NEW AGE ───────────────────────────────
+  {sym:'POLICYBZR.NS',  name:'PB Fintech (PolicyBazaar)', sector:'Internet',       industry:'InsurTech',             cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'CARTRADE.NS',   name:'CarTrade Tech',             sector:'Internet',       industry:'Auto Marketplace',      cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'INFOBEAN.NS',   name:'Info Edge (Naukri)',         sector:'Internet',       industry:'Job Portal',            cap:'Large',foStock:true, nifty500:true, penny:false},
+  {sym:'JUSTDIAL.NS',   name:'Just Dial',                 sector:'Internet',       industry:'Local Search',          cap:'Small',foStock:true, nifty500:true, penny:false},
+  {sym:'MAPMYINDIA.NS', name:'MapMyIndia (CE Info Systems)',sector:'Internet',     industry:'Mapping & Location',    cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'IXIGO.NS',      name:'Le Travenues (ixigo)',       sector:'Travel',        industry:'Online Travel',         cap:'Small',foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 17 — SPECIALTY INDUSTRIALS ────────────────────────────
+  {sym:'SUPRAJIT.NS',   name:'Suprajit Engineering',      sector:'Auto Ancillary', industry:'Cables & Controls',     cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'JBCHEPHARM.NS', name:'JB Chemicals',              sector:'Pharma',         industry:'Pharma',                cap:'Mid',  foStock:false,nifty500:true, penny:false},
+  {sym:'ERIS.NS',       name:'Eris Lifesciences',         sector:'Pharma',         industry:'Chronic Therapy',       cap:'Mid',  foStock:false,nifty500:true, penny:false},
+
+  // ── EXPANSION BATCH 18 — IT MID-CAP EXPANSION ─────────────────────────────
+  {sym:'BSOFT.NS',      name:'Birlasoft',                 sector:'IT',             industry:'IT Services',           cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'RATEGAIN.NS',   name:'RateGain Travel Technologies',sector:'IT',           industry:'Travel Tech',           cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'NEWGEN.NS',     name:'Newgen Software',           sector:'IT',             industry:'Enterprise Software',   cap:'Small',foStock:false,nifty500:true, penny:false},
+  {sym:'TANLA.NS',      name:'Tanla Platforms',           sector:'IT',             industry:'CPaaS',                 cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'INDIAMART.NS',  name:'IndiaMART InterMESH',       sector:'Internet',       industry:'B2B Marketplace',       cap:'Mid',  foStock:true, nifty500:true, penny:false},
+  {sym:'TTML.NS',       name:'Tata Teleservices Maharashtra',sector:'Telecom',     industry:'Telecom Services',      cap:'Small',foStock:false,nifty500:false,penny:false},
 ];
+
 
 // ── LIQUIDITY FILTERS ────────────────────────────────────────────────────────
 // Applied at scan time, not at definition time
