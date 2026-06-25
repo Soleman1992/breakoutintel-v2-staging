@@ -36,16 +36,12 @@ const SCOREABLE_CATEGORIES = new Set([
 ]);
 
 // RSS feeds — headline + snippet + link only (syndication-intended public feeds)
+// Only feeds verified to parse cleanly on the Android/Termux stack are kept.
 const RSS_FEEDS = [
   {
     name:  'RSS:moneycontrol',
     url:   'https://www.moneycontrol.com/rss/latestnews.xml',
     label: 'Moneycontrol Markets',
-  },
-  {
-    name:  'RSS:economictimes',
-    url:   'https://economictimes.indiatimes.com/markets/rss.cms',
-    label: 'Economic Times Markets',
   },
   {
     name:  'RSS:livemint',
@@ -58,14 +54,19 @@ const RSS_FEEDS = [
     label: 'BusinessLine Markets',
   },
   {
-    name:  'RSS:financialexpress',
-    url:   'https://www.financialexpress.com/market/feed/',
-    label: 'Financial Express Markets',
+    name:  'RSS:moneycontrol_markets',
+    url:   'https://www.moneycontrol.com/rss/marketreports.xml',
+    label: 'Moneycontrol Market Reports',
   },
   {
-    name:  'RSS:ndtvprofit',
-    url:   'https://www.ndtvprofit.com/feeds/market',
-    label: 'NDTV Profit Markets',
+    name:  'RSS:moneycontrol_results',
+    url:   'https://www.moneycontrol.com/rss/results.xml',
+    label: 'Moneycontrol Results',
+  },
+  {
+    name:  'RSS:moneycontrol_business',
+    url:   'https://www.moneycontrol.com/rss/business.xml',
+    label: 'Moneycontrol Business',
   },
 ];
 
@@ -89,11 +90,19 @@ class NewsIntelligenceService {
     this.redis  = redis;         // redis client
     this.nse    = nseDataService; // existing NseDataService instance
     this.claude = process.env.ANTHROPIC_API_KEY
-      ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      ? new Anthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY,
+          timeout: 30000,    // 30s hard timeout — prevents hung requests stalling refresh
+          maxRetries: 2,     // auto-retry on 'Premature close' / network drops (common on mobile)
+        })
       : null;
     this.xmlParser = new XMLParser({
       ignoreAttributes: false,
       attributeNamePrefix: '@_',
+      // Hardening against malformed RSS (embedded JS, deep HTML nesting):
+      stopNodes: ['*.description', '*.content:encoded'], // don't parse inside these — treat as raw text
+      processEntities: true,
+      htmlEntities: true,
     });
     this._running       = false; // prevent concurrent refresh runs
     this._lastRefreshAt = 0;     // epoch ms — 0 = never refreshed
@@ -417,11 +426,15 @@ Return this exact JSON shape (all fields required):
       const nseNew   = await this._upsertItems(nseItems);
       console.log(`[News] NSE: ${nseItems.length} fetched, ${nseNew} new`);
 
-      // 2. Ingest RSS feeds
+      // 2. Ingest RSS feeds — each feed isolated so one failure can't stop others
       for (const feed of RSS_FEEDS) {
-        const rssItems = await this._fetchRssFeed(feed);
-        const rssNew   = await this._upsertItems(rssItems);
-        console.log(`[News] ${feed.name}: ${rssItems.length} fetched, ${rssNew} new`);
+        try {
+          const rssItems = await this._fetchRssFeed(feed);
+          const rssNew   = await this._upsertItems(rssItems);
+          console.log(`[News] ${feed.name}: ${rssItems.length} fetched, ${rssNew} new`);
+        } catch (feedErr) {
+          console.warn(`[News] ${feed.name} skipped: ${feedErr.message}`);
+        }
       }
 
       // 3. Score unscored qualifying items — 10 per cycle on free tier to control API cost

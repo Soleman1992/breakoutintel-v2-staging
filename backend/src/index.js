@@ -939,6 +939,13 @@ async function start() {
         connectionTimeoutMillis: 5000,
         statement_timeout: 10000,    // kill hung queries after 10s — prevents pool exhaustion
       });
+      // CRITICAL: Pool error handler — Neon drops idle connections on free tier.
+      // Without this listener, the 'error' event is unhandled → process crashes.
+      // With it, the dead connection is logged and the pool transparently
+      // creates a fresh one on the next query. Keeps the app alive 24/7.
+      db.on('error', (err) => {
+        console.warn('[PostgreSQL] Idle client error (pool recovers automatically):', err.message);
+      });
       await db.query('SELECT 1');
       console.log('[PostgreSQL] Connected ✓');
 
