@@ -772,11 +772,29 @@ async function start() {
       db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        max: 3,                      // Supabase free tier: keep 2 slots free for admin/dashboard
+        max: 3,                      // free tier: keep headroom for the DB console
         idleTimeoutMillis: 30000,    // release idle connections faster (free tier courtesy)
-        connectionTimeoutMillis: 5000,
+        // Neon auto-suspends its compute when idle, and a cold start can take
+        // well over 5s. The old 5s timeout meant a sleeping database would fail
+        // the probe below, hit the catch, and set db = null for the ENTIRE life
+        // of the process — no retry, no recovery until the next deploy. That is
+        // what leaves the app running databaseless with every DB-backed route
+        // returning 503.
+        connectionTimeoutMillis: 20000,
       });
-      await db.query('SELECT 1');
+
+      // Retry the probe with backoff: the first attempt is what wakes a
+      // suspended Neon compute, so it is the one most likely to time out.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await db.query('SELECT 1');
+          break;
+        } catch (e) {
+          if (attempt === 3) throw e;
+          console.warn(`[PostgreSQL] Probe ${attempt}/3 failed (${e.message}) — retrying...`);
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      }
       console.log('[PostgreSQL] Connected ✓');
 
       // Run schema + migrations (idempotent — safe on every startup)
