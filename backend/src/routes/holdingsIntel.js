@@ -17,7 +17,7 @@ const requireHoldingsAuth = require('../auth/requireHoldingsAuth');
 
 const MAX_UPLOAD_BYTES = 512 * 1024;
 
-module.exports = function holdingsIntelRoutes(db, holdings, analytics = null) {
+module.exports = function holdingsIntelRoutes(db, holdings, analytics = null, research = null, assistant = null) {
   const router = express.Router();
 
   router.use(requireHoldingsAuth(db));
@@ -138,6 +138,41 @@ module.exports = function holdingsIntelRoutes(db, holdings, analytics = null) {
     try {
       if (!ready(res) || !analyticsReady(res)) return;
       res.json({ ok: true, data: await analytics.getHealth(req.holdingsUser.id) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ── Research + Assistant (PR-1c) ─────────────────────────────────────────
+  // Both are DETERMINISTIC — no language model is involved. Every figure in a
+  // response is computed from the user's own data, which is why none of it can
+  // be fabricated.
+
+  // GET /report/:symbol — per-holding research
+  router.get('/report/:symbol', riskLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      if (!research) return res.status(503).json({ ok: false, error: 'Research service not ready' });
+      const data = await research.getReport(req.holdingsUser.id, req.params.symbol);
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  // POST /ask — natural-language question over the portfolio
+  router.post('/ask', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      if (!assistant) return res.status(503).json({ ok: false, error: 'Assistant not ready' });
+
+      const question = String((req.body && req.body.question) || '').slice(0, 500);
+      if (!question.trim()) {
+        return res.status(400).json({ ok: false, error: 'question is required' });
+      }
+
+      const data = await assistant.ask(req.holdingsUser.id, question);
+      res.json({ ok: true, data });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }

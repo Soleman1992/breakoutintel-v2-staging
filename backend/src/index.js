@@ -31,6 +31,8 @@ let alertsEngine  = null;
 let holdingsAuthed = false;   // Holdings module auth gate (PR-0)
 let brokerHoldings = null;    // Holdings Intelligence service (PR-1a)
 let holdingsAnalytics = null; // Holdings allocation / risk / health (PR-1b)
+let holdingsResearch  = null; // Holdings per-stock research — deterministic (PR-1c)
+let holdingsAssistant = null; // Holdings Q&A — deterministic (PR-1c)
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -865,13 +867,23 @@ async function start() {
         const HoldingsAnalyticsService = require('./holdings/holdingsAnalyticsService');
         holdingsAnalytics = new HoldingsAnalyticsService(brokerHoldings, null); // market injected after step 4
 
+        // Research + assistant are DETERMINISTIC — no LLM, no API key, no cost.
+        const HoldingsResearchService = require('./holdings/holdingsResearchService');
+        const HoldingsAssistant       = require('./holdings/holdingsAssistant');
+        holdingsResearch  = new HoldingsResearchService(brokerHoldings, null, db);
+        holdingsAssistant = new HoldingsAssistant(brokerHoldings, holdingsAnalytics, null);
+
         const holdingsIntelRoutes = require('./routes/holdingsIntel');
-        app.use('/holdings-intel', holdingsIntelRoutes(db, brokerHoldings, holdingsAnalytics));
-        console.log('[HoldingsIntel] Service + analytics + routes registered ✓');
+        app.use('/holdings-intel', holdingsIntelRoutes(
+          db, brokerHoldings, holdingsAnalytics, holdingsResearch, holdingsAssistant
+        ));
+        console.log('[HoldingsIntel] Service + analytics + research + assistant registered ✓');
       } catch (e) {
         holdingsAuthed = false;
         brokerHoldings = null;
         holdingsAnalytics = null;
+        holdingsResearch  = null;
+        holdingsAssistant = null;
         console.warn('[HoldingsAuth] Disabled (non-fatal):', e.message);
       }
     } catch (e) {
@@ -936,6 +948,8 @@ async function start() {
       holdingsAnalytics.market = market;
       console.log('[HoldingsAnalytics] Market service injected ✓');
     }
+    if (holdingsResearch)  holdingsResearch.market  = market;
+    if (holdingsAssistant) holdingsAssistant.market = market;
     if (newsIntelligence) {
       newsIntelligence.nse = nseData;
       console.log('[NewsIntelligence] NSE data service injected ✓');
