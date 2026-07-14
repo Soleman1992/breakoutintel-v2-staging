@@ -17,7 +17,7 @@ const requireHoldingsAuth = require('../auth/requireHoldingsAuth');
 
 const MAX_UPLOAD_BYTES = 512 * 1024;
 
-module.exports = function holdingsIntelRoutes(db, holdings) {
+module.exports = function holdingsIntelRoutes(db, holdings, analytics = null) {
   const router = express.Router();
 
   router.use(requireHoldingsAuth(db));
@@ -91,6 +91,53 @@ module.exports = function holdingsIntelRoutes(db, holdings) {
     try {
       if (!ready(res)) return;
       res.json({ ok: true, data: await holdings.getAudit(req.holdingsUser.id) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ── Analytics (PR-1b) ────────────────────────────────────────────────────
+  const analyticsReady = (res) => {
+    if (!analytics) {
+      res.status(503).json({ ok: false, error: 'Analytics service not ready' });
+      return false;
+    }
+    return true;
+  };
+
+  // GET /allocation — sector / asset class / concentration / best + worst
+  router.get('/allocation', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res) || !analyticsReady(res)) return;
+      const live = req.query.live !== 'false';
+      res.json({ ok: true, data: await analytics.getAllocation(req.holdingsUser.id, { live }) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // GET /risk — volatility, beta, drawdown, correlation.
+  // Fetches a year of daily bars per holding, so it is the slow endpoint; it gets
+  // its own tighter limiter rather than sharing the read budget.
+  const riskLimiter = rateLimit({
+    windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false,
+    message: { ok: false, error: 'Risk analytics is rate limited. Wait a moment.' },
+  });
+
+  router.get('/risk', riskLimiter, async (req, res) => {
+    try {
+      if (!ready(res) || !analyticsReady(res)) return;
+      res.json({ ok: true, data: await analytics.getRisk(req.holdingsUser.id) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // GET /health — composite score with an explanation for every component
+  router.get('/health', riskLimiter, async (req, res) => {
+    try {
+      if (!ready(res) || !analyticsReady(res)) return;
+      res.json({ ok: true, data: await analytics.getHealth(req.holdingsUser.id) });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }

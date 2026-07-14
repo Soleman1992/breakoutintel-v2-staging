@@ -30,6 +30,7 @@ let validationEng = null;
 let alertsEngine  = null;
 let holdingsAuthed = false;   // Holdings module auth gate (PR-0)
 let brokerHoldings = null;    // Holdings Intelligence service (PR-1a)
+let holdingsAnalytics = null; // Holdings allocation / risk / health (PR-1b)
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -861,12 +862,16 @@ async function start() {
         const BrokerHoldingsService = require('./holdings/brokerHoldingsService');
         brokerHoldings = new BrokerHoldingsService(db, null); // market injected after step 4
 
+        const HoldingsAnalyticsService = require('./holdings/holdingsAnalyticsService');
+        holdingsAnalytics = new HoldingsAnalyticsService(brokerHoldings, null); // market injected after step 4
+
         const holdingsIntelRoutes = require('./routes/holdingsIntel');
-        app.use('/holdings-intel', holdingsIntelRoutes(db, brokerHoldings));
-        console.log('[HoldingsIntel] Service + routes registered ✓');
+        app.use('/holdings-intel', holdingsIntelRoutes(db, brokerHoldings, holdingsAnalytics));
+        console.log('[HoldingsIntel] Service + analytics + routes registered ✓');
       } catch (e) {
         holdingsAuthed = false;
         brokerHoldings = null;
+        holdingsAnalytics = null;
         console.warn('[HoldingsAuth] Disabled (non-fatal):', e.message);
       }
     } catch (e) {
@@ -926,6 +931,10 @@ async function start() {
     if (brokerHoldings) {
       brokerHoldings.market = market;
       console.log('[HoldingsIntel] Market service injected ✓');
+    }
+    if (holdingsAnalytics) {
+      holdingsAnalytics.market = market;
+      console.log('[HoldingsAnalytics] Market service injected ✓');
     }
     if (newsIntelligence) {
       newsIntelligence.nse = nseData;

@@ -69,6 +69,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .hd-msg.warn{background:rgba(245,158,11,.1);border:1px solid var(--warn);color:var(--warn)}
 .hd-msg.err{background:rgba(239,68,68,.1);border:1px solid var(--dn);color:var(--dn)}
 .hd-stale{font-size:8px;color:var(--warn);border:1px solid var(--warn);border-radius:3px;padding:0 3px;margin-left:4px}
+.hd-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:1100px){.hd-grid2{grid-template-columns:1fr}}
+.hd-score{display:flex;align-items:center;gap:14px;margin-bottom:11px}
+.hd-score-n{font-size:34px;font-weight:700;line-height:1}
+.hd-score-r{font-size:13px;font-weight:600}
+.hd-score-s{font-size:9px;color:var(--t3);margin-top:2px;line-height:1.5}
+.hd-cmp{margin-bottom:9px}
+.hd-cmp-h{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px}
+.hd-cmp-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.hd-cmp-fill{height:100%;border-radius:2px}
+.hd-cmp-x{font-size:9px;color:var(--t3);margin-top:3px;line-height:1.5}
+.hd-na{font-size:9px;color:var(--t3);line-height:1.6;margin-top:10px;padding-top:9px;border-top:1px solid var(--bd)}
 .logo-ic{background:var(--acc);border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
 .logo-n{font-size:12px;font-weight:500;color:var(--t1)}
 .logo-s{font-size:9px;color:var(--t3)}
@@ -922,6 +934,58 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       </div>
     </div>
 
+    <!-- ── Analytics (PR-1b) ────────────────────────────────────────────── -->
+    <div class="hd-grid2" style="margin-top:10px">
+
+      <!-- Health score -->
+      <div class="pnl">
+        <div class="pnl-h">
+          <span>Portfolio Health</span>
+          <button class="hd-btn" onclick="hdLoadHealth()" id="hd-health-btn"><i class="ti ti-activity-heartbeat"></i> Analyze</button>
+        </div>
+        <div class="pnl-b" id="hd-health-body">
+          <div class="hd-hint">
+            Scores concentration, diversification, sector exposure, volatility, drawdown and loss exposure —
+            each explained. Fetches a year of price history per holding, so it takes a few seconds.
+          </div>
+        </div>
+      </div>
+
+      <!-- Sector allocation -->
+      <div class="pnl">
+        <div class="pnl-h"><span>Sector Allocation</span><span style="font-size:9px;color:var(--t3);margin-left:12px;text-align:right" id="hd-conc">—</span></div>
+        <div class="pnl-b">
+          <div style="height:210px;position:relative"><canvas id="hd-sector-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performers -->
+    <div class="hd-grid2" style="margin-top:10px">
+      <div class="pnl">
+        <div class="pnl-h"><span>Top Contributors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
+        <div class="pnl-b" style="padding:0"><table class="tbl"><tbody id="hd-best"></tbody></table></div>
+      </div>
+      <div class="pnl">
+        <div class="pnl-h"><span>Top Detractors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
+        <div class="pnl-b" style="padding:0"><table class="tbl"><tbody id="hd-worst"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Risk table (filled by Analyze) -->
+    <div class="pnl" style="margin-top:10px" id="hd-risk-pnl" hidden>
+      <div class="pnl-h">
+        <span>Risk Analytics</span>
+        <span style="font-size:9px;color:var(--t3)" id="hd-risk-sub">—</span>
+      </div>
+      <div class="pnl-b" style="padding:0;overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Symbol</th><th class="r">Weight</th><th class="r">Volatility</th><th class="r">Beta</th><th class="r">Max Drawdown</th></tr></thead>
+          <tbody id="hd-risk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Holdings table -->
     <div class="pnl" style="margin-top:10px">
       <div class="pnl-h">
@@ -1491,8 +1555,139 @@ async function hdRefresh(live) {
     document.getElementById('hd-asof').textContent =
       asOf ? 'Statement as on ' + asOf : '—';
 
+    // Allocation is cheap (no price history) so it loads with the table. Risk and
+    // health are behind the Analyze button because they fetch a year of bars per
+    // holding and would otherwise stall every page load.
+    hdLoadAllocation();
+
   } catch (e) {
     hdMsg('err', e.message);
+  }
+}
+
+// ─── HOLDINGS ANALYTICS (PR-1b) ──────────────────────────────────────────────
+let hdSectorChart = null;
+
+// 14 distinct hues. A real portfolio spans more sectors than a 10-colour palette
+// allows, and a repeated colour makes two different slices read as one.
+const HD_PALETTE = ['#2563EB','#22C55E','#F59E0B','#EF4444','#8B5CF6','#06B6D4',
+                    '#EC4899','#84CC16','#F97316','#64748B','#14B8A6','#A855F7',
+                    '#EAB308','#F43F5E'];
+
+const hdScoreColor = (s) =>
+  s === null ? 'var(--t3)'
+  : s >= 80 ? 'var(--up)'
+  : s >= 65 ? '#84CC16'
+  : s >= 50 ? 'var(--warn)'
+  : s >= 35 ? '#F97316'
+  : 'var(--dn)';
+
+async function hdLoadAllocation() {
+  if (!hiToken()) return;
+  try {
+    const json = await hiFetch('/holdings-intel/allocation?live=true').then(r => r.json());
+    if (!json.ok || json.data.empty) return;
+    const d = json.data;
+
+    // Concentration — the headline is effectiveN, because a 22-name book that
+    // behaves like 5 names is the single most useful thing to know here.
+    const c = d.concentration;
+    document.getElementById('hd-conc').textContent =
+      'Top position ' + c.topWeight.toFixed(1) + '% · behaves like ' +
+      c.effectiveN.toFixed(1) + ' of ' + c.holdingsCount + ' holdings';
+
+    // Sector doughnut
+    const labels = d.bySector.map(s => s.label);
+    const values = d.bySector.map(s => +s.weightPct.toFixed(2));
+    if (hdSectorChart) hdSectorChart.destroy();
+    hdSectorChart = new Chart(document.getElementById('hd-sector-chart'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: HD_PALETTE, borderColor: '#0C1526', borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94A3C0', font: { size: 9 }, boxWidth: 9, padding: 6 } },
+          tooltip: { callbacks: { label: (x) => x.label + ': ' + x.parsed.toFixed(1) + '%' } },
+        },
+      },
+    });
+
+    const row = (p, positive) =>
+      '<tr><td><b>' + p.symbol + '</b><div style="font-size:9px;color:var(--t3)">' + (p.sector || '—') + '</div></td>' +
+      '<td class="r ' + (positive ? 'up' : 'dn') + '">' + inr(p.pnl) + '</td>' +
+      '<td class="r ' + (positive ? 'up' : 'dn') + '">' + pct(p.pnlPct) + '</td>' +
+      '<td class="r" style="color:var(--t2)">' + pct(p.contributionPct) + '</td></tr>';
+
+    document.getElementById('hd-best').innerHTML  = d.performers.topContributors.map(p => row(p, true)).join('');
+    document.getElementById('hd-worst').innerHTML = d.performers.topDetractors.map(p => row(p, false)).join('');
+  } catch (e) {
+    /* allocation is secondary — never let it break the holdings table */
+  }
+}
+
+async function hdLoadHealth() {
+  if (!hiToken()) return;
+  const btn  = document.getElementById('hd-health-btn');
+  const body = document.getElementById('hd-health-body');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Analyzing...';
+  body.innerHTML = '<div class="hd-hint">Fetching a year of price history for each holding...</div>';
+
+  try {
+    const json = await hiFetch('/holdings-intel/health').then(r => r.json());
+    if (!json.ok) throw new Error(json.error || 'Failed');
+    const d = json.data;
+    if (d.empty) { body.innerHTML = '<div class="hd-hint">No holdings to analyse.</div>'; return; }
+
+    let html =
+      '<div class="hd-score">' +
+        '<div class="hd-score-n" style="color:' + hdScoreColor(d.score) + '">' + (d.score ?? '—') + '</div>' +
+        '<div><div class="hd-score-r" style="color:' + hdScoreColor(d.score) + '">' + d.rating + '</div>' +
+        '<div class="hd-score-s">' + d.scope + '</div></div>' +
+      '</div>';
+
+    for (const c of d.components) {
+      const w = c.score === null ? 0 : c.score;
+      html +=
+        '<div class="hd-cmp">' +
+          '<div class="hd-cmp-h"><span style="color:var(--t2)">' + c.label + '</span>' +
+            '<span style="color:' + hdScoreColor(c.score) + '">' +
+              (c.score === null ? 'n/a' : Math.round(c.score) + '/100') + '</span></div>' +
+          '<div class="hd-cmp-bar"><div class="hd-cmp-fill" style="width:' + w + '%;background:' + hdScoreColor(c.score) + '"></div></div>' +
+          '<div class="hd-cmp-x">' + c.explanation + '</div>' +
+        '</div>';
+    }
+
+    // State what this score does NOT cover, rather than letting silence imply it does.
+    if (d.unavailable && d.unavailable.length) {
+      html += '<div class="hd-na"><b>Not included:</b><br>' +
+        d.unavailable.map(u => '• ' + u.metric + ' — ' + u.reason).join('<br>') + '</div>';
+    }
+    body.innerHTML = html;
+
+    // Risk table ships with the health response — one fetch, not two.
+    if (d.risk && !d.risk.empty && d.risk.portfolio) {
+      const p = d.risk.portfolio;
+      document.getElementById('hd-risk-pnl').hidden = false;
+      document.getElementById('hd-risk-sub').textContent =
+        'Portfolio: volatility ' + p.volatility.toFixed(1) + '% · beta ' + p.beta.toFixed(2) +
+        ' vs Nifty · max drawdown ' + p.maxDrawdown.toFixed(1) + '% · ' +
+        d.risk.coverage.withHistory + '/' + d.risk.coverage.total + ' with history';
+
+      document.getElementById('hd-risk-tbody').innerHTML = d.risk.holdings.map(h =>
+        '<tr><td><b>' + h.symbol + '</b></td>' +
+        '<td class="r">' + pct(h.weightPct) + '</td>' +
+        '<td class="r">' + (h.volatility === null ? '<span style="color:var(--t3)">' + (h.note || 'n/a') + '</span>' : h.volatility.toFixed(1) + '%') + '</td>' +
+        '<td class="r">' + (h.beta === null ? '—' : h.beta.toFixed(2)) + '</td>' +
+        '<td class="r dn">' + (h.maxDrawdown === null ? '—' : h.maxDrawdown.toFixed(1) + '%') + '</td></tr>'
+      ).join('');
+    }
+  } catch (e) {
+    body.innerHTML = '<div class="hd-msg err">' + e.message + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-activity-heartbeat"></i> Analyze';
   }
 }
 
