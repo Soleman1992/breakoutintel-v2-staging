@@ -750,22 +750,46 @@ async function start() {
     console.log('└─────────────────────────────────────────────┘');
   });
 
-  // 2. Connect Redis (optional — never blocks startup)
+  // 2. Connect Redis (optional — MUST NOT block startup)
+  //
+  // It previously did block, despite the comment. The reconnect strategy always
+  // returned a delay, so the client retried forever; on a bad credential
+  // (WRONGPASS) connect() neither resolved nor rejected, the await hung, the
+  // catch never fired, and PostgreSQL below was never reached. A wrong Redis
+  // password took the whole application down — no database, no Holdings module —
+  // while /health still cheerfully reported "ok".
+  //
+  // Now: give up after a few attempts, and cap the whole thing with a timeout so
+  // no Redis failure mode can stall the boot. Redis is a cache; losing it must
+  // degrade performance, never availability.
   if (process.env.REDIS_URL) {
     try {
       const { createClient } = require('redis');
       redisClient = createClient({
         url: process.env.REDIS_URL,
-        socket: { reconnectStrategy: (r) => Math.min(r * 500, 10000) },
+        socket: {
+          connectTimeout: 5000,
+          // Returning an Error ends the retry loop and rejects connect().
+          reconnectStrategy: (retries) =>
+            retries >= 3 ? new Error('Redis unreachable after 3 attempts') : Math.min(retries * 300, 1000),
+        },
       });
       redisClient.on('error', (e) => console.warn('[Redis]', e.message));
-      await redisClient.connect();
+
+      // Belt and braces: even a client that never settles cannot hold up boot.
+      await Promise.race([
+        redisClient.connect(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('connect timed out after 10s')), 10000)),
+      ]);
+
       console.log('[Redis] Connected ✓');
       // Init shared NSE session manager with Redis (UA rotation + cookie cache)
       require('./services/nseSession').init(redisClient);
     } catch (e) {
       console.warn('[Redis] Unavailable — running without cache:', e.message);
+      try { await redisClient?.destroy?.(); } catch { /* already dead */ }
       redisClient = null;
+      require('./services/nseSession').init(null);
     }
   } else {
     console.log('[Redis] No REDIS_URL set — running without cache');
