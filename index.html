@@ -46,6 +46,67 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .hi-x{float:right;color:var(--t3);cursor:pointer;font-size:15px;line-height:1;margin-top:-2px}
 .hi-x:hover{color:var(--t1)}
 
+/* ── HOLDINGS VIEW — panels + table ──────────────────────────────────────────
+   The Holdings markup originally used class names (pnl / pnl-h / pnl-b / tbl)
+   that do not exist anywhere in this stylesheet, so every panel and table in the
+   view rendered completely unstyled — no padding, no borders, no header, columns
+   jammed together. These are the real styles, scoped to hd- so nothing shared is
+   touched, and matching the .panel design tokens the rest of the dashboard uses. */
+.hd-panel{background:var(--bg1);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.hd-ph{padding:9px 13px;border-bottom:1px solid var(--bd);display:flex;align-items:center;
+  justify-content:space-between;gap:12px;font-size:11px;font-weight:600;color:var(--t1);
+  background:linear-gradient(180deg,var(--bg2) 0%,var(--bg1) 100%)}
+.hd-pb{padding:13px}
+
+/* Table — the numbers are the product, so they get real typographic treatment:
+   tabular figures so digits align in a column, right-alignment for anything
+   numeric, and enough padding that the eye can separate one field from the next. */
+.hd-tbl{width:100%;border-collapse:collapse;font-size:11px;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.hd-tbl thead th{
+  position:sticky;top:0;z-index:2;
+  padding:8px 12px;background:#0a1120;
+  font-size:8.5px;font-weight:600;color:var(--t3);
+  text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;
+  text-align:left;border-bottom:1px solid var(--bd2)}
+.hd-tbl thead th.r{text-align:right}
+.hd-tbl tbody td{
+  padding:9px 12px;border-bottom:1px solid #0d1829;
+  color:var(--t2);white-space:nowrap;vertical-align:middle;line-height:1.35}
+.hd-tbl tbody td.r{text-align:right}
+.hd-tbl tbody tr:last-child td{border-bottom:none}
+.hd-tbl tbody tr:hover td{background:var(--bg2)}
+/* Vertical rules between logical column groups — position | valuation | return.
+   Without these the row is 11 numbers in a line and the eye has nothing to hold. */
+.hd-tbl .grp{border-left:1px solid var(--bd)}
+.hd-tbl .num{color:var(--t1);font-weight:500}
+.hd-tbl .muted{color:var(--t3);font-size:9px;font-weight:400}
+.hd-sym{font-weight:600;color:var(--t1);font-size:11px;letter-spacing:.02em}
+.hd-idx{color:var(--t3);font-size:9px}
+.hd-wrap{overflow-x:auto;overflow-y:auto;max-height:520px}
+/* Weight rendered as a bar as well as a number — relative size is a shape
+   question, and a column of percentages does not answer it at a glance. */
+.hd-wbar{display:inline-block;width:44px;height:3px;background:var(--bg3);border-radius:2px;
+  overflow:hidden;vertical-align:middle;margin-right:6px}
+.hd-wbar i{display:block;height:100%;background:var(--acc2);border-radius:2px}
+.hd-tag{font-size:8px;padding:1px 4px;border-radius:3px;border:1px solid var(--bd2);
+  color:var(--t3);margin-left:5px;vertical-align:middle;letter-spacing:.03em}
+/* Contributors / detractors. Without explicit widths the symbol column absorbs
+   all the slack and the numbers get flung to the far edge, leaving a dead gulf
+   down the middle of the panel. Fix the proportions instead. */
+.hd-tbl.compact{table-layout:fixed}
+.hd-tbl.compact td:first-child{width:38%}
+.hd-tbl.compact td:not(:first-child){width:20.6%}
+.hd-tbl.compact tbody td{padding:8px 12px}
+/* Risk table — five columns across a full-width panel need explicit proportions
+   for the same reason: otherwise the symbol column swallows the slack. */
+.hd-tbl.risk{table-layout:fixed}
+.hd-tbl.risk th:nth-child(1),.hd-tbl.risk td:nth-child(1){width:26%}
+.hd-tbl.risk th:nth-child(2),.hd-tbl.risk td:nth-child(2){width:14%}
+.hd-tbl.risk th:nth-child(3),.hd-tbl.risk td:nth-child(3){width:20%}
+.hd-tbl.risk th:nth-child(4),.hd-tbl.risk td:nth-child(4){width:20%}
+.hd-tbl.risk th:nth-child(5),.hd-tbl.risk td:nth-child(5){width:20%}
+
 /* HOLDINGS VIEW (PR-1a) */
 /* The view sits as a flex sibling of #main, which is flex:1 and stays visible
    (empty) when a non-dashboard view is active. Without an explicit flex-grow the
@@ -56,11 +117,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .hd-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center}
 .hd-gate-t{font-size:15px;font-weight:600;color:var(--t1);margin-top:12px}
 .hd-gate-s{font-size:11px;color:var(--t3);margin-top:6px;line-height:1.6}
-.hd-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:10px}
-.hd-kpi{background:var(--bg1);border:1px solid var(--bd);border-radius:6px;padding:11px 13px}
-.hd-kpi-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
-.hd-kpi-v{font-size:19px;font-weight:600;color:var(--t1);margin-top:3px}
-.hd-kpi-s{font-size:9px;color:var(--t3);margin-top:2px}
+.hd-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px}
+.hd-kpi{background:var(--bg1);border:1px solid var(--bd);border-radius:10px;padding:13px 15px;
+  position:relative;overflow:hidden}
+/* A hairline accent so the four cards read as a set rather than four grey boxes. */
+.hd-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--bd2)}
+.hd-kpi.pos::before{background:var(--up)} .hd-kpi.neg::before{background:var(--dn)}
+.hd-kpi-l{font-size:8.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.09em;font-weight:600}
+.hd-kpi-v{font-size:22px;font-weight:700;color:var(--t1);margin-top:5px;letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums;line-height:1.15}
+.hd-kpi-s{font-size:9px;color:var(--t3);margin-top:3px}
 .hd-btn{padding:5px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:4px;color:var(--t2);font-family:inherit;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .hd-btn:hover{border-color:var(--acc2);color:var(--t1)}
 .hd-hint{font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:8px}
@@ -933,8 +999,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     </div>
 
     <!-- Import + actions -->
-    <div class="pnl">
-      <div class="pnl-h">
+    <div class="hd-panel">
+      <div class="hd-ph">
         <span>Import Holdings</span>
         <span style="display:flex;gap:8px;align-items:center">
           <button class="hd-btn" onclick="hdRefresh(true)"><i class="ti ti-refresh"></i> Live prices</button>
@@ -942,8 +1008,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
           <input type="file" id="hd-file" accept=".xlsx,.csv" style="display:none" onchange="hdUpload(this)">
         </span>
       </div>
-      <div class="pnl-b">
-        <div class="hd-hint">
+      <div class="hd-pb" style="padding:10px 13px">
+        <div class="hd-hint" style="margin-bottom:0">
           Zerodha Console → <b>Portfolio → Holdings → Download</b>. XLSX or CSV both work.
           Nothing is sent anywhere else; the file is parsed on your own server.
         </div>
@@ -955,12 +1021,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="hd-grid2" style="margin-top:10px">
 
       <!-- Health score -->
-      <div class="pnl">
-        <div class="pnl-h">
+      <div class="hd-panel">
+        <div class="hd-ph">
           <span>Portfolio Health</span>
           <button class="hd-btn" onclick="hdLoadHealth()" id="hd-health-btn"><i class="ti ti-activity-heartbeat"></i> Analyze</button>
         </div>
-        <div class="pnl-b" id="hd-health-body">
+        <div class="hd-pb" id="hd-health-body">
           <div class="hd-hint">
             Scores concentration, diversification, sector exposure, volatility, drawdown and loss exposure —
             each explained. Fetches a year of price history per holding, so it takes a few seconds.
@@ -969,9 +1035,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
       </div>
 
       <!-- Sector allocation -->
-      <div class="pnl">
-        <div class="pnl-h"><span>Sector Allocation</span><span style="font-size:9px;color:var(--t3);margin-left:12px;text-align:right" id="hd-conc">—</span></div>
-        <div class="pnl-b">
+      <div class="hd-panel">
+        <div class="hd-ph"><span>Sector Allocation</span><span style="font-size:9px;color:var(--t3);margin-left:12px;text-align:right" id="hd-conc">—</span></div>
+        <div class="hd-pb">
           <div style="height:210px;position:relative"><canvas id="hd-sector-chart"></canvas></div>
         </div>
       </div>
@@ -979,37 +1045,45 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 
     <!-- Performers -->
     <div class="hd-grid2" style="margin-top:10px">
-      <div class="pnl">
-        <div class="pnl-h"><span>Top Contributors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
-        <div class="pnl-b" style="padding:0"><table class="tbl"><tbody id="hd-best"></tbody></table></div>
+      <div class="hd-panel">
+        <div class="hd-ph"><span>Top Contributors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
+        <div class="hd-pb" style="padding:0"><table class="hd-tbl compact"><tbody id="hd-best"></tbody></table></div>
       </div>
-      <div class="pnl">
-        <div class="pnl-h"><span>Top Detractors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
-        <div class="pnl-b" style="padding:0"><table class="tbl"><tbody id="hd-worst"></tbody></table></div>
+      <div class="hd-panel">
+        <div class="hd-ph"><span>Top Detractors</span><span style="font-size:9px;color:var(--t3)">share of portfolio return</span></div>
+        <div class="hd-pb" style="padding:0"><table class="hd-tbl compact"><tbody id="hd-worst"></tbody></table></div>
       </div>
     </div>
 
     <!-- Risk table (filled by Analyze) -->
-    <div class="pnl" style="margin-top:10px" id="hd-risk-pnl" hidden>
-      <div class="pnl-h">
+    <div class="hd-panel" style="margin-top:10px" id="hd-risk-pnl" hidden>
+      <div class="hd-ph">
         <span>Risk Analytics</span>
         <span style="font-size:9px;color:var(--t3)" id="hd-risk-sub">—</span>
       </div>
-      <div class="pnl-b" style="padding:0;overflow-x:auto">
-        <table class="tbl">
-          <thead><tr><th>Symbol</th><th class="r">Weight</th><th class="r">Volatility</th><th class="r">Beta</th><th class="r">Max Drawdown</th></tr></thead>
-          <tbody id="hd-risk-tbody"></tbody>
-        </table>
+      <div class="hd-pb" style="padding:0">
+        <div class="hd-wrap" style="max-height:340px">
+          <table class="hd-tbl risk">
+            <thead><tr>
+              <th>Symbol</th>
+              <th class="r">Weight</th>
+              <th class="r grp">Volatility</th>
+              <th class="r">Beta vs Nifty</th>
+              <th class="r">Max Drawdown</th>
+            </tr></thead>
+            <tbody id="hd-risk-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- Assistant (PR-1c) — deterministic, no LLM -->
-    <div class="pnl" style="margin-top:10px">
-      <div class="pnl-h">
+    <div class="hd-panel" style="margin-top:10px">
+      <div class="hd-ph">
         <span>Ask your portfolio</span>
         <span style="font-size:9px;color:var(--t3)">computed from your data — no AI, nothing invented</span>
       </div>
-      <div class="pnl-b">
+      <div class="hd-pb">
         <form onsubmit="hdAsk(event)" style="display:flex;gap:6px">
           <input type="text" id="hd-q" class="hd-input"
                  placeholder="Which holding is hurting me most?  ·  How diversified am I?  ·  What are my risks?">
@@ -1021,31 +1095,41 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     </div>
 
     <!-- Per-holding research (PR-1c) -->
-    <div class="pnl" style="margin-top:10px" id="hd-report-pnl" hidden>
-      <div class="pnl-h">
+    <div class="hd-panel" style="margin-top:10px" id="hd-report-pnl" hidden>
+      <div class="hd-ph">
         <span id="hd-report-title">Research</span>
         <span style="cursor:pointer;color:var(--t3)" onclick="document.getElementById('hd-report-pnl').hidden=true">&times;</span>
       </div>
-      <div class="pnl-b" id="hd-report-body"></div>
+      <div class="hd-pb" id="hd-report-body"></div>
     </div>
 
     <!-- Holdings table -->
-    <div class="pnl" style="margin-top:10px">
-      <div class="pnl-h">
+    <div class="hd-panel" style="margin-top:10px">
+      <div class="hd-ph">
         <span>Holdings</span>
         <span style="font-size:9px;color:var(--t3)" id="hd-asof">—</span>
       </div>
-      <div class="pnl-b" style="padding:0;overflow-x:auto">
-        <table class="tbl" id="hd-table">
-          <thead><tr>
-            <th>#</th><th>Symbol</th><th>Sector</th><th class="r">Qty</th><th class="r">Cost</th>
-            <th class="r">Price</th><th class="r">Invested</th><th class="r">Value</th>
-            <th class="r">P&amp;L</th><th class="r">Return</th><th class="r">Weight</th>
-          </tr></thead>
-          <tbody id="hd-tbody">
-            <tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t3)">No holdings imported yet.</td></tr>
-          </tbody>
-        </table>
+      <div class="hd-pb" style="padding:0">
+        <div class="hd-wrap">
+          <table class="hd-tbl" id="hd-table">
+            <thead><tr>
+              <th style="width:28px">#</th>
+              <th>Holding</th>
+              <th>Sector</th>
+              <th class="r grp">Qty</th>
+              <th class="r">Avg Cost</th>
+              <th class="r">Price</th>
+              <th class="r grp">Invested</th>
+              <th class="r">Current</th>
+              <th class="r grp">P&amp;L</th>
+              <th class="r">Return</th>
+              <th class="r">Weight</th>
+            </tr></thead>
+            <tbody id="hd-tbody">
+              <tr><td colspan="11" style="text-align:center;padding:28px;color:var(--t3)">No holdings imported yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1549,11 +1633,14 @@ async function hdRefresh(live) {
     const pnlEl = document.getElementById('hd-pnl');
     pnlEl.textContent = inr(t.totalPnl);
     pnlEl.style.color = t.totalPnl >= 0 ? 'var(--up)' : 'var(--dn)';
+    pnlEl.closest('.hd-kpi').className = 'hd-kpi ' + (t.totalPnl >= 0 ? 'pos' : 'neg');
     document.getElementById('hd-pnlpct').textContent = pct(t.totalPnlPct);
 
     const dayEl = document.getElementById('hd-day');
-    dayEl.textContent = d.priceStatus === 'statement' ? '—' : inr(t.dayPnl);
-    dayEl.style.color = (t.dayPnl || 0) >= 0 ? 'var(--up)' : 'var(--dn)';
+    const hasDay = d.priceStatus !== 'statement';
+    dayEl.textContent = hasDay ? inr(t.dayPnl) : '—';
+    dayEl.style.color = hasDay ? ((t.dayPnl || 0) >= 0 ? 'var(--up)' : 'var(--dn)') : 'var(--t1)';
+    dayEl.closest('.hd-kpi').className = 'hd-kpi' + (hasDay ? ((t.dayPnl || 0) >= 0 ? ' pos' : ' neg') : '');
 
     // Be explicit about WHERE the prices came from. A portfolio silently priced
     // at last week's close, presented as if live, is worse than no number.
@@ -1570,24 +1657,44 @@ async function hdRefresh(live) {
     // badging them all is pure noise.
     const liveRequested = d.priceStatus === 'live' || d.priceStatus === 'partial';
 
-    const rows = d.holdings.map((h, i) =>
-      '<tr onclick="hdReport(' + JSON.stringify(h.symbol).replace(/"/g, '&quot;') + ')" title="Click for research">' +
-      '<td>' + (i + 1) + '</td>' +
-      '<td><b>' + h.symbol + '</b>' +
-        (h.asset_class === 'ETF' ? ' <span class="hd-stale" style="color:var(--t3);border-color:var(--bd)">ETF</span>' : '') +
-        (liveRequested && !h.priceOk ? ' <span class="hd-stale" title="No live quote — showing the statement close">no live price</span>' : '') +
-        '<div style="font-size:9px;color:var(--t3)">' + (h.company_name || h.exchange) + '</div></td>' +
-      '<td style="font-size:9px">' + (h.broker_sector || '—') + '</td>' +
-      '<td class="r">' + Number(h.quantity).toLocaleString('en-IN') + '</td>' +
-      '<td class="r">' + (h.costBasis === null ? '—' : Number(h.costBasis).toFixed(2)) + '</td>' +
-      '<td class="r">' + (h.price === null ? '—' : Number(h.price).toFixed(2)) + '</td>' +
-      '<td class="r">' + inr(h.investedValue) + '</td>' +
-      '<td class="r">' + inr(h.currentValue) + '</td>' +
-      '<td class="r ' + sign(h.pnl) + '">' + inr(h.pnl) + '</td>' +
-      '<td class="r ' + sign(h.pnlPct) + '">' + pct(h.pnlPct) + '</td>' +
-      '<td class="r">' + pct(h.weightPct) + '</td>' +
-      '</tr>'
-    ).join('');
+    // The largest weight sets the bar scale, so the bars compare against the
+    // biggest position rather than against 100% (which would make them all stubs).
+    const maxW = Math.max(...d.holdings.map(h => h.weightPct || 0), 1);
+
+    const rows = d.holdings.map((h, i) => {
+      const sub = h.company_name && h.company_name !== h.symbol
+        ? h.company_name
+        : h.exchange;
+      const wPct = h.weightPct || 0;
+
+      return '<tr onclick="hdReport(' + JSON.stringify(h.symbol).replace(/"/g, '&quot;') + ')" title="Click for research">' +
+        '<td class="hd-idx">' + (i + 1) + '</td>' +
+
+        '<td><span class="hd-sym">' + h.symbol + '</span>' +
+          (h.asset_class === 'ETF' ? '<span class="hd-tag">ETF</span>' : '') +
+          (liveRequested && !h.priceOk
+            ? '<span class="hd-tag" style="color:var(--warn);border-color:var(--warn)" title="No live quote — showing the statement close">stale</span>' : '') +
+          '<div class="muted">' + sub + '</div></td>' +
+
+        '<td class="muted" style="font-size:9.5px">' + (h.broker_sector || '—') + '</td>' +
+
+        // Position
+        '<td class="r grp num">' + Number(h.quantity).toLocaleString('en-IN') + '</td>' +
+        '<td class="r">' + (h.costBasis === null ? '—' : '₹' + Number(h.costBasis).toFixed(2)) + '</td>' +
+        '<td class="r num">' + (h.price === null ? '—' : '₹' + Number(h.price).toFixed(2)) + '</td>' +
+
+        // Valuation
+        '<td class="r grp">' + inr(h.investedValue) + '</td>' +
+        '<td class="r num">' + inr(h.currentValue) + '</td>' +
+
+        // Return
+        '<td class="r grp ' + sign(h.pnl) + '" style="font-weight:600">' + inr(h.pnl) + '</td>' +
+        '<td class="r ' + sign(h.pnlPct) + '">' + pct(h.pnlPct) + '</td>' +
+
+        '<td class="r"><span class="hd-wbar"><i style="width:' +
+          Math.round((wPct / maxW) * 100) + '%"></i></span><span class="num">' + pct(h.weightPct) + '</span></td>' +
+      '</tr>';
+    }).join('');
 
     document.getElementById('hd-tbody').innerHTML = rows ||
       '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t3)">No holdings imported yet. Upload a Zerodha statement above.</td></tr>';
@@ -1657,10 +1764,12 @@ async function hdLoadAllocation() {
     });
 
     const row = (p, positive) =>
-      '<tr><td><b>' + p.symbol + '</b><div style="font-size:9px;color:var(--t3)">' + (p.sector || '—') + '</div></td>' +
-      '<td class="r ' + (positive ? 'up' : 'dn') + '">' + inr(p.pnl) + '</td>' +
+      '<tr onclick="hdReport(' + JSON.stringify(p.symbol).replace(/"/g, '&quot;') + ')" style="cursor:pointer">' +
+      '<td><span class="hd-sym">' + p.symbol + '</span>' +
+        '<div class="muted">' + (p.sector || '—') + '</div></td>' +
+      '<td class="r grp ' + (positive ? 'up' : 'dn') + '" style="font-weight:600">' + inr(p.pnl) + '</td>' +
       '<td class="r ' + (positive ? 'up' : 'dn') + '">' + pct(p.pnlPct) + '</td>' +
-      '<td class="r" style="color:var(--t2)">' + pct(p.contributionPct) + '</td></tr>';
+      '<td class="r num">' + pct(p.contributionPct) + '</td></tr>';
 
     document.getElementById('hd-best').innerHTML  = d.performers.topContributors.map(p => row(p, true)).join('');
     document.getElementById('hd-worst').innerHTML = d.performers.topDetractors.map(p => row(p, false)).join('');
@@ -1720,11 +1829,20 @@ async function hdLoadHealth() {
         d.risk.coverage.withHistory + '/' + d.risk.coverage.total + ' with history';
 
       document.getElementById('hd-risk-tbody').innerHTML = d.risk.holdings.map(h =>
-        '<tr><td><b>' + h.symbol + '</b></td>' +
+        '<tr><td><span class="hd-sym">' + h.symbol + '</span>' +
+          // A stock that trades on half the year's sessions produces a beta near
+          // zero for a mechanical reason, not an economic one. Say so, or the
+          // number reads as "uncorrelated with the market" — which it is not.
+          (h.thinlyTraded
+            ? '<span class="hd-tag" style="color:var(--warn);border-color:var(--warn)" ' +
+              'title="Trades thinly — its beta and volatility are unreliable">thin</span>' : '') +
+        '</td>' +
         '<td class="r">' + pct(h.weightPct) + '</td>' +
-        '<td class="r">' + (h.volatility === null ? '<span style="color:var(--t3)">' + (h.note || 'n/a') + '</span>' : h.volatility.toFixed(1) + '%') + '</td>' +
-        '<td class="r">' + (h.beta === null ? '—' : h.beta.toFixed(2)) + '</td>' +
-        '<td class="r dn">' + (h.maxDrawdown === null ? '—' : h.maxDrawdown.toFixed(1) + '%') + '</td></tr>'
+        '<td class="r grp num">' + (h.volatility === null
+          ? '<span class="muted" style="font-size:9px">' + (h.note || 'n/a') + '</span>'
+          : h.volatility.toFixed(1) + '%') + '</td>' +
+        '<td class="r num">' + (h.beta === null ? '<span class="muted">—</span>' : h.beta.toFixed(2)) + '</td>' +
+        '<td class="r dn">' + (h.maxDrawdown === null ? '<span class="muted">—</span>' : h.maxDrawdown.toFixed(1) + '%') + '</td></tr>'
       ).join('');
     }
   } catch (e) {

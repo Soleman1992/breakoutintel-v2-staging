@@ -12,6 +12,7 @@
 // Both are reported as explicit `unavailable` entries rather than silently absent.
 
 const M = require('./portfolioMath');
+const T = require('./technicals');
 
 const BENCHMARK = '^NSEI';          // Nifty 50
 const HISTORY_CONCURRENCY = 6;      // be a good citizen with Yahoo
@@ -41,10 +42,11 @@ class HoldingsAnalyticsService {
   async _history(yahooSym) {
     if (!this.market) return [];
     try {
-      if (typeof this.market._fetchYahooOHLCV === 'function') {
-        return await this.market._fetchYahooOHLCV(yahooSym, '1d', '1y');
-      }
-      return await this.market.fetchDailyOHLCV(yahooSym);
+      // RAW bars, padding included. The two consumers need different series and
+      // must not share one — see the note in getRisk().
+      return (typeof this.market._fetchYahooOHLCV === 'function')
+        ? await this.market._fetchYahooOHLCV(yahooSym, '1d', '1y')
+        : await this.market.fetchDailyOHLCV(yahooSym);
     } catch {
       return [];
     }
@@ -169,41 +171,73 @@ class HoldingsAnalyticsService {
     const perHolding = [];
     const alignedReturns = new Map();   // symbol -> returns aligned to benchmark dates
 
+    // ── Two series, two questions. They must not be conflated. ──────────────
+    //
+    // PER-HOLDING risk asks "how volatile is this stock?" — that must use only
+    // days the stock actually TRADED. Padded non-trading days (zero volume,
+    // unchanged close) produce a return of exactly zero, which understates
+    // volatility and drags beta toward zero. COLAB measured 17.4% vol / 0.05 beta
+    // on raw bars; on its 115 real trading days it is 22.4% / 0.08.
+    //
+    // PORTFOLIO value asks "what was my book worth that day?" — and on a day a
+    // stock did not trade, the position is still worth its LAST TRADED PRICE.
+    // That is forward-fill, not omission. Dropping the holding from that day's
+    // sum removes 32% of the book (COLAB's weight) and adds it back the next,
+    // manufacturing phantom 32% daily swings — which is exactly what happened:
+    // portfolio volatility came out at 487% and beta at -1.76.
+    //
+    // So: clean bars for the stock's own risk, forward-filled raw bars for the
+    // portfolio's value.
     holdings.forEach((h, i) => {
-      const bars = hist.get(symbols[i]) || [];
+      const raw   = hist.get(symbols[i]) || [];
+      const clean = T.cleanBars(raw).bars;
 
-      if (bars.length < MIN_BARS) {
+      if (clean.length < MIN_BARS) {
         perHolding.push({
           symbol: h.symbol, weightPct: h.weightPct,
           volatility: null, beta: null, maxDrawdown: null,
-          note: bars.length === 0
+          note: raw.length === 0
             ? 'No price history available.'
-            : `Only ${bars.length} days of history — too short to compute risk.`,
+            : `Only ${clean.length} real trading days in the last year — too thinly traded to compute risk.`,
         });
+        // Still keep the RAW series: the position has value on every day, even
+        // days the stock did not trade, and the portfolio series needs it.
+        if (raw.length) {
+          alignedReturns.set(h.symbol, {
+            dates:  raw.map(b => new Date(b.t).toISOString().slice(0, 10)),
+            closes: raw.map(b => b.c),
+            returns: [],
+          });
+        }
         return;
       }
 
-      const closes = bars.map(b => b.c);
-      const dates  = bars.map(b => new Date(b.t).toISOString().slice(0, 10));
+      const cCloses = clean.map(b => b.c);
+      const cDates  = clean.map(b => new Date(b.t).toISOString().slice(0, 10));
 
-      // Pair asset and benchmark closes only on dates where BOTH traded.
+      // Beta pairs the stock against the index only on days BOTH actually traded.
       const pairedA = [], pairedB = [];
-      dates.forEach((d, k) => {
-        if (benchByDate.has(d)) { pairedA.push(closes[k]); pairedB.push(benchByDate.get(d)); }
+      cDates.forEach((d, k) => {
+        if (benchByDate.has(d)) { pairedA.push(cCloses[k]); pairedB.push(benchByDate.get(d)); }
       });
-
       const rA = M.toReturns(pairedA);
       const rB = M.toReturns(pairedB);
 
-      alignedReturns.set(h.symbol, { dates, closes, returns: M.toReturns(closes) });
+      // Raw series is what the portfolio valuation walks.
+      alignedReturns.set(h.symbol, {
+        dates:  raw.map(b => new Date(b.t).toISOString().slice(0, 10)),
+        closes: raw.map(b => b.c),
+        returns: M.toReturns(cCloses),
+      });
 
       perHolding.push({
         symbol:      h.symbol,
         weightPct:   h.weightPct,
-        volatility:  M.annualisedVolatility(M.toReturns(closes)),
+        volatility:  M.annualisedVolatility(M.toReturns(cCloses)),
         beta:        rA.length >= MIN_BARS ? M.beta(rA, rB) : null,
-        maxDrawdown: M.maxDrawdown(closes),
-        bars:        bars.length,
+        maxDrawdown: M.maxDrawdown(cCloses),
+        bars:        clean.length,
+        thinlyTraded: T.cleanBars(raw).paddedPct >= 20,
         note:        null,
       });
     });
@@ -234,28 +268,71 @@ class HoldingsAnalyticsService {
     // offset and each portfolio return gets paired with the WRONG day's benchmark
     // return. That produces a beta that looks plausible and means nothing. (It
     // reported 0.18 for a small-cap book before this was fixed.)
-    const portfolioSeries = [];
-    const benchSeries     = [];
+    // ── Portfolio return series ─────────────────────────────────────────────
+    //
+    // Built from RETURNS, not from a value level. Two failures make the obvious
+    // value-sum approach wrong, and both were live in this code:
+    //
+    //  1. Summing only the holdings that had a bar on a given date DROPS a stock
+    //     from the book on days it did not trade. COLAB is 32% of this portfolio
+    //     and trades on 115 of 249 days — so the book "lost" a third of its value
+    //     and got it back, over and over. That produced 487% annualised volatility
+    //     and a beta of -1.76 from swings that never occurred.
+    //
+    //  2. Requiring every holding to have data before starting throws away a year
+    //     of history for 21 holdings because one listed recently — 58 usable days,
+    //     too few even to compute beta.
+    //
+    // Returns fix both. Each day's portfolio return is the weighted average of the
+    // holdings that have a price on BOTH that day and the one before, with weights
+    // renormalised over exactly those holdings. A stock that did not trade carries
+    // its last price forward and contributes a real zero return; a stock that did
+    // not yet exist simply is not in that day's average, and its later arrival adds
+    // no phantom jump.
+    const weightOf = new Map(holdings.map(h => [h.symbol, (h.weightPct || 0) / 100]));
+    const lastPrice = new Map();
+    const prevPrice = new Map();
+
+    const portReturns  = [];
+    const benchReturns = [];
+    let   benchPrev    = null;
+    let   minCoverage  = 1;
 
     for (const d of allDates) {
       const benchClose = benchByDate.get(d);
-      if (benchClose === undefined) continue;      // index did not trade
+      if (benchClose === undefined) continue;          // index did not trade
 
-      let v = 0, covered = 0;
+      // Forward-fill: a non-trading day keeps the last traded price.
       for (const h of holdings) {
         const p = priceOn.get(h.symbol)?.get(d);
-        if (p !== undefined) { v += p * Number(h.quantity); covered++; }
+        if (p !== undefined) lastPrice.set(h.symbol, p);
       }
-      // Skip days where most of the book has no price, else the series jumps
-      // whenever a stock is missing and the drawdown becomes fiction.
-      if (covered < Math.ceil(holdings.length * 0.8)) continue;
 
-      portfolioSeries.push(v);
-      benchSeries.push(benchClose);
+      let wSum = 0, rSum = 0;
+      for (const h of holdings) {
+        const now  = lastPrice.get(h.symbol);
+        const then = prevPrice.get(h.symbol);
+        if (now === undefined || then === undefined || !then) continue;   // not yet held
+        const w = weightOf.get(h.symbol) || 0;
+        rSum += w * ((now - then) / then);
+        wSum += w;
+      }
+
+      // Renormalise over the holdings actually present — otherwise a day covering
+      // 70% of the book would report a return 30% too small.
+      if (wSum > 0.5 && benchPrev) {
+        portReturns.push(rSum / wSum);
+        benchReturns.push((benchClose - benchPrev) / benchPrev);
+        if (wSum < minCoverage) minCoverage = wSum;
+      }
+
+      for (const [k, v] of lastPrice) prevPrice.set(k, v);
+      benchPrev = benchClose;
     }
 
-    const portReturns  = M.toReturns(portfolioSeries);
-    const benchReturns = M.toReturns(benchSeries);
+    // Cumulative index, purely so drawdown has a level series to walk.
+    const portfolioSeries = [100];
+    for (const r of portReturns) portfolioSeries.push(portfolioSeries[portfolioSeries.length - 1] * (1 + r));
 
     const portfolioBeta = portReturns.length >= MIN_BARS
       ? M.beta(portReturns, benchReturns)
@@ -282,8 +359,10 @@ class HoldingsAnalyticsService {
       volatility:   M.annualisedVolatility(portReturns),
       beta:         portfolioBeta,
       maxDrawdown:  M.maxDrawdown(portfolioSeries),
-      daysOfHistory: portfolioSeries.length,
-      basis: 'Computed from the current holdings held constant over the last year — a risk profile of the book you hold today, not a record of what you actually earned.',
+      daysOfHistory: portReturns.length,
+      minCoveragePct: Number((minCoverage * 100).toFixed(1)),
+      basis: 'Computed from the current holdings held constant over the last year — a risk profile of the book you hold today, not a record of what you actually earned. ' +
+             'Each day is the weighted return of the holdings that had a price on that day and the one before, renormalised over exactly those holdings.',
     };
 
     return {
