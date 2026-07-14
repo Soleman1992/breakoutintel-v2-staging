@@ -45,6 +45,30 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 .hi-err.show{display:block}
 .hi-x{float:right;color:var(--t3);cursor:pointer;font-size:15px;line-height:1;margin-top:-2px}
 .hi-x:hover{color:var(--t1)}
+
+/* HOLDINGS VIEW (PR-1a) */
+/* The view sits as a flex sibling of #main, which is flex:1 and stays visible
+   (empty) when a non-dashboard view is active. Without an explicit flex-grow the
+   empty #main claims the leftover space and shoves this view into the right half
+   of the screen. Other views only escape it because their content is wide enough
+   to squeeze #main to nothing. */
+#view-holdings{flex:1 1 auto;min-width:0;overflow-y:auto;padding:7px}
+.hd-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center}
+.hd-gate-t{font-size:15px;font-weight:600;color:var(--t1);margin-top:12px}
+.hd-gate-s{font-size:11px;color:var(--t3);margin-top:6px;line-height:1.6}
+.hd-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:10px}
+.hd-kpi{background:var(--bg1);border:1px solid var(--bd);border-radius:6px;padding:11px 13px}
+.hd-kpi-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+.hd-kpi-v{font-size:19px;font-weight:600;color:var(--t1);margin-top:3px}
+.hd-kpi-s{font-size:9px;color:var(--t3);margin-top:2px}
+.hd-btn{padding:5px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:4px;color:var(--t2);font-family:inherit;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.hd-btn:hover{border-color:var(--acc2);color:var(--t1)}
+.hd-hint{font-size:10px;color:var(--t3);line-height:1.6;margin-bottom:8px}
+.hd-msg{margin-top:9px;padding:9px 11px;border-radius:4px;font-size:10px;line-height:1.6}
+.hd-msg.ok{background:rgba(34,197,94,.1);border:1px solid var(--up);color:var(--up)}
+.hd-msg.warn{background:rgba(245,158,11,.1);border:1px solid var(--warn);color:var(--warn)}
+.hd-msg.err{background:rgba(239,68,68,.1);border:1px solid var(--dn);color:var(--dn)}
+.hd-stale{font-size:8px;color:var(--warn);border:1px solid var(--warn);border-radius:3px;padding:0 3px;margin-left:4px}
 .logo-ic{background:var(--acc);border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
 .logo-n{font-size:12px;font-weight:500;color:var(--t1)}
 .logo-s{font-size:9px;color:var(--t3)}
@@ -359,6 +383,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   <div class="sb-it" id="nav-strategies" onclick="switchView('strategies')"><div class="sb-lb"><i class="ti ti-chart-candle" style="font-size:14px"></i><span>Strategies</span></div></div>
   <div class="sb-it" id="nav-scanner" onclick="switchView('scanner')"><div class="sb-lb"><i class="ti ti-radar" style="font-size:14px"></i><span>Scanner</span></div></div>
   <div class="sb-it" id="nav-portfolio" onclick="switchView('portfolio')"><div class="sb-lb"><i class="ti ti-briefcase" style="font-size:14px"></i><span>Portfolio</span></div></div>
+  <div class="sb-it" id="nav-holdings" onclick="switchView('holdings')"><div class="sb-lb"><i class="ti ti-wallet" style="font-size:14px;color:var(--acc2)"></i><span>Holdings</span></div><div class="sb-bd bg-b" id="sb-hold">—</div></div>
   <div class="sb-it" id="nav-news" onclick="switchView('news')"><div class="sb-lb"><i class="ti ti-news" style="font-size:14px"></i><span>News</span></div></div>
   <div class="sb-it" id="nav-rankings" onclick="switchView('rankings')"><div class="sb-lb"><i class="ti ti-trophy" style="font-size:14px"></i><span>Rankings</span></div></div>
   <div class="sb-sec">Watchlist</div>
@@ -856,6 +881,69 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="rk-panel" id="rk-panel"></div>
   </div>
 </div>
+
+<!-- ── Holdings — Personal Portfolio Intelligence (PR-1a) ──────────────────── -->
+<div id="view-holdings" style="display:none">
+
+  <!-- Shown when signed out. The rest of the dashboard stays fully usable. -->
+  <div class="hd-gate" id="hd-gate">
+    <i class="ti ti-lock" style="font-size:26px;color:var(--t3)"></i>
+    <div class="hd-gate-t">Sign in to view your holdings</div>
+    <div class="hd-gate-s">Your broker portfolio is private and sits behind authentication.<br>Everything else on this dashboard works without signing in.</div>
+    <button class="hi-btn" style="width:auto;padding:8px 22px;margin-top:14px" onclick="hiOpen()">Sign in</button>
+  </div>
+
+  <div id="hd-body" style="display:none">
+
+    <!-- KPI strip -->
+    <div class="hd-kpis">
+      <div class="hd-kpi"><div class="hd-kpi-l">Current Value</div><div class="hd-kpi-v" id="hd-current">—</div><div class="hd-kpi-s" id="hd-count">—</div></div>
+      <div class="hd-kpi"><div class="hd-kpi-l">Invested</div><div class="hd-kpi-v" id="hd-invested">—</div><div class="hd-kpi-s">Cost basis</div></div>
+      <div class="hd-kpi"><div class="hd-kpi-l">Unrealized P&amp;L</div><div class="hd-kpi-v" id="hd-pnl">—</div><div class="hd-kpi-s" id="hd-pnlpct">—</div></div>
+      <div class="hd-kpi"><div class="hd-kpi-l">Today</div><div class="hd-kpi-v" id="hd-day">—</div><div class="hd-kpi-s" id="hd-pricestatus">—</div></div>
+    </div>
+
+    <!-- Import + actions -->
+    <div class="pnl">
+      <div class="pnl-h">
+        <span>Import Holdings</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <button class="hd-btn" onclick="hdRefresh(true)"><i class="ti ti-refresh"></i> Live prices</button>
+          <button class="hd-btn" onclick="document.getElementById('hd-file').click()"><i class="ti ti-upload"></i> Upload statement</button>
+          <input type="file" id="hd-file" accept=".xlsx,.csv" style="display:none" onchange="hdUpload(this)">
+        </span>
+      </div>
+      <div class="pnl-b">
+        <div class="hd-hint">
+          Zerodha Console → <b>Portfolio → Holdings → Download</b>. XLSX or CSV both work.
+          Nothing is sent anywhere else; the file is parsed on your own server.
+        </div>
+        <div id="hd-import-msg"></div>
+      </div>
+    </div>
+
+    <!-- Holdings table -->
+    <div class="pnl" style="margin-top:10px">
+      <div class="pnl-h">
+        <span>Holdings</span>
+        <span style="font-size:9px;color:var(--t3)" id="hd-asof">—</span>
+      </div>
+      <div class="pnl-b" style="padding:0;overflow-x:auto">
+        <table class="tbl" id="hd-table">
+          <thead><tr>
+            <th>#</th><th>Symbol</th><th>Sector</th><th class="r">Qty</th><th class="r">Cost</th>
+            <th class="r">Price</th><th class="r">Invested</th><th class="r">Value</th>
+            <th class="r">P&amp;L</th><th class="r">Return</th><th class="r">Weight</th>
+          </tr></thead>
+          <tbody id="hd-tbody">
+            <tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t3)">No holdings imported yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
 </div><!-- end main -->
 </div><!-- end body -->
 </div><!-- end term -->
@@ -1212,6 +1300,12 @@ function hiPaint() {
   const ic   = document.getElementById('auth-ic');
   if (!chip) return;
 
+  // Keep the Holdings view in step with auth: signing out must clear the portfolio
+  // from the screen immediately, not leave it visible until the next navigation.
+  if (typeof hdPaintGate === 'function' && document.getElementById('hd-gate')) {
+    setTimeout(() => { hdPaintGate(); if (hiToken() && activeView === 'holdings') hdRefresh(false); }, 0);
+  }
+
   if (hiToken()) {
     chip.classList.add('on');
     ic.className = 'ti ti-lock-open';
@@ -1304,6 +1398,149 @@ document.addEventListener('DOMContentLoaded', hiPaint);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('hi-ov').classList.contains('show')) hiClose();
 });
+
+// ─── HOLDINGS — Personal Portfolio Intelligence (PR-1a) ──────────────────────
+// Reads /holdings-intel/*, all of which require the bearer token. Every call goes
+// through hiFetch(), which signs out on a 401 so an expired session can never
+// leave stale portfolio figures on screen.
+
+const inr = (n) => n === null || n === undefined
+  ? '—'
+  : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+const pct = (n) => n === null || n === undefined ? '—' : Number(n).toFixed(2) + '%';
+const sign = (n) => n === null || n === undefined ? '' : (Number(n) >= 0 ? 'up' : 'dn');
+
+function hdMsg(kind, html) {
+  document.getElementById('hd-import-msg').innerHTML =
+    '<div class="hd-msg ' + kind + '">' + html + '</div>';
+}
+
+// Signed out => show the gate, never a half-rendered portfolio.
+function hdPaintGate() {
+  const authed = !!hiToken();
+  document.getElementById('hd-gate').style.display = authed ? 'none'  : 'flex';
+  document.getElementById('hd-body').style.display = authed ? 'block' : 'none';
+  return authed;
+}
+
+async function hdRefresh(live) {
+  if (!hdPaintGate()) return;
+
+  try {
+    const res  = await hiFetch('/holdings-intel/holdings?live=' + (live ? 'true' : 'false'));
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Failed to load holdings');
+
+    const d = json.data;
+    const t = d.totals;
+
+    document.getElementById('hd-current').textContent  = inr(t.totalCurrent);
+    document.getElementById('hd-invested').textContent = inr(t.totalInvested);
+    document.getElementById('hd-count').textContent    = t.holdingsCount + ' holdings';
+
+    const pnlEl = document.getElementById('hd-pnl');
+    pnlEl.textContent = inr(t.totalPnl);
+    pnlEl.style.color = t.totalPnl >= 0 ? 'var(--up)' : 'var(--dn)';
+    document.getElementById('hd-pnlpct').textContent = pct(t.totalPnlPct);
+
+    const dayEl = document.getElementById('hd-day');
+    dayEl.textContent = d.priceStatus === 'statement' ? '—' : inr(t.dayPnl);
+    dayEl.style.color = (t.dayPnl || 0) >= 0 ? 'var(--up)' : 'var(--dn)';
+
+    // Be explicit about WHERE the prices came from. A portfolio silently priced
+    // at last week's close, presented as if live, is worse than no number.
+    document.getElementById('hd-pricestatus').textContent =
+      d.priceStatus === 'live'      ? 'Live prices'
+      : d.priceStatus === 'partial' ? (d.stalePrices.length + ' without live price')
+      : d.priceStatus === 'none'    ? '—'
+      : 'Statement close';
+
+    document.getElementById('sb-hold').textContent = t.holdingsCount || '—';
+
+    // Only flag a row as stale when LIVE prices were asked for and this row didn't
+    // get one. In statement mode every row is a statement price by definition, so
+    // badging them all is pure noise.
+    const liveRequested = d.priceStatus === 'live' || d.priceStatus === 'partial';
+
+    const rows = d.holdings.map((h, i) =>
+      '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td><b>' + h.symbol + '</b>' +
+        (h.asset_class === 'ETF' ? ' <span class="hd-stale" style="color:var(--t3);border-color:var(--bd)">ETF</span>' : '') +
+        (liveRequested && !h.priceOk ? ' <span class="hd-stale" title="No live quote — showing the statement close">no live price</span>' : '') +
+        '<div style="font-size:9px;color:var(--t3)">' + (h.company_name || h.exchange) + '</div></td>' +
+      '<td style="font-size:9px">' + (h.broker_sector || '—') + '</td>' +
+      '<td class="r">' + Number(h.quantity).toLocaleString('en-IN') + '</td>' +
+      '<td class="r">' + (h.costBasis === null ? '—' : Number(h.costBasis).toFixed(2)) + '</td>' +
+      '<td class="r">' + (h.price === null ? '—' : Number(h.price).toFixed(2)) + '</td>' +
+      '<td class="r">' + inr(h.investedValue) + '</td>' +
+      '<td class="r">' + inr(h.currentValue) + '</td>' +
+      '<td class="r ' + sign(h.pnl) + '">' + inr(h.pnl) + '</td>' +
+      '<td class="r ' + sign(h.pnlPct) + '">' + pct(h.pnlPct) + '</td>' +
+      '<td class="r">' + pct(h.weightPct) + '</td>' +
+      '</tr>'
+    ).join('');
+
+    document.getElementById('hd-tbody').innerHTML = rows ||
+      '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t3)">No holdings imported yet. Upload a Zerodha statement above.</td></tr>';
+
+    // stmtAsOf, not stmt_as_of: the raw column is a Date that JSON-serialises to
+    // UTC and loses a day east of Greenwich. The service pre-formats it.
+    const asOf = d.holdings[0] && d.holdings[0].stmtAsOf;
+    document.getElementById('hd-asof').textContent =
+      asOf ? 'Statement as on ' + asOf : '—';
+
+  } catch (e) {
+    hdMsg('err', e.message);
+  }
+}
+
+async function hdUpload(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  input.value = '';                       // allow re-uploading the same file
+
+  if (file.size > 512 * 1024) {
+    hdMsg('err', 'File is ' + Math.round(file.size / 1024) + ' KB — the limit is 512 KB.');
+    return;
+  }
+
+  hdMsg('warn', 'Importing ' + file.name + '...');
+
+  try {
+    // Raw bytes, not multipart — keeps a file-upload dependency out of the backend.
+    const res = await hiFetch(
+      '/holdings-intel/import?filename=' + encodeURIComponent(file.name),
+      { method: 'POST', body: file, headers: { 'Content-Type': 'application/octet-stream' } }
+    );
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Import failed');
+
+    const d = json.data;
+    let html = '<b>Imported ' + d.imported + ' holdings</b>' +
+               (d.asOf ? ' — statement as on ' + d.asOf : '') + '.';
+
+    // Reconciliation is the headline, not a footnote. If the totals do not match
+    // the broker's own summary, the user must know before trusting any number.
+    if (d.reconciled) {
+      html += '<br>✓ Totals reconcile exactly against the statement.';
+    } else {
+      html += '<br><b>⚠ Totals do NOT match the statement:</b> ' + d.reconcile.note;
+    }
+    if (d.deactivated)  html += '<br>' + d.deactivated + ' holding(s) no longer in the statement were marked exited.';
+    if (d.unresolvedExchange && d.unresolvedExchange.length)
+      html += '<br>No exchange resolved for: ' + d.unresolvedExchange.join(', ') + ' — these will show no live price.';
+    if (d.warnings && d.warnings.length)
+      html += '<br><br>' + d.warnings.map(w => '• ' + w).join('<br>');
+
+    hdMsg(d.reconciled ? 'ok' : 'warn', html);
+    await hdRefresh(false);
+
+  } catch (e) {
+    hdMsg('err', e.message);
+  }
+}
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 var allStocks=[], dispStocks=[], fKey='all', page=1, PS=8, showAll=false;
@@ -2221,7 +2458,7 @@ async function init(){
 init();
 
 // ─── VIEW SWITCHING ───────────────────────────────────────────────────────────
-var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings'];
+var VIEWS = ['dashboard','scanner','strategies','portfolio','news','alerts-breakout','alerts-volume','alerts-news','fiidii','rankings','holdings'];
 var activeView = 'dashboard';
 
 function switchView(view) {
@@ -2244,6 +2481,12 @@ function switchView(view) {
   // Rankings: fixed overlay from sidebar right edge
   var mainEl = document.getElementById('main');
   if (mainEl) mainEl.style.padding = (view === 'rankings') ? '0' : '7px';
+
+  // #main is flex:1 and stays visible-but-empty when a sibling view is active, so
+  // it splits the row with that view. Other views hide it by being wide enough to
+  // squeeze it out; Holdings is not, so hide it explicitly. Every other view gets
+  // '' — the default — so nothing existing changes.
+  if (mainEl) mainEl.style.display = (view === 'holdings') ? 'none' : '';
   var rkView = document.getElementById('view-rankings');
   if (rkView && view === 'rankings') {
     var sb = document.querySelector('.sidebar');
@@ -2270,6 +2513,7 @@ function switchView(view) {
   if (view === 'alerts-volume') { loadVolumeAlerts(); }
   if (view === 'strategies') renderStrategiesView();
   if (view === 'fiidii') renderSmartMoneyView();
+  if (view === 'holdings') hdRefresh(false);   // statement prices first; live is a click away
   if (view === 'portfolio') renderPortfolioView();
   if (view === 'rankings') renderRankingsView();
 

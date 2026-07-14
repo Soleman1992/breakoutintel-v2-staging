@@ -49,6 +49,7 @@ const SQL_FILES = [
   path.join(MIGRATIONS_DIR, '010_scanner_alerts.sql'),
   path.join(MIGRATIONS_DIR, '011_repair_news_schema.sql'),
   path.join(MIGRATIONS_DIR, '012_holdings_auth.sql'),
+  path.join(MIGRATIONS_DIR, '013_broker_holdings.sql'),
 ];
 
 async function runMigrations(pool) {

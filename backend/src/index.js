@@ -29,6 +29,7 @@ let rankingOrch  = null;
 let validationEng = null;
 let alertsEngine  = null;
 let holdingsAuthed = false;   // Holdings module auth gate (PR-0)
+let brokerHoldings = null;    // Holdings Intelligence service (PR-1a)
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -851,8 +852,21 @@ async function start() {
         app.use('/holdings-intel/auth', holdingsAuthRoutes(db));
         holdingsAuthed = true;
         console.log('[HoldingsAuth] Routes registered ✓');
+
+        // ── Holdings Intelligence (PR-1a) ────────────────────────────────────
+        // Broker-synced personal holdings, imported from Zerodha Console exports.
+        // Entirely separate from the scanner trade journal behind /portfolio/*.
+        // Mounted only when auth is live — the data must never be reachable
+        // without a verified identity.
+        const BrokerHoldingsService = require('./holdings/brokerHoldingsService');
+        brokerHoldings = new BrokerHoldingsService(db, null); // market injected after step 4
+
+        const holdingsIntelRoutes = require('./routes/holdingsIntel');
+        app.use('/holdings-intel', holdingsIntelRoutes(db, brokerHoldings));
+        console.log('[HoldingsIntel] Service + routes registered ✓');
       } catch (e) {
         holdingsAuthed = false;
+        brokerHoldings = null;
         console.warn('[HoldingsAuth] Disabled (non-fatal):', e.message);
       }
     } catch (e) {
@@ -908,6 +922,10 @@ async function start() {
       intelligence.market  = market;
       intelligence.scanner = scanner;
       console.log('[Intelligence] Market + Scanner injected ✓');
+    }
+    if (brokerHoldings) {
+      brokerHoldings.market = market;
+      console.log('[HoldingsIntel] Market service injected ✓');
     }
     if (newsIntelligence) {
       newsIntelligence.nse = nseData;

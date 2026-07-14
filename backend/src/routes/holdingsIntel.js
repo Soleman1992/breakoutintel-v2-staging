@@ -1,0 +1,117 @@
+// ── Holdings Intelligence Routes — PR-1a ─────────────────────────────────────
+// Mounted at /holdings-intel in index.js.
+//
+//   POST   /holdings-intel/import      — Zerodha Console statement (XLSX or CSV)
+//   GET    /holdings-intel/holdings    — holdings + derived metrics (?live=true)
+//   GET    /holdings-intel/summary     — portfolio totals only
+//   GET    /holdings-intel/audit       — import history
+//   DELETE /holdings-intel/holdings    — purge (irreversible)
+//
+// EVERY route is behind requireHoldingsAuth. The user id comes from the verified
+// JWT and nowhere else — `x-user-id`, which the rest of the app trusts, is
+// structurally stripped by the middleware and can never authenticate here.
+
+const express = require('express');
+const rateLimit = require('express-rate-limit');
+const requireHoldingsAuth = require('../auth/requireHoldingsAuth');
+
+const MAX_UPLOAD_BYTES = 512 * 1024;
+
+module.exports = function holdingsIntelRoutes(db, holdings) {
+  const router = express.Router();
+
+  router.use(requireHoldingsAuth(db));
+
+  // Tighter than the app-wide 200/min. Import does file parsing plus a live-price
+  // probe per row, so it is the expensive surface.
+  const readLimiter   = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+  const importLimiter = rateLimit({
+    windowMs: 60_000, max: 6, standardHeaders: true, legacyHeaders: false,
+    message: { ok: false, error: 'Too many imports. Wait a minute and try again.' },
+  });
+
+  const ready = (res) => {
+    if (!holdings) {
+      res.status(503).json({ ok: false, error: 'Holdings service not ready' });
+      return false;
+    }
+    return true;
+  };
+
+  // ── POST /import ─────────────────────────────────────────────────────────
+  // The file arrives as raw bytes (application/octet-stream), not multipart —
+  // that avoids a multer dependency entirely. The browser sends the File object
+  // directly as the request body.
+  router.post(
+    '/import',
+    importLimiter,
+    express.raw({ type: '*/*', limit: MAX_UPLOAD_BYTES }),
+    async (req, res) => {
+      try {
+        if (!ready(res)) return;
+
+        const fileName = String(req.query.filename || 'holdings').slice(0, 120);
+        const result = await holdings.importHoldings(req.holdingsUser.id, req.body, fileName);
+
+        // 200 even when reconciliation fails: the rows DID import. The caller must
+        // see reconciled=false and surface it rather than treat the import as clean.
+        res.json({ ok: true, data: result });
+      } catch (e) {
+        res.status(400).json({ ok: false, error: e.message });
+      }
+    }
+  );
+
+  // ── GET /holdings ────────────────────────────────────────────────────────
+  router.get('/holdings', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      const live = req.query.live === 'true';
+      res.json({ ok: true, data: await holdings.getHoldings(req.holdingsUser.id, { live }) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ── GET /summary ─────────────────────────────────────────────────────────
+  router.get('/summary', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      const live = req.query.live === 'true';
+      const { totals, priceStatus, stalePrices } =
+        await holdings.getHoldings(req.holdingsUser.id, { live });
+      res.json({ ok: true, data: { ...totals, priceStatus, stalePrices } });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ── GET /audit ───────────────────────────────────────────────────────────
+  router.get('/audit', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      res.json({ ok: true, data: await holdings.getAudit(req.holdingsUser.id) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // ── DELETE /holdings ─────────────────────────────────────────────────────
+  // Irreversible. Requires ?confirm=yes so a stray call cannot wipe the portfolio.
+  router.delete('/holdings', readLimiter, async (req, res) => {
+    try {
+      if (!ready(res)) return;
+      if (req.query.confirm !== 'yes') {
+        return res.status(400).json({
+          ok: false,
+          error: 'Refusing to purge without ?confirm=yes — this deletes every holding and cannot be undone.',
+        });
+      }
+      res.json({ ok: true, data: await holdings.purge(req.holdingsUser.id) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  return router;
+};
