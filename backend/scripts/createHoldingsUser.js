@@ -20,40 +20,96 @@ const { hashPassword, MIN_PASSWORD_LENGTH } = require('../src/auth/holdingsAuth'
 
 const FORCE = process.argv.includes('--force');
 
+// Control characters, named so the switch below stays readable.
+const ETX = '';   // Ctrl-C
+const EOT = '';   // Ctrl-D
+const BS  = '';   // Backspace
+const DEL = '';   // Delete (what most terminals send for Backspace)
+
 // ── Prompt helpers ───────────────────────────────────────────────────────────
 function ask(rl, question) {
   return new Promise(resolve => rl.question(question, a => resolve(a.trim())));
 }
 
-// Suppresses terminal echo so the password is never displayed or scrolled back.
-function askHidden(rl, question) {
-  return new Promise(resolve => {
-    rl.muted = false;
-    rl.question(question, answer => {
-      rl.muted = false;
-      rl.output.write('\n');
-      resolve(answer);
-    });
-    rl.muted = true;
+/**
+ * Read a line with terminal echo suppressed, so the password is never shown,
+ * never scrolls back, and never reaches shell history.
+ *
+ * Reads stdin in raw mode directly rather than going through readline. The
+ * first version of this overrode readline's private _writeToOutput to mute the
+ * echo; on Windows PowerShell that interfered with readline's own line handling
+ * and the prompt resolved instantly with an empty string — the script then bailed
+ * and the user's keystrokes fell through to the shell as commands. Raw mode is
+ * the portable way to do this.
+ *
+ * IMPORTANT: no readline interface may be open on stdin while this runs — both
+ * consume 'data' events. Callers close it first.
+ *
+ * `stdin`/`stdout` are injectable so this can be unit-tested with fake streams:
+ * a real TTY cannot be simulated from a test runner, and this function has
+ * already been wrong once.
+ */
+function askHidden(query, stdin = process.stdin, stdout = process.stdout) {
+  return new Promise((resolve, reject) => {
+    if (!stdin.isTTY) {
+      return reject(new Error(
+        'No interactive terminal detected.\n' +
+        '  Run this directly in PowerShell, Git Bash, or Windows Terminal —\n' +
+        "  not through a pipe, a CI job, or an assistant's shell."
+      ));
+    }
+
+    stdout.write(query);
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+
+    let pw = '';
+
+    const finish = (value) => {
+      stdin.setRawMode(false);
+      stdin.pause();
+      stdin.removeListener('data', onData);
+      stdout.write('\n');
+      resolve(value);
+    };
+
+    const onData = (chunk) => {
+      // Arrow keys, Home/End, F-keys etc. arrive as a single ESC-prefixed chunk
+      // (e.g. ESC [ A). ESC itself is a control char and would be skipped below,
+      // but the '[' and 'A' that follow are printable and would be appended
+      // straight into the password. Drop the whole sequence instead.
+      if (chunk.charCodeAt(0) === 27) return;
+
+      for (const ch of chunk) {
+        if (ch === '\r' || ch === '\n' || ch === EOT) return finish(pw);
+
+        if (ch === ETX) {                      // Ctrl-C — abort cleanly
+          stdin.setRawMode(false);
+          stdout.write('\n^C\n');
+          process.exit(130);
+        }
+
+        if (ch === DEL || ch === BS) {         // Backspace
+          pw = pw.slice(0, -1);
+          continue;
+        }
+
+        // Skip every other control character (arrow keys, escape sequences...)
+        if (ch >= ' ' && ch !== DEL) pw += ch;
+      }
+    };
+
+    stdin.on('data', onData);
   });
 }
 
 function makeInterface() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+  return readline.createInterface({
+    input:    process.stdin,
+    output:   process.stdout,
     terminal: true,
   });
-  const original = rl._writeToOutput.bind(rl);
-  rl._writeToOutput = function (str) {
-    if (rl.muted) {
-      // Redraw the prompt only — swallow the typed characters entirely.
-      rl.output.write('');
-      return;
-    }
-    original(str);
-  };
-  return rl;
 }
 
 function fail(msg) {
@@ -62,7 +118,21 @@ function fail(msg) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-(async () => {
+let rlClosed = false;
+
+async function main() {
+  // Fail fast and legibly if there is no terminal. The password is read in raw
+  // mode, which requires a TTY; without this guard the failure surfaces as an
+  // opaque "readline was closed" much further down.
+  if (!process.stdin.isTTY) {
+    fail(
+      'No interactive terminal detected.\n' +
+      '  This script must be run directly in a terminal — PowerShell, Git Bash,\n' +
+      '  or Windows Terminal — so it can read your password without echoing it.\n' +
+      "  It cannot be piped, scripted, or run through an assistant's shell."
+    );
+  }
+
   if (!process.env.DATABASE_URL) {
     fail('DATABASE_URL is not set. Set it in your environment or backend/.env');
   }
@@ -85,7 +155,7 @@ function fail(msg) {
       fail(
         'Table holdings_users does not exist.\n' +
         '  Run the app once (migrations run on boot), or apply\n' +
-        '  backend/src/models/migrations/011_holdings_auth.sql manually.'
+        '  backend/src/models/migrations/012_holdings_auth.sql manually.'
       );
     }
 
@@ -110,22 +180,31 @@ function fail(msg) {
       console.log('   All active sessions will be logged out.\n');
     }
 
+    // Email and name first, via readline. The password prompts come last and
+    // read stdin in raw mode — readline must be CLOSED by then, or the two
+    // compete for the same 'data' events and the password reads as empty.
     const email = await ask(rl, 'Email: ');
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       fail('That does not look like a valid email address.');
     }
 
-    const password = await askHidden(rl, `Password (min ${MIN_PASSWORD_LENGTH} chars): `);
+    const name = await ask(rl, 'Name (optional): ');
+
+    rl.close();
+    rlClosed = true;
+
+    console.log('\nThe password will not appear as you type — that is expected.');
+    console.log('Keep typing, then press Enter.\n');
+
+    const password = await askHidden(`Password (min ${MIN_PASSWORD_LENGTH} chars): `);
     if (password.length < MIN_PASSWORD_LENGTH) {
       fail(`Password must be at least ${MIN_PASSWORD_LENGTH} characters (got ${password.length}).`);
     }
 
-    const confirm = await askHidden(rl, 'Confirm password: ');
+    const confirm = await askHidden('Confirm password: ');
     if (password !== confirm) {
       fail('Passwords do not match.');
     }
-
-    const name = await ask(rl, 'Name (optional): ');
 
     process.stdout.write('\nHashing (bcrypt cost 12, this takes a moment)... ');
     const hash = await hashPassword(password);
@@ -155,13 +234,20 @@ function fail(msg) {
       console.log(`\n✓ Created holdings user ${rows[0].email} (${rows[0].id})\n`);
     }
 
-    console.log('Next: set HOLDINGS_JWT_SECRET in your environment.');
-    console.log('  Generate with:  openssl rand -hex 32');
-    console.log('  Set it in Render\'s dashboard — never commit it.\n');
+    console.log('You can now sign in at https://breakoutintel-v2.onrender.com');
+    console.log('  Click the lock chip in the top-right of the ribbon.\n');
   } catch (e) {
     fail(e.message);
   } finally {
-    rl.close();
+    if (!rlClosed) rl.close();
     await db.end();
   }
-})();
+}
+
+// Only run when invoked directly — `require`ing this (e.g. from tests) must not
+// launch the prompt flow.
+if (require.main === module) {
+  main();
+}
+
+module.exports = { askHidden };
