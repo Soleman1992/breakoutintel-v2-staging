@@ -25,6 +25,26 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
 /* RIBBON */
 .ribbon{background:var(--bg1);border-bottom:1px solid var(--bd);padding:0 10px;height:46px;display:flex;align-items:center;flex-shrink:0;overflow:hidden;gap:0}
 .logo-box{display:flex;align-items:center;gap:8px;margin-right:12px;flex-shrink:0;cursor:pointer}
+
+/* HOLDINGS AUTH (PR-0.5) — sign-in chip + modal. Additive; nothing else uses these. */
+.auth-chip{display:flex;align-items:center;gap:5px;padding:4px 9px;margin-left:8px;border:1px solid var(--bd);border-radius:4px;background:var(--bg2);color:var(--t2);font-size:10px;font-weight:500;cursor:pointer;flex-shrink:0;transition:border-color .15s,color .15s;white-space:nowrap}
+.auth-chip:hover{border-color:var(--acc2);color:var(--t1)}
+.auth-chip.on{border-color:var(--up);color:var(--up)}
+.hi-ov{position:fixed;inset:0;background:rgba(5,11,22,.78);display:none;align-items:center;justify-content:center;z-index:9000}
+.hi-ov.show{display:flex}
+.hi-md{background:var(--bg1);border:1px solid var(--bd2);border-radius:8px;width:330px;max-width:92vw;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.hi-md h3{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px}
+.hi-md .sub{font-size:10px;color:var(--t3);margin-bottom:15px;line-height:1.45}
+.hi-md label{display:block;font-size:10px;color:var(--t2);margin-bottom:4px;font-weight:500}
+.hi-md input{width:100%;padding:8px 10px;margin-bottom:11px;background:var(--bg0);border:1px solid var(--bd);border-radius:4px;color:var(--t1);font-family:inherit;font-size:12px}
+.hi-md input:focus{outline:none;border-color:var(--acc2)}
+.hi-btn{width:100%;padding:9px;background:var(--acc);border:none;border-radius:4px;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.hi-btn:hover{background:var(--acc2)}
+.hi-btn:disabled{opacity:.55;cursor:not-allowed}
+.hi-err{display:none;margin-bottom:10px;padding:7px 9px;background:rgba(239,68,68,.11);border:1px solid var(--dn);border-radius:4px;color:var(--dn);font-size:10px;line-height:1.4}
+.hi-err.show{display:block}
+.hi-x{float:right;color:var(--t3);cursor:pointer;font-size:15px;line-height:1;margin-top:-2px}
+.hi-x:hover{color:var(--t1)}
 .logo-ic{background:var(--acc);border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
 .logo-n{font-size:12px;font-weight:500;color:var(--t1)}
 .logo-s{font-size:9px;color:var(--t3)}
@@ -323,6 +343,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="live-badge" id="live-badge"><span class="pulse"></span>Connecting...</div>
     <div class="auto-chip"><span class="pulse"></span>Refresh <span id="r-cnt" style="color:var(--t1);font-weight:500">15s</span></div>
     <div class="ts-box"><div id="r-time" style="font-size:12px;font-weight:500">--:--</div><div id="r-date" style="font-size:9px;color:var(--t3)">-- --- 2025</div></div>
+    <div class="auth-chip" id="auth-chip" onclick="hiAuthChipClick()" title="Holdings module sign-in">
+      <i class="ti ti-lock" id="auth-ic" style="font-size:12px"></i>
+      <span id="auth-lb">Sign in</span>
+    </div>
   </div>
 </div>
 
@@ -1121,6 +1145,23 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
   </div>
 </div>
 
+<!-- ── Holdings sign-in modal (PR-0.5) ─────────────────────────────────────── -->
+<div class="hi-ov" id="hi-ov" onclick="if(event.target===this)hiClose()">
+  <div class="hi-md">
+    <span class="hi-x" onclick="hiClose()">&times;</span>
+    <h3>Holdings Sign-in</h3>
+    <div class="sub">Secures the Personal Portfolio module. Does not affect the rest of the dashboard.</div>
+    <div class="hi-err" id="hi-err"></div>
+    <form onsubmit="hiLogin(event)">
+      <label for="hi-em">Email</label>
+      <input type="email" id="hi-em" autocomplete="username" required>
+      <label for="hi-pw">Password</label>
+      <input type="password" id="hi-pw" autocomplete="current-password" required>
+      <button type="submit" class="hi-btn" id="hi-go">Sign in</button>
+    </form>
+  </div>
+</div>
+
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 // Detect backend URL: same origin in production, or explicit override
@@ -1133,6 +1174,136 @@ const BACKEND = (()=>{
   // GitHub Pages or local: try to reach the Render backend
   return 'https://breakoutintel-v2.onrender.com';
 })();
+
+// ─── HOLDINGS AUTH (PR-0.5) ──────────────────────────────────────────────────
+// Sign-in for the Personal Portfolio (Holdings) module only. Entirely additive:
+// no existing view, request, or endpoint is touched. Every other panel on this
+// dashboard keeps working signed out, exactly as before.
+//
+// The JWT is kept in localStorage and sent as `Authorization: Bearer`. Not a
+// cookie — the API sets `cors({origin:'*'})`, under which browsers refuse
+// credentialed requests anyway, and a cookie would be CSRF-exposed. A bearer
+// token carries no ambient authority, so it is the correct choice here.
+const HI_TOKEN_KEY = 'bi_holdings_token';
+const HI_EMAIL_KEY = 'bi_holdings_email';
+
+const hiToken = () => localStorage.getItem(HI_TOKEN_KEY);
+const hiEmail = () => localStorage.getItem(HI_EMAIL_KEY);
+
+// Shared fetch wrapper for /holdings-intel/* — PR-1 will route every holdings
+// call through this. Attaches the bearer token and signs out on a 401, so an
+// expired token (12h TTL) can never leave the UI in a half-authenticated state.
+async function hiFetch(path, opts = {}) {
+  const t = hiToken();
+  const headers = Object.assign({}, opts.headers || {});
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+
+  const res = await fetch(BACKEND + path, Object.assign({}, opts, { headers }));
+  if (res.status === 401) {
+    hiSignOut(true);
+    throw new Error('Session expired — please sign in again.');
+  }
+  return res;
+}
+
+function hiPaint() {
+  const chip = document.getElementById('auth-chip');
+  const lb   = document.getElementById('auth-lb');
+  const ic   = document.getElementById('auth-ic');
+  if (!chip) return;
+
+  if (hiToken()) {
+    chip.classList.add('on');
+    ic.className = 'ti ti-lock-open';
+    ic.style.fontSize = '12px';
+    lb.textContent = (hiEmail() || 'Signed in').split('@')[0];
+    chip.title = 'Signed in as ' + (hiEmail() || '') + ' — click to sign out';
+  } else {
+    chip.classList.remove('on');
+    ic.className = 'ti ti-lock';
+    ic.style.fontSize = '12px';
+    lb.textContent = 'Sign in';
+    chip.title = 'Holdings module sign-in';
+  }
+}
+
+function hiAuthChipClick() { hiToken() ? hiSignOut(false) : hiOpen(); }
+
+function hiOpen() {
+  document.getElementById('hi-err').classList.remove('show');
+  document.getElementById('hi-ov').classList.add('show');
+  setTimeout(() => document.getElementById('hi-em').focus(), 40);
+}
+function hiClose() { document.getElementById('hi-ov').classList.remove('show'); }
+
+function hiErr(msg) {
+  const e = document.getElementById('hi-err');
+  e.textContent = msg;
+  e.classList.add('show');
+}
+
+async function hiLogin(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('hi-go');
+  const em  = document.getElementById('hi-em').value.trim();
+  const pw  = document.getElementById('hi-pw').value;
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  document.getElementById('hi-err').classList.remove('show');
+
+  try {
+    const res = await fetch(BACKEND + '/holdings-intel/auth/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: em, password: pw }),
+    });
+    const j = await res.json().catch(() => ({}));
+
+    if (!res.ok || !j.ok) {
+      // 429 = rate limited (5 attempts / 15 min). Surface that plainly rather
+      // than letting it read as a wrong password.
+      hiErr(res.status === 429
+        ? 'Too many attempts. Try again in a few minutes.'
+        : (j.error || 'Sign-in failed.'));
+      return;
+    }
+
+    localStorage.setItem(HI_TOKEN_KEY, j.token);
+    localStorage.setItem(HI_EMAIL_KEY, (j.user && j.user.email) || em);
+    document.getElementById('hi-pw').value = '';   // never leave it in the DOM
+    hiClose();
+    hiPaint();
+  } catch (e) {
+    hiErr('Could not reach the server. It may be waking up — try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+  }
+}
+
+// expired=true means the token was already rejected — skip the server call.
+async function hiSignOut(expired) {
+  const t = hiToken();
+  localStorage.removeItem(HI_TOKEN_KEY);
+  localStorage.removeItem(HI_EMAIL_KEY);
+  hiPaint();
+
+  // Bump token_version server-side so every outstanding JWT dies, not just this
+  // browser's copy. Best-effort: local state is already cleared regardless.
+  if (t && !expired) {
+    try {
+      await fetch(BACKEND + '/holdings-intel/auth/logout', {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + t },
+      });
+    } catch (e) { /* already signed out locally */ }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', hiPaint);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('hi-ov').classList.contains('show')) hiClose();
+});
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 var allStocks=[], dispStocks=[], fKey='all', page=1, PS=8, showAll=false;
