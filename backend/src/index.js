@@ -28,6 +28,7 @@ let newsIntelligence = null;
 let rankingOrch  = null;
 let validationEng = null;
 let alertsEngine  = null;
+let holdingsAuthed = false;   // Holdings module auth gate (PR-0)
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
@@ -812,6 +813,27 @@ async function start() {
         get: async () => null, setEx: async () => null, del: async () => null,
       }, null); // nseData injected after market services init
       console.log('[NewsIntelligence] Service ready ✓');
+
+      // ── Holdings Auth (PR-0) ───────────────────────────────────────────────
+      // Guards the /holdings-intel/* namespace only. The existing /portfolio/*
+      // routes and their x-user-id placeholder flow are untouched.
+      //
+      // Own try/catch on purpose: the enclosing catch sets db = null, so an
+      // unguarded throw here (e.g. a missing HOLDINGS_JWT_SECRET) would take
+      // down the existing portfolio, intelligence and news services with it.
+      //
+      // Fails CLOSED: if the secret is absent the router never mounts, and the
+      // guard registered before the SPA catch-all answers the whole namespace
+      // with 503. It can never become reachable-but-unauthenticated.
+      try {
+        const holdingsAuthRoutes = require('./routes/holdingsAuthRoutes');
+        app.use('/holdings-intel/auth', holdingsAuthRoutes(db));
+        holdingsAuthed = true;
+        console.log('[HoldingsAuth] Routes registered ✓');
+      } catch (e) {
+        holdingsAuthed = false;
+        console.warn('[HoldingsAuth] Disabled (non-fatal):', e.message);
+      }
     } catch (e) {
       console.warn('[PostgreSQL] Unavailable — running without DB:', e.message);
       db = null;
@@ -1125,6 +1147,24 @@ async function start() {
       const days   = Math.min(parseInt(req.query.days || '30'), 90);
       res.json(await newsIntelligence.getTimeline({ symbol, days }));
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  });
+
+  // ── Holdings namespace fail-closed guard (PR-0) ────────────────────────────
+  // Registered immediately before the SPA catch-all, so it can only be reached
+  // by a /holdings-intel/* request that no mounted holdings route handled.
+  //
+  // Without this, an unmounted holdings route falls through to app.get('*')
+  // below and returns index.html with a 200 — which would silently mask a
+  // misconfiguration (e.g. a missing HOLDINGS_JWT_SECRET) behind what looks
+  // like a successful response. The namespace must always answer as an API.
+  app.use('/holdings-intel', (req, res) => {
+    if (!holdingsAuthed) {
+      return res.status(503).json({
+        ok: false,
+        error: 'Holdings module unavailable — HOLDINGS_JWT_SECRET is not configured',
+      });
+    }
+    return res.status(404).json({ ok: false, error: 'Not found' });
   });
 
   // ── Catch-all + error handler — registered last so API routes take priority ─
