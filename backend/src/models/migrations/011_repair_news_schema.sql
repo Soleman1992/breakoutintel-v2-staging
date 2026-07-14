@@ -20,19 +20,38 @@
 --   Wiping and rebuilding is the correct fix — no data loss for the user.
 --
 -- IDEMPOTENT: Safe to run on every startup.
---   - DROP IF EXISTS prevents errors on fresh DB
+--   - The drop below is CONDITIONAL — it fires only on the broken legacy schema
 --   - All CREATE statements use IF NOT EXISTS
---   - After first run: news_items and news_stock_mapping exist with correct schema;
---     subsequent runs are no-ops.
+--   - On an already-repaired database, this file is a true no-op
+--
+-- NOTE (fix): the drops used to be unconditional `DROP TABLE IF EXISTS`, which
+-- is NOT a no-op on a repaired database — it drops the good table too. Because
+-- migrations run on every boot, that wiped the news cache on every restart, and
+-- the feed only came back if the 90s refresh happened to succeed. On a free tier
+-- that restarts whenever it spins down, news was empty much of the time.
+-- The drop is now gated on the actual defect (id of type uuid), so it repairs a
+-- legacy database exactly as before and leaves a correct one untouched.
 --
 -- Run order in migrate.js: after 010, before any future migrations.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Step 1: Drop the broken join table first (FK dependency order)
-DROP TABLE IF EXISTS news_stock_mapping;
-
--- Step 2: Drop the old news_items with wrong id type and missing columns
-DROP TABLE IF EXISTS news_items;
+-- Steps 1 & 2: Drop ONLY if news_items still has the broken UUID id.
+-- A repaired database (id = BIGSERIAL) falls straight through, keeping its data.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+      FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name   = 'news_items'
+       AND column_name  = 'id'
+       AND data_type    = 'uuid'
+  ) THEN
+    RAISE NOTICE '[011] Legacy news_items (uuid id) found — rebuilding.';
+    DROP TABLE IF EXISTS news_stock_mapping;   -- join table first (FK order)
+    DROP TABLE IF EXISTS news_items;
+  END IF;
+END $$;
 
 -- Step 3: Recreate news_items with the correct schema matching newsIntelligence.js
 --   id           BIGSERIAL          — matches news_stock_mapping.news_id BIGINT FK
