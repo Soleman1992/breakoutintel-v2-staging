@@ -5,24 +5,14 @@
  */
 
 const axios = require('axios');
+const nseSession = require('./nseSession');
 
 const YAHOO_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
   'Accept': 'application/json',
 };
 
-const NSE_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Referer': 'https://www.nseindia.com/',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'same-origin',
-  'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-};
+// NSE headers/session now via shared nseSession module (UA rotation + exponential backoff)
 
 const INDEX_SYMBOLS = {
   NIFTY50:    '^NSEI',
@@ -44,8 +34,7 @@ class MarketDataService {
   constructor(redisClient) {
     this.redis = redisClient;
     this.cacheTTL = parseInt(process.env.YAHOO_FINANCE_CACHE_TTL || '15');
-    this.nseSession = null;
-    this._initNSESession();
+    // NSE session now managed by shared nseSession singleton (nseSession.js)
   }
 
   async _safeRedisGet(key) {
@@ -62,20 +51,7 @@ class MarketDataService {
     } catch (e) {}
   }
 
-  async _initNSESession() {
-    try {
-      const resp = await axios.get('https://www.nseindia.com/', {
-        headers: NSE_HEADERS, timeout: 10000,
-      });
-      const cookies = resp.headers['set-cookie'];
-      if (cookies) {
-        this.nseSession = cookies.map(c => c.split(';')[0]).join('; ');
-      }
-    } catch (e) {
-      console.warn('[NSE] Session init failed:', e.message);
-    }
-    setTimeout(() => this._initNSESession(), 30 * 60 * 1000);
-  }
+  // _initNSESession removed — session managed by nseSession.js singleton
 
   async fetchYahooQuote(symbol) {
     const cacheKey = `quote:${symbol}`;
@@ -152,7 +128,7 @@ class MarketDataService {
     if (cached) return JSON.parse(cached);
     try {
       const resp = await axios.get('https://www.nseindia.com/api/marketStatus', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+        headers: nseSession.headers(),
         timeout: 15000,
       });
       const result = { marketState: resp.data?.marketState || 'UNKNOWN', fetchedAt: Date.now() };
@@ -167,26 +143,58 @@ class MarketDataService {
     const cacheKey = 'nse:advdec';
     const cached = await this._safeRedisGet(cacheKey);
     if (cached) return JSON.parse(cached);
-    try {
-      const resp = await axios.get('https://www.nseindia.com/api/equity-stockIndices?index=BROAD%20MARKET%20INDICES', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
-        timeout: 15000,
-      });
-      const data = resp.data?.data || [];
-      if (!data.length) {
-        // NSE returned an empty payload — treat as unavailable, not as 0/0
-        return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE returned empty dataset' };
+
+    // ── Index candidates in priority order ─────────────────────────────────
+    // 'BROAD MARKET INDICES' was retired by NSE (returns 404 since ~2025).
+    // 'NIFTY 500' is confirmed live — used by nseData.js getMarketBreadth().
+    // 'NIFTY 100' and 'NIFTY 50' are kept as fallbacks in case NSE renames again.
+    const NSE_ADV_DEC_INDICES = [
+      'NIFTY 500',   // 500-stock universe — best breadth signal; confirmed working
+      'NIFTY 100',   // fallback
+      'NIFTY 50',    // last resort — smaller but always present
+    ];
+
+    for (const indexName of NSE_ADV_DEC_INDICES) {
+      try {
+        const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
+        const resp = await axios.get(url, {
+          headers: nseSession.headers(),
+          timeout: 10000,
+        });
+        const data = resp.data?.data || [];
+        if (!data.length) continue; // try next index
+
+        let adv = 0, dec = 0, unch = 0;
+        data.forEach(s => {
+          if      (s.pChange > 0) adv++;
+          else if (s.pChange < 0) dec++;
+          else                    unch++;
+        });
+
+        const result = {
+          ok:        true,
+          advances:  adv,
+          declines:  dec,
+          unchanged: unch,
+          total:     data.length,
+          source:    indexName,
+          fetchedAt: Date.now(),
+        };
+        await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
+        return result;
+      } catch (e) {
+        const status = e.response?.status;
+        // 404 = retired endpoint name, 403 = session blocked — both expected;
+        // try next candidate silently. Log only on unexpected errors.
+        if (status !== 404 && status !== 403) {
+          console.warn(`[NSE] getAdvanceDecline (${indexName}): ${e.message}`);
+        }
+        // continue to next candidate
       }
-      let adv = 0, dec = 0, unch = 0;
-      data.forEach(s => { if (s.pChange > 0) adv++; else if (s.pChange < 0) dec++; else unch++; });
-      const result = { ok: true, advances: adv, declines: dec, unchanged: unch, fetchedAt: Date.now() };
-      await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
-      return result;
-    } catch (e) {
-      // Propagate ok:false — never silently return 0/0 which looks like real data
-      console.warn('[NSE] getAdvanceDecline failed:', e.message);
-      return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: e.message };
     }
+
+    // All candidates failed — return ok:false without logging (callers handle gracefully)
+    return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE A/D unavailable' };
   }
 
   // ── MARKET HEALTH SCORE ───────────────────────────────────────────────────
@@ -327,7 +335,7 @@ class MarketDataService {
     if (cached) return JSON.parse(cached);
     try {
       const resp = await axios.get('https://www.nseindia.com/api/live-analysis-52Week?index=52weekhigh', {
-        headers: { ...NSE_HEADERS, Cookie: this.nseSession || '' },
+        headers: nseSession.headers(),
         timeout: 15000,
       });
       const data = resp.data?.data || [];

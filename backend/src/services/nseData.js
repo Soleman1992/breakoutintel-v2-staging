@@ -16,22 +16,14 @@
  */
 
 const axios = require('axios');
+const nseSession = require('./nseSession');
 
-const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Accept': '*/*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Referer': 'https://www.nseindia.com/',
-  'Connection': 'keep-alive',
-};
+// BROWSER_HEADERS removed — headers now from shared nseSession module (UA rotation)
 
 class NSEDataService {
   constructor(redisClient) {
     this.redis = redisClient;
-    this.session = null;       // cookie string
-    this.sessionAt = 0;
-    this._refreshSession();
+    // Session now managed by shared nseSession singleton (nseSession.js)
   }
 
   // ── Redis cache helpers ───────────────────────────────────────────────────
@@ -39,55 +31,19 @@ class NSEDataService {
   async _set(key, ttl, v) { try { if (this.redis?.isReady) await this.redis.setEx(key, ttl, v); } catch {} }
 
   // ── Session management ────────────────────────────────────────────────────
-  async _refreshSession() {
-    try {
-      const resp = await axios.get('https://www.nseindia.com/', {
-        headers: BROWSER_HEADERS, timeout: 10000,
-      });
-      const cookies = resp.headers['set-cookie'];
-      if (cookies) {
-        this.session = cookies.map(c => c.split(';')[0]).join('; ');
-        this.sessionAt = Date.now();
-        console.log('[NSEData] Session refreshed ✓');
-      }
-    } catch (e) {
-      console.warn('[NSEData] Session refresh failed:', e.message);
-      this.session = null;
-    }
-    // Refresh every 25 minutes
-    setTimeout(() => this._refreshSession(), 25 * 60 * 1000);
-  }
-
-  async _ensureSession() {
-    if (!this.session || Date.now() - this.sessionAt > 20 * 60 * 1000) {
-      await this._refreshSession();
-    }
-  }
-
+  // Delegated to shared nseSession singleton (nseSession.js):
+  //   - UA rotation across 5 Chrome/Edge/Firefox strings
+  //   - Exponential backoff on 403 (0s → 5s → 15s → 45s)
+  //   - Redis-backed cookie cache (survives restarts without re-hitting NSE)
+  //   - 40-minute refresh interval (was 25 min)
+  //   - Single shared session with MarketDataService (one NSE hit instead of two)
   _headers() {
-    return { ...BROWSER_HEADERS, Cookie: this.session || '' };
+    return nseSession.headers();
   }
 
-  // ── Generic NSE API GET with retry-on-401/403 (one session refresh) ─────────
+  // ── Generic NSE API GET — delegates to nseSession (UA rotation + backoff) ─────
   async _nseGet(url, timeout = 12000) {
-    await this._ensureSession();
-    try {
-      const resp = await axios.get(url, { headers: this._headers(), timeout });
-      return { ok: true, data: resp.data };
-    } catch (e) {
-      const status = e.response?.status;
-      if (status === 401 || status === 403) {
-        // retry once with fresh session
-        await this._refreshSession();
-        try {
-          const resp2 = await axios.get(url, { headers: this._headers(), timeout });
-          return { ok: true, data: resp2.data };
-        } catch (e2) {
-          return { ok: false, error: `NSE blocked (${e2.response?.status || e2.message})` };
-        }
-      }
-      return { ok: false, error: e.message };
-    }
+    return nseSession.get(url, timeout);
   }
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -117,21 +117,55 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 
 -- ── News Intelligence ─────────────────────────────────────────────────────────
+-- ── News Intelligence ────────────────────────────────────────────────────────
+-- Schema matches newsIntelligenceService.js exactly.
+-- id BIGSERIAL (not UUID) so news_stock_mapping FK works (BIGINT → BIGSERIAL).
+-- content_hash TEXT UNIQUE NOT NULL — SHA-256 dedup key.
+-- sentiment TEXT (no CHECK constraint) — service uses 'Bullish'/'Bearish'/'Neutral'.
+-- See migration 011 for the history of why this was rewritten.
 CREATE TABLE IF NOT EXISTS news_items (
-    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    headline      TEXT NOT NULL,
-    source        VARCHAR(100),
-    url           VARCHAR(500),
-    sentiment     VARCHAR(10) CHECK (sentiment IN ('bullish','bearish','neutral')),
-    impact        SMALLINT CHECK (impact IN (1,2,3)),
-    affected_stocks TEXT[],
-    category      VARCHAR(30),
-    published_at  TIMESTAMPTZ DEFAULT NOW(),
-    ai_summary    TEXT
+    id                   BIGSERIAL    PRIMARY KEY,
+    source               TEXT         NOT NULL,
+    source_url           TEXT,
+    content_hash         TEXT         UNIQUE NOT NULL,
+    title                TEXT         NOT NULL,
+    summary              TEXT,
+    link                 TEXT,
+    symbol               TEXT,
+    company_name         TEXT,
+    category             TEXT,
+    published_at         TIMESTAMPTZ,
+    fetched_at           TIMESTAMPTZ  DEFAULT NOW(),
+    impact_score         SMALLINT,
+    confidence           SMALLINT,
+    trading_relevance    SMALLINT,
+    sentiment            TEXT,
+    urgency              TEXT,
+    why_it_matters       TEXT,
+    trading_implication  TEXT,
+    affected_sectors     TEXT[],
+    affected_stocks      TEXT[],
+    ai_scored_at         TIMESTAMPTZ,
+    ai_model             TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_news_published ON news_items(published_at DESC);
-CREATE INDEX IF NOT EXISTS idx_news_sentiment ON news_items(sentiment);
+CREATE TABLE IF NOT EXISTS news_stock_mapping (
+    id          BIGSERIAL    PRIMARY KEY,
+    news_id     BIGINT       NOT NULL REFERENCES news_items(id) ON DELETE CASCADE,
+    symbol      TEXT         NOT NULL,
+    relevance   TEXT         NOT NULL DEFAULT 'mentioned',
+    UNIQUE(news_id, symbol)
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_published_at      ON news_items(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_news_fetched_at        ON news_items(fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_news_symbol            ON news_items(symbol);
+CREATE INDEX IF NOT EXISTS idx_news_impact            ON news_items(impact_score DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_news_category          ON news_items(category);
+CREATE INDEX IF NOT EXISTS idx_news_sentiment         ON news_items(sentiment);
+CREATE INDEX IF NOT EXISTS idx_news_content_hash      ON news_items(content_hash);
+CREATE INDEX IF NOT EXISTS idx_news_stock_map_symbol  ON news_stock_mapping(symbol);
+CREATE INDEX IF NOT EXISTS idx_news_stock_map_news_id ON news_stock_mapping(news_id);
 
 -- ── Strategies Config ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_strategies (

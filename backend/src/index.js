@@ -757,12 +757,15 @@ async function start() {
       redisClient.on('error', (e) => console.warn('[Redis]', e.message));
       await redisClient.connect();
       console.log('[Redis] Connected ✓');
+      // Init shared NSE session manager with Redis (UA rotation + cookie cache)
+      require('./services/nseSession').init(redisClient);
     } catch (e) {
       console.warn('[Redis] Unavailable — running without cache:', e.message);
       redisClient = null;
     }
   } else {
     console.log('[Redis] No REDIS_URL set — running without cache');
+    require('./services/nseSession').init(null); // no Redis — session works without cache
   }
 
   // 3. Connect PostgreSQL (optional — never blocks startup)

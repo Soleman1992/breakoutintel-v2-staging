@@ -1,5 +1,8 @@
--- 011_holdings_auth.sql
+-- 012_holdings_auth.sql
 -- Authentication for the Holdings module (/holdings-intel/*).
+--
+-- Renumbered from 011 -> 012: the breakoutintel-v2 repo independently shipped an
+-- 011_repair_news_schema.sql, and the two repos have since been consolidated.
 --
 -- Deliberately a SEPARATE table from the existing `users`, which is seeded in
 -- schema.sql with a well-known admin/admin123 credential and is used by the
