@@ -503,6 +503,18 @@ class ScannerService {
   // ══════════════════════════════════════════════════════════════════════════
   // MAIN SCAN
   // ══════════════════════════════════════════════════════════════════════════
+  // Non-blocking entry point. Every /scanner/* route awaits this.
+  //
+  // It used to run the full ~50s scan synchronously on a cold cache, so the FIRST
+  // request to any scanner endpoint after a Render cold-start (the free tier spins
+  // down when idle) hung until the scan finished and the client timed out —
+  // "Data unavailable — signal timed out" on breakout, volume, bulk and block
+  // deals. An HTTP handler must never block on a 50s job.
+  //
+  // Now: a warm cache returns instantly (unchanged); a cold cache kicks the scan
+  // off in the BACKGROUND (once — guarded by _scanning) and returns whatever we
+  // have right now. The very first call returns [] and the frontend's 45s poll
+  // picks up the fresh results a moment later; every call after that is instant.
   async runScan() {
     const cached = await this._get(CACHE_KEY);
     const cachedMeta = await this._get(CACHE_KEY_META);
@@ -512,6 +524,19 @@ class ScannerService {
       return this.lastResults;
     }
 
+    if (!this._scanning) {
+      this._scanning = true;
+      this._runFullScan()
+        .catch(e => console.warn('[Scanner] background scan failed: ' + e.message))
+        .finally(() => { this._scanning = false; });
+    }
+    return this.lastResults;   // stale or [] — never blocks the request
+  }
+
+  // The heavy full scan. Runs in the background via runScan(); never awaited by
+  // an HTTP handler. Callers that genuinely need to force a synchronous scan
+  // (e.g. a scheduled job) can await this directly.
+  async _runFullScan() {
     const startTime = Date.now();
     console.log(`[Scanner] Starting full scan — ${this.scanUniverse.length} stocks (liquidity-filtered from ${UNIVERSE.length})`);
     const results = [];
