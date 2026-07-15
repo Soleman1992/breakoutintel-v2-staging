@@ -950,6 +950,14 @@ async function start() {
     console.log('[Scanner] Breakout scanner ready ✓');
     console.log('[WebSocket] Streaming on /ws ✓');
 
+    // Give MarketDataService the scanner, so getAdvanceDecline() can read the
+    // scanner's Yahoo-priced universe instead of NSE (which blocks datacenter IPs
+    // and hung the top-bar A/D, Market Health, and Market Sentiment).
+    if (market && scanner) {
+      market.scanner = scanner;
+      console.log('[Market] Scanner injected for breadth ✓');
+    }
+
     // Inject market into portfolio + analytics services
     if (portfolio) {
       portfolio.market = market;

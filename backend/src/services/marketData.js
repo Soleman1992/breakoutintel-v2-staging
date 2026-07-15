@@ -139,62 +139,57 @@ class MarketDataService {
     }
   }
 
+  // Market breadth — advances vs declines across the market.
+  //
+  // SOURCE: the scanner's own universe (~1000 NSE/BSE stocks priced via Yahoo
+  // Finance), NOT NSE's advance/decline API.
+  //
+  // WHY: NSE's `equity-stockIndices` endpoint blocks datacenter IPs. From Render
+  // it hangs for 10 seconds and returns a 403/timeout on every call — which took
+  // the top-bar A/D (blanked to "— / —"), Market Health (stuck at
+  // dataComplete:false), and Market Sentiment (Unavailable) down with it, because
+  // all three read this one method. NSE's block is on the IP, not the headers, so
+  // no user-agent/cookie trick defeats it; the fix is to stop depending on NSE.
+  //
+  // The scanner already computes this exact breadth from Yahoo and serves it fine
+  // at /market/internals. This method now reads the same source, so the whole app
+  // has one breadth figure and it is always available. It is a broad-universe
+  // proxy, not NSE's official NIFTY-500 tally — directionally the same, count
+  // slightly different — and it works every time, which the official number did
+  // not. NSE-exclusive figures (FII/DII, corporate announcements) are unaffected
+  // and stay on NSE elsewhere.
+  //
+  // `this.scanner` is injected in index.js after both services exist.
   async getAdvanceDecline() {
-    const cacheKey = 'nse:advdec';
-    const cached = await this._safeRedisGet(cacheKey);
-    if (cached) return JSON.parse(cached);
+    const results = this.scanner?.lastResults || [];
 
-    // ── Index candidates in priority order ─────────────────────────────────
-    // 'BROAD MARKET INDICES' was retired by NSE (returns 404 since ~2025).
-    // 'NIFTY 500' is confirmed live — used by nseData.js getMarketBreadth().
-    // 'NIFTY 100' and 'NIFTY 50' are kept as fallbacks in case NSE renames again.
-    const NSE_ADV_DEC_INDICES = [
-      'NIFTY 500',   // 500-stock universe — best breadth signal; confirmed working
-      'NIFTY 100',   // fallback
-      'NIFTY 50',    // last resort — smaller but always present
-    ];
-
-    for (const indexName of NSE_ADV_DEC_INDICES) {
-      try {
-        const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(indexName)}`;
-        const resp = await axios.get(url, {
-          headers: nseSession.headers(),
-          timeout: 10000,
-        });
-        const data = resp.data?.data || [];
-        if (!data.length) continue; // try next index
-
-        let adv = 0, dec = 0, unch = 0;
-        data.forEach(s => {
-          if      (s.pChange > 0) adv++;
-          else if (s.pChange < 0) dec++;
-          else                    unch++;
-        });
-
-        const result = {
-          ok:        true,
-          advances:  adv,
-          declines:  dec,
-          unchanged: unch,
-          total:     data.length,
-          source:    indexName,
-          fetchedAt: Date.now(),
-        };
-        await this._safeRedisSet(cacheKey, 30, JSON.stringify(result));
-        return result;
-      } catch (e) {
-        const status = e.response?.status;
-        // 404 = retired endpoint name, 403 = session blocked — both expected;
-        // try next candidate silently. Log only on unexpected errors.
-        if (status !== 404 && status !== 403) {
-          console.warn(`[NSE] getAdvanceDecline (${indexName}): ${e.message}`);
-        }
-        // continue to next candidate
-      }
+    // Cold-start window only: the scanner warms ~2 minutes after boot. Report it
+    // honestly rather than blocking on NSE (which never answers anyway).
+    if (!results.length) {
+      return {
+        ok: false, advances: null, declines: null, unchanged: null,
+        fetchedAt: Date.now(),
+        error: 'Market breadth warming up — scanner has not completed its first pass',
+      };
     }
 
-    // All candidates failed — return ok:false without logging (callers handle gracefully)
-    return { ok: false, advances: null, declines: null, unchanged: null, fetchedAt: Date.now(), error: 'NSE A/D unavailable' };
+    // Same 0.05% dead-band /market/internals uses, so the two agree exactly.
+    let adv = 0, dec = 0, unch = 0;
+    for (const r of results) {
+      if      (r.chg >  0.05) adv++;
+      else if (r.chg < -0.05) dec++;
+      else                    unch++;
+    }
+
+    return {
+      ok:        true,
+      advances:  adv,
+      declines:  dec,
+      unchanged: unch,
+      total:     results.length,
+      source:    'Yahoo Finance · scanner universe',
+      fetchedAt: this.scanner?.lastMeta?.lastScanAt ? Date.parse(this.scanner.lastMeta.lastScanAt) : Date.now(),
+    };
   }
 
   // ── MARKET HEALTH SCORE ───────────────────────────────────────────────────
