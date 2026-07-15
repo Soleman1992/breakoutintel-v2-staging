@@ -46,6 +46,27 @@ class NSEDataService {
     return nseSession.get(url, timeout);
   }
 
+  // Fetch a STATIC archive file (nsearchives.nseindia.com) WITHOUT the session
+  // machinery. Critical distinction: nseSession.get() refreshes its cookie by
+  // hitting the dynamic homepage (www.nseindia.com) first, and that homepage is
+  // blocked from datacenter IPs — so on a cold/expired cookie every call hangs in
+  // the retry loop before the real fetch. The static CDN needs NO cookie (a plain
+  // browser User-Agent is enough), so we go straight there and never touch the
+  // blocked host. This is the door that is actually open from Render.
+  async _staticGet(url, timeout = 12000) {
+    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    try {
+      const resp = await axios.get(url, {
+        headers: { 'User-Agent': UA, 'Accept': '*/*', 'Accept-Language': 'en-US,en;q=0.9' },
+        timeout,
+        responseType: 'text',
+      });
+      return { ok: true, data: resp.data };
+    } catch (e) {
+      return { ok: false, error: e.response ? `HTTP ${e.response.status}` : e.message };
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // BULK DEALS
   // ══════════════════════════════════════════════════════════════════════════
@@ -123,7 +144,7 @@ class NSEDataService {
     if (cached) return JSON.parse(cached);
 
     const url = 'https://nsearchives.nseindia.com/content/equities/bulk.csv';
-    const result = await this._nseGet(url, 15000);
+    const result = await this._staticGet(url, 15000);
 
     if (!result.ok || typeof result.data !== 'string') {
       return { ok: false, error: result.error || 'Bulk deals unavailable', data: [], source: 'NSE Bulk Deals (archive)' };
@@ -144,7 +165,7 @@ class NSEDataService {
     if (cached) return JSON.parse(cached);
 
     const url = 'https://nsearchives.nseindia.com/content/equities/block.csv';
-    const result = await this._nseGet(url, 15000);
+    const result = await this._staticGet(url, 15000);
 
     if (!result.ok || typeof result.data !== 'string') {
       return { ok: false, error: result.error || 'Block deals unavailable', data: [], source: 'NSE Block Deals (archive)' };
