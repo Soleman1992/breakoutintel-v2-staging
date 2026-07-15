@@ -49,73 +49,109 @@ class NSEDataService {
   // ══════════════════════════════════════════════════════════════════════════
   // BULK DEALS
   // ══════════════════════════════════════════════════════════════════════════
-  async getBulkDeals(days = 7) {
+  // Parse one CSV line, honouring double-quoted fields (client and security
+  // names occasionally contain commas). NSE's deal CSVs are usually unquoted,
+  // but a naive split breaks the moment one isn't.
+  _csvLine(line) {
+    const out = [];
+    let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  // Shared parser for the static bulk/block deal CSVs. Column headers vary
+  // slightly between the two files, so match by fuzzy header name, not index.
+  _parseDealsCsv(csv, sourceLabel) {
+    const lines = String(csv).split('\n').filter(l => l.trim());
+    if (lines.length < 2) return { ok: false, error: 'Empty deals file', data: [], source: sourceLabel };
+
+    const headers = this._csvLine(lines[0]).map(h => h.toLowerCase());
+    const col = (frag) => headers.findIndex(h => h.includes(frag));
+
+    const iDate   = col('date');
+    const iSym    = col('symbol');
+    const iName   = col('security');
+    const iClient = col('client');
+    const iSide   = col('buy');       // "Buy/Sell"
+    const iQty    = col('quantity');
+    const iPrice  = col('price');
+
+    const data = lines.slice(1).map(line => {
+      const c = this._csvLine(line);
+      const side = (c[iSide] || '').toUpperCase();
+      return {
+        sym:        c[iSym]  || '',
+        name:       c[iName] || '',
+        clientName: c[iClient] || '',
+        dealType:   side.includes('BUY') ? 'BUY' : side.includes('SELL') ? 'SELL' : side,
+        qty:        Number((c[iQty]   || '0').replace(/,/g, '')) || 0,
+        price:      Number((c[iPrice] || '0').replace(/,/g, '')) || 0,
+        date:       c[iDate] || '',
+      };
+    }).filter(r => r.sym);
+
+    return { ok: true, data, source: sourceLabel, total: data.length };
+  }
+
+  // Bulk deals — from the STATIC archive CSV, not the dynamic API.
+  //
+  // The dynamic API (www.nseindia.com/api/historical/bulk-deals) is behind NSE's
+  // Cloudflare bot-detection, which blocks datacenter IPs — from Render it hung
+  // 12s and timed out on every call, breaking the whole Smart Money Activity view.
+  //
+  // The static archive (nsearchives.nseindia.com) is a plain CDN file host on
+  // different infrastructure. It is NOT bot-blocked — getBhavCopy already fetches
+  // from it successfully in production — and it needs no session cookie. This is
+  // the same institutional-deal data, from a door that is actually open to us.
+  //
+  // The archive file carries the latest trading day's deals (NSE keeps the last
+  // published file up on non-trading days), which is the freshest smart-money
+  // signal — better than a stale multi-day range.
+  async getBulkDeals(_days = 7) {
     const cacheKey = 'nse:bulkdeals';
     const cached = await this._get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const fmt = d => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    const url = 'https://nsearchives.nseindia.com/content/equities/bulk.csv';
+    const result = await this._nseGet(url, 15000);
 
-    const url = `https://www.nseindia.com/api/historical/bulk-deals?from=${fmt(from)}&to=${fmt(to)}`;
-    const result = await this._nseGet(url);
-
-    if (!result.ok) {
-      const fallback = { ok: false, error: result.error, data: [], source: 'NSE Bulk Deals API' };
-      return fallback;
+    if (!result.ok || typeof result.data !== 'string') {
+      return { ok: false, error: result.error || 'Bulk deals unavailable', data: [], source: 'NSE Bulk Deals (archive)' };
     }
 
-    const rows = result.data?.data || [];
-    const mapped = rows.map(r => ({
-      sym:        r.BD_SYMBOL || r.symbol,
-      name:       r.BD_SCRIP_NAME || r.scripName || '',
-      clientName: r.BD_CLIENT_NAME || r.clientName || '',
-      dealType:   r.BD_BUY_SELL || r.buySell || '',     // BUY / SELL
-      qty:        Number(r.BD_QTY_TRD || r.qty || 0),
-      price:      Number(r.BD_TP_WATP || r.price || 0),
-      date:       r.BD_DT_DATE || r.date || '',
-    }));
-
-    const payload = { ok: true, data: mapped, source: 'NSE Bulk Deals API', total: mapped.length };
-    await this._set(cacheKey, 1800, JSON.stringify(payload)); // 30 min cache
+    const payload = this._parseDealsCsv(result.data, 'NSE Bulk Deals (archive)');
+    if (payload.ok) await this._set(cacheKey, 1800, JSON.stringify(payload)); // 30 min
     return payload;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   // BLOCK DEALS
   // ══════════════════════════════════════════════════════════════════════════
-  async getBlockDeals(days = 7) {
+  // Block deals — static archive CSV, same rationale as getBulkDeals above.
+  async getBlockDeals(_days = 7) {
     const cacheKey = 'nse:blockdeals';
     const cached = await this._get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const fmt = d => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    const url = 'https://nsearchives.nseindia.com/content/equities/block.csv';
+    const result = await this._nseGet(url, 15000);
 
-    const url = `https://www.nseindia.com/api/historical/block-deals?from=${fmt(from)}&to=${fmt(to)}`;
-    const result = await this._nseGet(url);
-
-    if (!result.ok) {
-      return { ok: false, error: result.error, data: [], source: 'NSE Block Deals API' };
+    if (!result.ok || typeof result.data !== 'string') {
+      return { ok: false, error: result.error || 'Block deals unavailable', data: [], source: 'NSE Block Deals (archive)' };
     }
 
-    const rows = result.data?.data || [];
-    const mapped = rows.map(r => ({
-      sym:        r.BD_SYMBOL || r.symbol,
-      name:       r.BD_SCRIP_NAME || r.scripName || '',
-      clientName: r.BD_CLIENT_NAME || r.clientName || '',
-      dealType:   r.BD_BUY_SELL || r.buySell || '',
-      qty:        Number(r.BD_QTY_TRD || r.qty || 0),
-      price:      Number(r.BD_TP_WATP || r.price || 0),
-      date:       r.BD_DT_DATE || r.date || '',
-    }));
-
-    const payload = { ok: true, data: mapped, source: 'NSE Block Deals API', total: mapped.length };
-    await this._set(cacheKey, 1800, JSON.stringify(payload));
+    const payload = this._parseDealsCsv(result.data, 'NSE Block Deals (archive)');
+    if (payload.ok) await this._set(cacheKey, 1800, JSON.stringify(payload));
     return payload;
   }
 
