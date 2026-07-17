@@ -4761,16 +4761,30 @@ function getRecommendation(r) {
   var agree = r.agreementPct    || 0;
   var brk   = r.breakoutProb    || 0;
   var inst  = r.institutionalProb || 0;
+  var trend = r.trendContinuationProb || 0;
   var fb    = r.falseBORisk != null ? r.falseBORisk : 100;
   var dir   = r.direction || 'neutral';
   var label, cls, color;
 
+  // Conviction composite (0-100): weighs the signals that genuinely discriminate
+  // quality, rather than the raw consensus score (which compresses to ~35-55 and can
+  // never reach the old 70/82/90 gates). Smart-money participation and trap-risk safety
+  // dominate; momentum, trend, and cross-engine agreement confirm. confidence_score is
+  // deliberately excluded — it sits at ~72 for every stock and carries no signal.
+  var conviction = Math.round(
+    inst * 0.30 +          // institutional participation (smart money in)
+    (100 - fb) * 0.30 +    // safety: inverse of false-breakout / trap risk
+    brk * 0.20 +           // breakout momentum
+    trend * 0.10 +         // trend continuation
+    agree * 0.10           // cross-engine agreement
+  );
+
   if (dir === 'long') {
-    if (score >= 90 && agree >= 80 && fb <= 20 && brk >= 65 && inst >= 60)
+    if (conviction >= 72 && agree >= 100 && fb <= 40)
       { label = 'STRONG BUY';  cls = 'rec-sb'; color = '#22C55E'; }
-    else if (score >= 82 && agree >= 80 && fb <= 30 && brk >= 55)
+    else if (conviction >= 67 && agree >= 80)
       { label = 'BUY';         cls = 'rec-b';  color = '#4ADE80'; }
-    else if (score >= 70 && agree >= 60 && fb <= 50)
+    else if (conviction >= 60 && agree >= 80)
       { label = 'WATCHLIST';   cls = 'rec-wl'; color = '#60A5FA'; }
     else
       { label = 'NEUTRAL';     cls = 'rec-n';  color = '#EAB308'; }
