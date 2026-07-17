@@ -19,6 +19,28 @@
   --t1:#E8EEFB;--t2:#94A3C0;--t3:#4B607E;
   --up:#22C55E;--dn:#EF4444;--warn:#F59E0B;--acc:#2563EB;--acc2:#3B82F6;
 }
+/* ── COLOUR THEMES ────────────────────────────────────────────────────────────
+   Additive palette variants. Each overrides only the chrome variables (bg/border/
+   text/accent) that drive the dashboard's overall look; the semantic trading
+   colours (--up green, --dn red, --warn amber) stay constant across every theme so
+   green-up / red-down never changes. Selected via data-theme on <html>; default
+   (no attribute) is the original navy. Pure CSS — zero backend/storage cost. */
+:root[data-theme="slate"]{
+  --bg0:#0A0C10;--bg1:#12151B;--bg2:#1A1E26;--bg3:#232833;
+  --bd:#2A303B;--bd2:#3A414F;
+  --t1:#E9ECF1;--t2:#98A2B3;--t3:#5C6675;
+  --acc:#0D9488;--acc2:#14B8A6;
+}
+:root[data-theme="violet"]{
+  --bg0:#0B0814;--bg1:#150F22;--bg2:#1D1633;--bg3:#271D44;
+  --bd:#352852;--bd2:#463668;
+  --t1:#EDE9F7;--t2:#A99EC4;--t3:#665A82;
+  --acc:#7C3AED;--acc2:#9968F5;
+}
+.theme-sw{display:flex;align-items:center;gap:5px;padding:0 6px;margin-left:2px;flex-shrink:0}
+.theme-dot{width:13px;height:13px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-shadow:0 0 0 1px rgba(255,255,255,.12);transition:transform .12s,border-color .12s}
+.theme-dot:hover{transform:scale(1.18)}
+.theme-dot.active{border-color:var(--t1)}
 html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font-family:'SF Mono','Consolas','Courier New',monospace;font-size:11px}
 .term{display:flex;flex-direction:column;height:100vh}
 
@@ -462,6 +484,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--t1);font
     <div class="live-badge" id="live-badge"><span class="pulse"></span>Connecting...</div>
     <div class="auto-chip"><span class="pulse"></span>Refresh <span id="r-cnt" style="color:var(--t1);font-weight:500">15s</span></div>
     <div class="ts-box"><div id="r-time" style="font-size:12px;font-weight:500">--:--</div><div id="r-date" style="font-size:9px;color:var(--t3)">-- --- 2025</div></div>
+    <div class="theme-sw" title="Colour theme">
+      <div class="theme-dot" data-theme="navy"   style="background:#2563EB" onclick="setTheme('navy')"   title="Navy"></div>
+      <div class="theme-dot" data-theme="slate"  style="background:#14B8A6" onclick="setTheme('slate')"  title="Graphite"></div>
+      <div class="theme-dot" data-theme="violet" style="background:#9968F5" onclick="setTheme('violet')" title="Violet"></div>
+    </div>
     <div class="auth-chip" id="auth-chip" onclick="hiAuthChipClick()" title="Holdings module sign-in">
       <i class="ti ti-lock" id="auth-ic" style="font-size:12px"></i>
       <span id="auth-lb">Sign in</span>
@@ -1589,6 +1616,25 @@ document.addEventListener('DOMContentLoaded', hiPaint);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('hi-ov').classList.contains('show')) hiClose();
 });
+
+// ── COLOUR THEME ─────────────────────────────────────────────────────────────
+// Client-side palette switch: sets data-theme on <html>, which activates the CSS
+// variable overrides above. Persisted in localStorage. No network/backend cost.
+function setTheme(name){
+  var t = (name === 'slate' || name === 'violet') ? name : 'navy';
+  if (t === 'navy') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('bi-theme', t); } catch(e){}
+  document.querySelectorAll('.theme-dot').forEach(function(d){
+    d.classList.toggle('active', d.dataset.theme === t);
+  });
+}
+(function(){
+  var saved = 'navy';
+  try { saved = localStorage.getItem('bi-theme') || 'navy'; } catch(e){}
+  if (saved !== 'navy') document.documentElement.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', function(){ setTheme(saved); });
+})();
 
 // ─── HOLDINGS — Personal Portfolio Intelligence (PR-1a) ──────────────────────
 // Reads /holdings-intel/*, all of which require the bearer token. Every call goes
